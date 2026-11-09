@@ -17,3 +17,14 @@ Inspect the **single actual POST** to `/Forms/app_upload_1` in browser Developer
 Do **not** begin by changing the image's version or CRC: that would not be evidence-driven. If the upload actually completes and card returns a specific image-format/CRC/flash error, address that corresponding stage. If the request is interrupted or exceeds an HTTP server limit, investigate the NMC's transport and payload size separately.
 
 Vendor references: [Dell 01.18.0005 download](https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=x2jyn); [Dell NMC manual](https://usermanual.wiki/Dell/1508079828delllineinteractiverackups1920rusersguide14enus.2134937042.pdf) (firmware upload process and separate transfer / flash stages).
+
+## Operator browser evidence (2026-11-09)
+
+- Request: `POST http://192.168.0.174/Forms/app_upload_1`.
+- Response: `303 See Other`, `Location: http://192.168.0.174/app_upload.htm`, `Content-Length: 0`, `Server: Allegro-Software-RomPager/4.01`.
+- Browser request `Content-Length: 1533873`. Custom BIN has exactly 1,533,558 bytes; 315-byte request overhead is consistent with multipart form packaging. The actual request `Content-Type` value was omitted from the pasted capture and still needs confirmation.
+- Therefore the browser reached the native upload handler and received its redirect. The 303 by itself is *not* success, does not prove all body bytes were consumed, and does not prove any flash write started.
+- Error on redirected page: `ERROR : HTTP transfert failure`.
+- No `File format was not correct`, `File CRC was not correct`, or `Write firmware in FLASH failure` error was observed. This does not rule out an internal size/transport limit.
+- No supported root-cause conclusion or corrected BIN yet. Further evidence: DevTools POST Timing/Content-Type and redirect destination response, omitting authorization credentials.
+- **Security:** Operator's pasted Authorization header contained reversible Basic credentials. Avoid recording raw authorization headers in tickets or repository; rotate the NMC administrator password if that credential is still used.
