@@ -4,6 +4,7 @@
 Validates browser behavior without contacting or modifying the physical NMC.
 """
 from __future__ import annotations
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote
@@ -66,12 +67,15 @@ class Handler(BaseHTTPRequestHandler):
 
 def run():
     html=(FILES/'index.htm').read_text('ascii')
-    for path in DATA['repurposed_original_help_pages']:
-        code=(FILES/path.lstrip('/')).read_text('ascii')
-        html=html.replace('<script defer src="'+path+'"></script>','<script>'+code+'</script>')
-    assert 'defer src=' not in html
-    mock='<script>\nwindow.__rejectXML=false;window.__requests=[];\nwindow.fetch=async function(url,opt){window.__requests.push([url,opt?.method||\'GET\',opt?.body||\'\']);if(url===\'/get_object.xml\')return {ok:true,text:async()=>window.__rejectXML?\'not xml\':JSON_MOCK};if(url===\'/logevent.csv\')return {ok:true,text:async()=>"2026-11-08,AC Power Restored\\n2026-11-07,NMC Restart\\n"};return {ok:false,status:404,text:async()=>\'\'};};\n</script>'.replace('JSON_MOCK',json.dumps(MOCK.decode('utf8')))
-    html=html.replace('<html lang=en>', '<html lang=en>'+mock)
+    paths=DATA['repurposed_original_help_pages']
+    # Reproduce the *real* native page's script order without inventing an asset preload.
+    script_paths=re.findall(r'<script src=([^>]+)></script>',html)
+    assert script_paths == paths[1:] + paths[:1], 'Native entry page omits or reorders embedded scripts'
+    html=re.sub(r'<script src=([^>]+)></script>',
+        lambda m:'<script>'+(FILES/m.group(1).lstrip('/')).read_text('ascii')+'</script>',html)
+    assert '<script src=' not in html
+    mock='<script>\nwindow.__rejectXML=false;window.__requests=[];\nwindow.fetch=async function(url,opt){window.__requests.push([url,opt?.method||\'GET\',opt?.body||\'\']);if(url===\'/get_object.xml\')return {ok:true,text:async()=>window.__rejectXML?\'not xml\':JSON_MOCK};if(url===\'/product.xml\')return {ok:true,text:async()=>\'<PRODUCT><MODEL>Dell H910P</MODEL><PASSWORD>hidden-secret</PASSWORD><FIRMWARE>01.18.0005</FIRMWARE></PRODUCT>\'};if(url===\'/logevent.csv\')return {ok:true,text:async()=>"2026-11-08,AC Power Restored\\n2026-11-07,NMC Restart\\n"};return {ok:false,status:404,text:async()=>\'\'};};\n</script>'.replace('JSON_MOCK',json.dumps(MOCK.decode('utf8')))
+    html=html.replace('<html>', '<html>'+mock)
     report={};errors=[]
     with sync_playwright() as p:
         browser=p.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox'])
@@ -120,8 +124,13 @@ def run():
         assert phone.evaluate('document.documentElement.scrollWidth<=innerWidth+3')
         phone.screenshot(path=str(BASE/'instrument-panel-mobile.png'),full_page=True)
         report['secondary_mobile_fallback']='PASS'
+        page.locator('[data-page="system"]').click()
+        page.get_by_role('button',name='Read device identity').click()
+        page.get_by_text('Dell H910P',exact=True).wait_for(timeout=10000)
+        assert page.get_by_text('hidden-secret').count()==0
+        report['authenticated_product_identity_and_secret_filter']='PASS'
         requests=page.evaluate('window.__requests')
-        assert all((a=='/get_object.xml' and b=='POST' and c=='objectName=UPS.*') or (a=='/logevent.csv' and b=='GET') for a,b,c in requests)
+        assert all((a=='/get_object.xml' and b=='POST' and c=='objectName=UPS.*') or (a=='/logevent.csv' and b=='GET') or (a=='/product.xml' and b=='GET') for a,b,c in requests)
         assert not errors,errors
         report['no_external_requests_or_ups_writes']='PASS'
         report['uncaught_javascript_errors']=errors

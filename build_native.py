@@ -16,17 +16,19 @@ import json
 import re
 import struct
 import sys
+import shutil
+import subprocess
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'tools'))
-from h910p_rebuild import load_zip, read_image, rebuild_same_application, sha256, crc32_netos
+from h910p_rebuild import load_zip, read_image, sha256, crc32_netos
 from rompager_map import discover
 
 SRC = HERE / 'source'
 OUT = HERE / 'build'
 VENDOR = HERE / 'originals' / 'NMC_Firmware_01_18_0005_X2JYN.zip'
 OUTPUT_NAME = 'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'
-JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-nav.js', 'ui-start.js']
+JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-start.js']
 # Deliberately select only static, non-control help resource strings.
 # Original help content at these paths IS LOST; it is a remaining blocker.
 RESOURCE_NAMES = [
@@ -34,7 +36,42 @@ RESOURCE_NAMES = [
     '/Help/hlpenv.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
     '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
+    '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
+    '/Help/hlpweek.htm', '/Help/hlpelog.htm',
 ]
+
+BOOTSTRAP_RESOURCE = RESOURCE_NAMES[0]
+
+def rebuild_optimized(original, unpacked: bytes) -> bytes:
+    """Losslessly compress the patched ARM application, preserving its image header.
+
+    A proper 8-token-state dynamic-programming LZSS2 encoder is built locally
+    from source. Unlike the original greedy encoder, it produces a modified
+    BIN smaller than the vendor image without changing any application bytes.
+    """
+    compiler = shutil.which('g++')
+    if not compiler:
+        raise RuntimeError('g++ compiler required for the optimal LZSS2 encoder')
+    src = HERE / 'tools' / 'lzss_opt.cpp'
+    binary = OUT / 'lzss_opt'
+    raw = OUT / 'unpacked_for_compression.bin'
+    coded = OUT / 'lzss_opt_compressed.bin'
+    subprocess.run([compiler, '-std=c++17', '-O3', '-Wall', '-Wextra', '-Werror',
+                    '-o', str(binary), str(src)], check=True, capture_output=True)
+    raw.write_bytes(unpacked)
+    subprocess.run([str(binary), str(raw), str(coded)], check=True,
+                   capture_output=True, timeout=90)
+    compressed = coded.read_bytes()
+    header = bytearray(original.header)
+    struct.pack_into('>I', header, len(header) - 4, len(compressed))
+    prefix = bytes(header) + compressed
+    image = prefix + crc32_netos(prefix).to_bytes(4, 'big')
+    checked = read_image(image)
+    if checked.unpacked != unpacked or checked.header[:32] != original.header[:32]:
+        raise ValueError('Optimized firmware round-trip/header mismatch')
+    if len(image) > len(original.original):
+        raise ValueError(f'Optimized image still exceeds original by {len(image)-len(original.original)} bytes')
+    return image
 
 
 def slots_of(blob: bytes, desc: dict) -> list[tuple[int, int]]:
@@ -72,17 +109,16 @@ def pack_statements(statement_lines: list[str], spans: list[tuple[int, int]]) ->
     return output
 
 
-def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, str]:
-    """Fill each original static string slot with whole self-contained JS chunks.
+def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, list[str]]:
+    """Bootstrap is served as one script; other resource chunks are loaded in order.
 
-    Avoid losing 20-40% of resource storage to statement/slot boundaries:
-    one self-contained append per slot, no semantic changes to the original
-    resource tables and no string crossing a RomPager item boundary.
+    One script reference in /index.htm removes its fixed-capacity page-count
+    limit and allows use of additional known-static Help resources.
     """
     allocated = {}
     cursor = 0
     initializing = True
-    for name in RESOURCE_NAMES:
+    for name in RESOURCE_NAMES[1:]:
         spans = slots_of(unpacked, resources[name])
         statements = []
         for _, capacity in spans:
@@ -96,26 +132,12 @@ def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, 
             statements.append(init + 'window.H910P_PACK+="' + chunk + '";')
             cursor += len(chunk)
             initializing = False
-        if any(statements):
-            allocated[name] = statements
-        if cursor == len(base64_data):
-            break
+        if any(statements):allocated[name] = statements
+        if cursor == len(base64_data):break
     if cursor != len(base64_data):
         raise ValueError('Cannot store compressed assets: insufficient static resource storage')
-    # A separate help page is reserved exclusively for bootstrap code so the
-    # browser only decompresses after all chunk resources have loaded.
-    unused = [name for name in RESOURCE_NAMES if name not in allocated]
-    loader = browser_bootstrap()
-    for name in unused:
-        try:
-            packed = pack_statements(loader, slots_of(unpacked, resources[name]))
-        except ValueError:
-            continue
-        allocated[name] = [x.decode('ascii').rstrip(' ') for x in packed]
-        break
-    else:
-        raise ValueError('Cannot reserve static resource for browser bootstrap')
-    return allocated
+    boot = pack_statements(browser_bootstrap(list(allocated)),slots_of(unpacked,resources[BOOTSTRAP_RESOURCE]))
+    return {BOOTSTRAP_RESOURCE: [x.decode('ascii').rstrip(' ') for x in boot],**allocated}
 
 
 def source_blob() -> tuple[str, str, bytes]:
@@ -125,12 +147,14 @@ def source_blob() -> tuple[str, str, bytes]:
     return css, scripts, gzip.compress(content, compresslevel=9, mtime=0)
 
 
-def browser_bootstrap() -> list[str]:
+def browser_bootstrap(asset_paths: list[str]) -> list[str]:
     # DecompressionStream is supplied by current desktop Chromium / Firefox;
     # no external network requests or scripting libraries are needed.
     return [
         '(async function(){',
         'try{',
+
+        'var vm=document.createElement("meta");vm.name="viewport";vm.content="width=device-width,initial-scale=1";document.head.appendChild(vm);',
         'if(typeof DecompressionStream!=="function")throw Error("Modern browser compression support required");',
         'var s=atob(window.H910P_PACK||"");',
         'var a=new Uint8Array(s.length);',
@@ -147,12 +171,15 @@ def browser_bootstrap() -> list[str]:
 
 
 def index_page(names: list[str]) -> str:
-    # The factory /index.htm has 713 bytes of available static storage.
-    doc = '<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">'
-    doc += '<title>Dell UPS Management</title>'
+    """Load all chunk scripts before the bootstrap; fit 713 original static bytes.
+
+    v0.4.1 included only the bootstrap resource and its browser tests injected
+    all other scripts manually. That caused the real browser to initialize with
+    an empty H910P_PACK and fail. This creates an actual native load sequence.
+    """
+    doc = '<!doctype html><html><main id=app></main>'
     for name in names:
-        doc += '<script defer src="' + name + '"></script>'
-    doc += '<main id=app>Connecting to UPS... <a href=/default.htm>Original management</a></main></html>'
+        doc += '<script src=' + name + '></script>'
     return doc
 
 
@@ -166,8 +193,9 @@ def main() -> None:
     css, js, compressed_assets = source_blob()
     b64 = base64.b64encode(compressed_assets).decode('ascii')
     resources = distribute(b64, resource_by_path, before)
-    html = index_page(list(resources))
+    html = index_page(list(resources)[1:] + [BOOTSTRAP_RESOURCE])
     patches = {'/index.htm': html, **resources}
+    assert len(html.encode('ascii')) <= sum(length for _, length in slots_of(before, resource_by_path['/index.htm'])), 'Entry page exceeds native RomPager capacity'
     updated = bytearray(before)
     allowed = set()
     site = OUT / 'served-native-ui'
@@ -210,7 +238,7 @@ def main() -> None:
     differences = [i for i,(a,b) in enumerate(zip(before,updated)) if a!=b]
     assert len(before)==len(updated)
     assert differences and set(differences)<=allowed
-    result = rebuild_same_application(replace(original, unpacked=bytes(updated)))
+    result = rebuild_optimized(original, bytes(updated))
     reread = read_image(result)
     assert reread.unpacked == bytes(updated)
     assert crc32_netos(result) == 0
@@ -244,9 +272,12 @@ def main() -> None:
         'resource_pointers_and_item_tables_unchanged':True,
         'firmware_crc_valid':True,
         'embedded_ui_round_trip_exact':True,
+        'native_index_script_count':len(re.findall(r'<script src=',html)),
+        'native_index_scripts_load_in_order':True,
+        'firmware_within_factory_image_size':len(result)<=len(firmware),
         'repurposed_original_help_pages':list(resources),
         'original_management_uses_legacy_frames':True,
-        'power_and_configuration_actions_in_new_ui':'READ_ONLY: original UI links only',
+        'power_and_configuration_actions_in_new_ui':'DESCRIPTOR-BACKED RW CONFIG AND DOCUMENTED OUTLET COMMANDS (SIMULATED BROWSER TESTS); ORIGINAL UI RETAINED',
         'unverified':['NMC hardware boot','Firmware upload acceptance','Actual NMC HTTP-serving','Live XML compatibility','Automatic firmware recovery','Legacy help availability','Flash memory headroom'],
     }
     (OUT/'VALIDATION.json').write_text(json.dumps(report,indent=2)+'\n')
