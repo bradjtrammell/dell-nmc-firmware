@@ -2,6 +2,18 @@
 
 A desktop-first, offline-capable web management interface **embedded directly into Dell H910P NMC firmware** (Dell base `01.18.0005`). No CDN, external management server, cloud service, or Docker is needed to browse the UI. All new frontend code is here in source form; the vendor NET+OS firmware remains proprietary.
 
+## v0.5.2 — Authentication and sign-in backdrop correction
+
+**Candidate; not yet tested on physical hardware.** Firmware size: **1,515,865 bytes** (1,164 bytes under the Dell factory BIN). SHA-256: `e45b92abbd02555818332a0b4638fe8cfe440dd1d25a9727bd6c68271904167a`. The owner reported that the v0.5.1 login rejected credentials accepted by the OEM card, and the sign-in background appeared to stop before the bottom of the screen.
+
+- **Root cause of login failure in the frontend:** v0.5.1 explicitly used `fetch('/app_upload.htm', {credentials:'omit', headers:{Authorization:...}})`. Per the Fetch API, `omit` excludes HTTP authentication credentials. This release uses `credentials:'same-origin'` and continues to send the candidate Basic header explicitly; the card's real protected endpoint remains the authorization source. No device password is hardcoded into the distributed firmware.
+- **Root cause of background stripe:** a deliberate linear gradient left a contrasting bottom band. Replace it with a solid background, extend the sign-in surface to `100dvh` with `100vh` fallback, and apply the same background to the root while signing in. The login content is now a `div` nested inside the existing outer `main` instead of invalid nested `main` elements.
+- **Test fix:** browser tests now require the correct credential mode and assert sign-in surface geometry, background consistency, and semantic markup. The standalone **interactive demo** accepts any nonempty credentials locally and announces that it is simulated; real firmware does not include that demo bypass. Generate it with `python3 tools/build_demo.py --output build/H910P_offline_demo.html`.
+
+The card's original HTTP Basic authentication implementation is unchanged. **A browser-auth success in simulation is not proof that the corrected request works on a physical H910P**. Current hardware-proven baseline remains the user's working v0.5.1 until this build is installed and verified.
+
+---
+
 ## v0.5.1 — Notification manager, Dell branding and authenticated sign-in
 
 **Hardware status:** v0.5.0 was reported installed by the owner; v0.5.1 is built and browser-tested **offline only**, and must not be represented as tested on a real H910P until installation and read-only verification are reported.

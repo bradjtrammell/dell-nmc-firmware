@@ -23,7 +23,7 @@ window.fetch=async function(url,opt){
  var m=(opt&&opt.method)||'GET',b=(opt&&opt.body)||'';
  window.__calls.push({url:url,method:m,body:typeof b==='string'?b:'FORMDATA'});
  var response='';
- if(url==='/app_upload.htm'){return opt&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4='?{ok:true,status:200,text:async function(){return 'OK'}}:{ok:false,status:401,text:async function(){return 'Denied'}}}
+ if(url==='/app_upload.htm'){return opt&&opt.credentials==='same-origin'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4='?{ok:true,status:200,text:async function(){return 'OK'}}:{ok:false,status:401,text:async function(){return 'Denied'}}}
  if(url==='/get_object.xml'){
   if(b==='objectName=UPS.*')response='<GET_OBJECT><OBJECT name="UPS.PowerSummary.PercentLoad">53</OBJECT><OBJECT name="UPS.PowerSummary.RemainingCapacity">100</OBJECT></GET_OBJECT>';
   else if(b==='objectName=System.*')response='<GET_OBJECT>'+Object.keys(window.__current).map(function(k){return '<OBJECT name="'+k+'">'+window.__current[k]+'</OBJECT>'}).join('')+'</GET_OBJECT>';
@@ -121,7 +121,7 @@ def main():
   report['event_severity_filter_and_search']='PASS'
   page.screenshot(path=str(ROOT/'build'/'events-desktop.png'),full_page=True)
   page.locator('[data-page="firmware"]').click()
-  assert page.get_by_text('v0.5.1').count()>=1
+  assert page.get_by_text('v0.5.2').count()>=1
   assert page.get_by_text('Automatic updates are being developed').count()==1
   report['firmware_status_and_nonfunctional_updater_not_misrepresented']='PASS'
   page.locator('[data-page="controls"]').click()

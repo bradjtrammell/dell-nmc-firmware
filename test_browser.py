@@ -79,7 +79,7 @@ window.__rejectXML=false;window.__requests=[];
 window.fetch=async function(url,opt){
  window.__requests.push([url,(opt&&opt.method)||'GET',(opt&&opt.body)||'']);
  if(url==='/app_upload.htm'){
-  if(opt&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4=')return {ok:true,status:200,text:async function(){return 'OK'}};
+  if(opt&&opt.credentials==='same-origin'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4=')return {ok:true,status:200,text:async function(){return 'OK'}};
   return {ok:false,status:401,text:async function(){return 'Denied'}};
  }
  if(url==='/get_object.xml')return {ok:true,status:200,text:async function(){return window.__rejectXML?'not xml':JSON_MOCK}};
@@ -96,6 +96,20 @@ window.fetch=async function(url,opt){
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.set_content(html,wait_until='load')
         page.get_by_role('heading',name='Sign in to your UPS').wait_for(timeout=15000)
+        sizing=page.evaluate('''() => {
+          const panel=document.querySelector('.signin-page');
+          const css=getComputedStyle(panel);
+          const html=getComputedStyle(document.documentElement);
+          return { panelHeight:panel.getBoundingClientRect().height,
+                   viewportHeight:innerHeight, background:css.backgroundColor,
+                   pageBackground:html.backgroundColor, image:css.backgroundImage,
+                   nestedMain:panel.tagName==='MAIN' };
+        }''')
+        assert sizing['panelHeight']>=sizing['viewportHeight'],sizing
+        assert sizing['image']=='none',sizing
+        assert sizing['background']==sizing['pageBackground'],sizing
+        assert sizing['nestedMain'] is False,sizing
+        report['login_background_full_viewport_and_semantic_markup']='PASS'
         page.screenshot(path=str(BASE/'login-desktop.png'),full_page=True)
         assert page.locator('#sidebar').count()==0
         page.locator('#signin-user').fill('invalid')
@@ -176,6 +190,7 @@ window.fetch=async function(url,opt){
         page.get_by_text('53%',exact=True).first.wait_for(timeout=12000)
         assert page.locator('#sidebar').count()==1
         report['real_oem_authentication_login_and_lock']='PASS'
+        report['login_basic_auth_same_origin_credentials']='PASS'
         assert not errors,errors
         report['no_external_requests_or_ups_writes']='PASS'
         report['uncaught_javascript_errors']=errors

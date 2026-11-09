@@ -32,7 +32,7 @@
 .dell-brand-logo{width:142px;height:44px;object-fit:contain;flex:none;display:block;margin-right:8px}
 .brand{gap:8px}.brand-text{font-size:11px;line-height:1.45}.brand-text small{font-size:9px}
 .dell-header-logo{display:none!important}.lock-action{display:flex;align-items:center;gap:7px;background:transparent;color:#375a69;border:1px solid #c4d4dc;border-radius:4px;padding:9px 12px;cursor:pointer;font:600 12px inherit;white-space:nowrap}.lock-action .ic{width:15px;height:15px}.lock-action:hover{background:#eaf2f6}.lock-action:focus-visible{outline:3px solid #c17828;outline-offset:2px}
-.signin-page{min-height:100vh;background:#e7eef1;display:grid;place-items:center;padding:28px 16px;background-image:linear-gradient(0deg,transparent 49px,#dbe7ec 50px)}
+.signin-page{width:100%;min-height:100vh;min-height:100dvh;background:#e7eef1;display:grid;place-items:center;padding:28px 16px}html:has(.signin-page),body:has(.signin-page),#app:has(.signin-page){background:#e7eef1;min-height:100%}
 .signin-panel{background:white;width:min(420px,100%);box-shadow:0 24px 80px #27445028;border-top:5px solid #007db8;padding:36px 40px 28px}
 .signin-brand{display:flex;align-items:center;gap:19px;border-bottom:1px solid #deeaee;padding-bottom:27px;margin-bottom:26px;font-size:13px;font-weight:650;color:#36596c}
 .signin-logo{display:block;background:#164b69;width:126px;height:49px;object-fit:contain;padding:8px}

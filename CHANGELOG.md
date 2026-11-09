@@ -1,3 +1,13 @@
+# v0.5.2 — Sign-in fix and full-height background
+
+- Firmware: **1,515,865 bytes**, SHA-256 `e45b92abbd02555818332a0b4638fe8cfe440dd1d25a9727bd6c68271904167a`; 1,164 bytes under the factory image.
+
+- Fixed same-origin Dell HTTP Basic credential forwarding (`credentials:'omit'` had broken the login check).
+- Corrected sign-in backdrop to a full-height, solid canvas; removed the misleading 49px gradient strip.
+- Avoided nested `<main>` elements on the sign-in page.
+- Added browser regression checks for credential handling and complete sign-in background coverage.
+- Updated the simulated offline demo to make its fake login explicit.
+
 # Change log
 
 ## 0.5.1 — 2026-11-09 — UI accessibility, recipients, and login

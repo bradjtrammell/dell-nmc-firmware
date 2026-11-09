@@ -6,7 +6,7 @@ U.auth={header:'',name:'',pending:false};
 U.authLogo=U.brandLogo||'';
 U.signInScreen=function(error){
  var app=document.getElementById('app');
- app.innerHTML='<main class="signin-page"><section class="signin-panel" aria-labelledby="signin-title"><div class="signin-brand"><img class="signin-logo" alt="Dell" src="'+U.authLogo+'"><span>UPS management</span></div><div class="signin-status">'+U.ico('shield')+' Management card sign-in</div><h1 id="signin-title">Sign in to your UPS</h1><p>Use the username and password configured on your network management card.</p><form id="signin-form"><label for="signin-user">Username</label><input id="signin-user" name="username" autocomplete="username" maxlength="80" required value="'+U.esc(U.auth.name)+'"><label for="signin-pass">Password</label><input id="signin-pass" name="password" type="password" autocomplete="current-password" required><div id="signin-error" class="signin-error" role="alert" '+(error?'':'hidden')+'>'+U.esc(error||'')+'</div><button type="submit" class="signin-submit" id="signin-button" '+(U.auth.pending?'disabled':'')+'>'+U.ico('lock')+' Sign in</button></form><div class="signin-foot">Connected to '+U.esc(location.hostname||'your UPS')+'<span> · </span> Management stays on this device</div></section></main>';
+ app.innerHTML='<div class="signin-page"><section class="signin-panel" aria-labelledby="signin-title"><div class="signin-brand"><img class="signin-logo" alt="Dell" src="'+U.authLogo+'"><span>UPS management</span></div><div class="signin-status">'+U.ico('shield')+' Management card sign-in</div><h1 id="signin-title">Sign in to your UPS</h1><p>Use the username and password configured on your network management card.</p><form id="signin-form"><label for="signin-user">Username</label><input id="signin-user" name="username" autocomplete="username" maxlength="80" required value="'+U.esc(U.auth.name)+'"><label for="signin-pass">Password</label><input id="signin-pass" name="password" type="password" autocomplete="current-password" required><div id="signin-error" class="signin-error" role="alert" '+(error?'':'hidden')+'>'+U.esc(error||'')+'</div><button type="submit" class="signin-submit" id="signin-button" '+(U.auth.pending?'disabled':'')+'>'+U.ico('lock')+' Sign in</button></form><div class="signin-foot">Connected to '+U.esc(location.hostname||'your UPS')+'<span> · </span> Management stays on this device</div></section></div>';
  document.getElementById('signin-form').addEventListener('submit',U.authSubmit);
  (error?document.getElementById('signin-pass'):document.getElementById('signin-user')).focus();
 };
@@ -19,7 +19,7 @@ U.authSubmit=function(e){
  /* HTTP Basic is native to Dell's OEM card; use its existing permission check. */
  var header='Basic '+btoa(unescape(encodeURIComponent(name+':'+pass)));
  var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},10000);
- fetch('/app_upload.htm',{method:'GET',credentials:'omit',cache:'no-store',headers:{Authorization:header},signal:controller.signal}).then(function(res){
+ fetch('/app_upload.htm',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{Authorization:header},signal:controller.signal}).then(function(res){
   if(res.status===401||res.status===403)throw Error('The username or password was not accepted.');
   if(!res.ok)throw Error('The card returned HTTP '+res.status+'. Please try again.');
   U.auth.header=header;U.auth.name=name;U.auth.pending=false;
