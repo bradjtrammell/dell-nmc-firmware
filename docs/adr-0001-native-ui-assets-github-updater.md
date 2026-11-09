@@ -7,12 +7,21 @@
 
 ## Decision
 
-1. Keep the UPS controller, original executable and recovery UI in the NMC firmware.
+1. Retain the working UPS-management backend, authentication, networking, firmware-upload handler, and firmware boot/update logic. **Do not retain the complete legacy Dell web frontend** once the replacement UI has verified feature parity. Reclaim its HTML/CSS/JS, frames, help and redundant graphics only after classifying their actual firmware references. Preserve a **minimal static, firmware-resident recovery/upload page**, independent of the modern UI bundle and external services.
 2. Move changeable custom HTML, CSS, JavaScript and logo assets into a **persistent NMC-local asset store** *only after* the hardware's usable flash region, mount/format, resource serving, and transactional file-writing primitives are established.
 3. Provide a fully native management **Updates** page that discovers versioned, integrity-checked UI packages published through GitHub and installs them to that store. No Docker, external app, cloud back-end, or proxy is a runtime dependency. A user-initiated browser download-and-upload bridge is acceptable *only as a compatibility fallback* if the old NET+OS TLS stack cannot fetch GitHub securely itself; it must still install persistently on the NMC.
-4. The firmware-resident `/index.htm` must be a bootable recovery/safe-mode entry point. Never make the card's management and firmware recovery depend on a downloaded UI asset.
+4. The firmware-resident management entry must have a separate **static safe-mode / factory-reflash route** (prefer reusing the existing `/app_upload.htm` RomPager resource and `/Forms/app_upload_1` callback, pending validation). The recovery path must work with JavaScript disabled and with custom UI assets missing or corrupted. Do not make firmware recovery depend on a downloaded asset, GitHub availability, or the original full Dell interface.
 5. **Do not** implement an updater button which links to GitHub but cannot write a verified asset to the card. Until every required primitive works on the real NMC, display the updater as **unavailable/unsupported**, not functional.
 6. Postpone **Option B**: fetching and installing full firmware images from GitHub. It is a separate higher-risk feature and must not be enabled accidentally by an asset-update path.
+
+## Legacy UI retirement policy (owner approved 2026-11-09)
+
+- **Target:** one complete modern UI, not a permanent `/default.htm` Dell UI alongside `/index.htm`.
+- **Rollback mechanism:** offer a local upload of the *user-supplied* unmodified Dell firmware BIN through the existing NMC update engine. Firmware recovery is a small, self-contained built-in page and must not require the large stock Dell UI.
+- **Preconditions:** demonstrate on a real card that authentication, upload, status reporting, and stock firmware restoration work with the modern app assets disabled. Verify that remaining backend handlers do not reference removed Dell JS/HTML pages, forms, resource descriptors, or static error strings.
+- **Limitation:** a firmware reflash via HTTP is only possible if the device has booted and its network, authentication, and update handler remain usable. It is not a recovery mechanism for a non-booting image. No serial/JTAG/bootloader recovery claim until proven.
+- **Accounting:** inventory compressed and uncompressed bytes, pointer tables, code/data references, and flash erase boundaries before treating removed legacy pages as free space. Do not treat savings in the compressed BIN as arbitrary writable storage.
+- **Staging:** retain the proven v0.4.2 image and original factory archive as owner-controlled recovery references; remove legacy UI resources only after the new page-by-page feature parity and independent rescue-upload testing are complete.
 
 ## Basis in actual 01.18.0005 firmware
 
@@ -49,7 +58,7 @@ Demonstrate successful installation on physical H910P, persistent availability a
 
 ## Work sequencing
 
-- First: finish real content and device-backed workflows for all management destinations; incorporate the provided Dell logo as exact white artwork with alpha in the upper right. Preserve established visual language and OEM fallback.
+- First: finish real content and device-backed workflows for all management destinations; incorporate the supplied Dell logo as exact white artwork with alpha in the upper right. Preserve the established visual language and a **minimal native firmware-recovery upload page**, not the entire legacy Dell web interface.
 - In parallel: non-destructive storage and web-serving feasibility audit; implement the UI asset package builder and manifest validations *offline*.
 - Then: wire a real updater screen and native installer only after the hardware feasibility gates are met.
 - Later: separate ADR for full-firmware downloads/flash updates (Option B).
@@ -57,5 +66,5 @@ Demonstrate successful installation on physical H910P, persistent availability a
 ## Present implementation state (2026-11-09)
 
 - **Confirmed:** 0.4.2 firmware accepted, written, rebooted; `/index.htm` serves the custom UI.
-- **Unverified/not implemented:** writable independent UI asset storage, asset-serving overlay, atomic activation/rollback, GitHub retrieval, updater installation, and complete non-dashboard management screens.
+- **Unverified/not implemented:** writable independent UI asset storage, asset-serving overlay, atomic activation/rollback, GitHub retrieval, updater installation, complete non-dashboard management screens, safe elimination of legacy RomPager pages, and a validated factory-firmware reflash path through the replacement recovery page.
 - The currently tested custom UI is **still embedded in the firmware**; changing a file in the GitHub repository does **not** update the running card.
