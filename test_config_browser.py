@@ -10,11 +10,8 @@ from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parent
 SITE=ROOT/'build'/'served-native-ui'
 META=json.loads((ROOT/'build'/'VALIDATION.json').read_text())
-html=(SITE/'index.htm').read_text('ascii')
-paths=META['repurposed_original_help_pages']
-script_paths=re.findall(r'<script src=([^>]+)></script>',html)
-assert script_paths == paths[1:]+paths[:1], 'Native entry page omitted or reordered a required script'
-html=re.sub(r'<script src=([^>]+)></script>',lambda m:'<script>'+(SITE/m.group(1).lstrip('/')).read_text('ascii')+'</script>',html)
+from tools.embedded_assets import inline_html
+html=inline_html(ROOT)
 mock=r'''<script>
 window.__calls=[];window.__writes=[];
 window.__current={"System.Network.IPMask":"255.255.255.0","System.Network.DHCP":"0","System.Network.SmtpServer.HostName":"mail.lan","System.Email.Sender":"ups@example.test","System.Email.Subject":"UPS Alert","System.Security.Password":"private-value","System.Time.NTPServer":"ntp.lan","System.Email[0].Recipient":"recipient1@domain.com","System.Email[0].Selected":"0","System.Email[0].EventList.Discharging":"0","System.Email[0].EventList.RunTimeToShutdown":"1","System.Email[0].EventList.InternalFailure.1":"1","System.Email[1].Recipient":"recipient2@domain.com","System.Email[1].Selected":"0","System.Email[1].EventList.Discharging":"0","System.Email[1].EventList.RunTimeToShutdown":"1","System.Email[1].EventList.InternalFailure.1":"1","System.Email[2].Recipient":"recipient3@domain.com","System.Email[2].Selected":"0","System.Email[2].EventList.Discharging":"0","System.Email[2].EventList.RunTimeToShutdown":"1","System.Email[2].EventList.InternalFailure.1":"1","System.Email[3].Recipient":"recipient4@domain.com","System.Email[3].Selected":"0","System.Email[3].EventList.Discharging":"0","System.Email[3].EventList.RunTimeToShutdown":"1","System.Email[3].EventList.InternalFailure.1":"1"};
@@ -121,9 +118,11 @@ def main():
   report['event_severity_filter_and_search']='PASS'
   page.screenshot(path=str(ROOT/'build'/'events-desktop.png'),full_page=True)
   page.locator('[data-page="firmware"]').click()
-  assert page.get_by_text('v0.5.2').count()>=1
-  assert page.get_by_text('Automatic updates are being developed').count()==1
-  report['firmware_status_and_nonfunctional_updater_not_misrepresented']='PASS'
+  assert page.get_by_text('v0.5.3').count()>=1
+  assert page.locator('#github-check').count()==1
+  assert page.locator('#firmware-file').count()==1
+  page.screenshot(path=str(ROOT/'build'/'firmware-updater-desktop.png'),full_page=True)
+  report['github_release_check_and_local_firmware_upload_controls']='PASS'
   page.locator('[data-page="controls"]').click()
   assert page.locator('[data-power]').count()>=1
   assert page.get_by_role('button',name='Power off').count()==1
@@ -135,6 +134,50 @@ def main():
   page.get_by_text('POWER OFF command submitted').wait_for(timeout=10000)
   assert len(page.evaluate('window.__writes'))>=2
   report['power_command_requires_exact_typed_confirmation']='PASS'
+  # Device returns malformed descriptor; the exact OEM map keeps every page visible.
+  page.evaluate("""() => {
+   const old = window.fetch;
+   window.fetch = (url,options) => url==='/configuration_descriptor.xml' ?
+       Promise.resolve({ok:true,status:200,text:async()=>'<html>error</html>'}) : old(url,options);
+   U.config.loaded=false;
+  }""")
+  page.locator('[data-page="network"]').click()
+  page.evaluate('U.loadConfig()')
+  page.get_by_text('Showing the original firmware field catalog',exact=False).wait_for(timeout=12000)
+  assert page.locator('.setting-row').count()>=1
+  page.locator('[data-page="notification"]').click()
+  assert page.locator('.recipient').count()==4
+  report['malformed_descriptor_falls_back_to_exact_oem_catalog']='PASS'
+  page.evaluate("""() => {
+    U.config.valuesLive=false;
+  }""")
+  page.locator('[data-page="network"]').click()
+  page.locator('[data-edit]').first.click()
+  assert page.get_by_text('Editing is disabled until the card supplies live configuration values',exact=False).count()>0
+  report['no_configuration_writes_without_live_values']='PASS'
+  # Real GitHub API response is simulated; no firmware upload is attempted.
+  page.evaluate("""() => {
+    const old=window.fetch;
+    window.fetch=(url,options)=>String(url).startsWith('https://api.github.com/') ?
+     Promise.resolve({ok:true,status:200,json:async()=>({name:'Test release',tag_name:'v0.5.9',html_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/tag/v0.5.9',assets:[{name:'H910P_test.bin',browser_download_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/download/v0.5.9/H910P_test.bin'}]})}) : old(url,options);
+  }""")
+  page.locator('[data-page="firmware"]').click()
+  page.locator('#github-check').click()
+  page.get_by_text('Test release').wait_for(timeout=10000)
+  assert page.locator('a[href*="H910P_test.bin"]').count()==1
+  report['github_release_discovery_shows_compatible_bin']='PASS'
+  page.evaluate("""() => {
+    const old=window.fetch;
+    window.fetch=(url,options)=>url==='/Forms/app_upload_1' ?
+      (window.__firmwarePost=true,Promise.resolve({ok:false,status:302,type:'opaqueredirect'})) : old(url,options);
+  }""")
+  page.on('dialog',lambda dialog:dialog.accept())
+  page.locator('#firmware-file').set_input_files(str(ROOT/'build'/'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'))
+  page.locator('#firmware-install').click()
+  page.get_by_text('Uploader returned a redirect',exact=False).wait_for(timeout=15000)
+  assert not page.get_by_text('Firmware successfully installed').count()
+  assert page.evaluate('window.__firmwarePost') is True
+  report['real_bin_header_crc_browser_validation_and_no_false_flash_success']='PASS'
   assert not errors,errors
   report['uncaught_javascript_errors']=errors
   browser.close()

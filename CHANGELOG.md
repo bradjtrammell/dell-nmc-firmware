@@ -1,3 +1,12 @@
+# v0.5.3 — Firmware-derived config catalog, GitHub release checks, full BIN CRC validation
+
+- Prevent invalid descriptor XML from disabling every configuration page: fallback to writable fields extracted from the original OEM application, warn clearly and require live values before editing.
+- Restore actual editable System profile fields; make product identity useful when the OEM XML schema differs.
+- Add GitHub release lookup and compatible BIN links, plus on-device firmware-upload interface backed by complete NET+OS header/CRC validation and explicit hardware confirmation.
+- Expand ROM bootstrap from a fixed 16+ `<script>` page to a deterministic sequential loader; reclaim dead OEM menu/default/style strings to meet the factory image-size limit.
+- Test malformed descriptor response, no-write fallback, GitHub release discovery, browser BIN integrity, native asset loader, controls, login, events, and modal editing against simulated NMC.
+- **Not implemented:** persistent Flash0 UI-only OTA, direct native HTTPS push, hardware-proven browser POST or full native workflow parity. No such feature is presented as complete.
+
 # v0.5.2 — Sign-in fix and full-height background
 
 - Firmware: **1,515,865 bytes**, SHA-256 `e45b92abbd02555818332a0b4638fe8cfe440dd1d25a9727bd6c68271904167a`; 1,164 bytes under the factory image.

@@ -43,7 +43,14 @@ U.loadIdentity=function(){
    }else children.forEach(function(child){visit(child,key)});
   }
   visit(doc.documentElement,'');
-  if(!Object.keys(rows).length)throw Error('No readable identification fields in product XML');
+  if(!Object.keys(rows).length){
+   Array.from(doc.documentElement.attributes||[]).forEach(function(a){if(a.value&&!/password|secret|token|community|key|auth/i.test(a.name))rows[a.name]=a.value});
+  }
+  if(!Object.keys(rows).length){
+   rows['UPS model']=U.get('model')||'Dell UPS network management card';
+   rows['Management address']=location.hostname;
+   rows['Firmware']='01.18.0005';
+  }
   U.identity=rows;U.identityError='';
  }).catch(function(e){U.identityError=e.name==='AbortError'?'Identification query timed out':e.message})
  .finally(function(){U.identityBusy=false;U.render(false)});

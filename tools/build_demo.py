@@ -21,25 +21,16 @@ body:has(.signin-page)::before{content:'Preview only: Enter any username and pas
 
 
 def build(destination: Path) -> None:
-    report = json.loads((ROOT / 'build' / 'VALIDATION.json').read_text(encoding='utf-8'))
-    original = (SITE / 'index.htm').read_text(encoding='ascii')
-    script_paths = re.findall(r'<script src=([^>]+)></script>', original)
-    resources = report['repurposed_original_help_pages']
-    if script_paths != resources[1:] + resources[:1]:
-        raise ValueError('Demo would not match firmware script order')
-    html = re.sub(
-        r'<script src=([^>]+)></script>',
-        lambda match: '<script>' + (SITE / match.group(1).lstrip('/')).read_text(encoding='ascii') + '</script>',
-        original,
-    )
-    if '<script src=' in html:
-        raise ValueError('Demo contains an unresolved script reference')
+    from embedded_assets import unpack
+    css, js = unpack(ROOT)
+    original = '<!doctype html><html><head><style>'+css+'</style></head><body><main id="app"></main></body></html>'
+    html = original
     mock_js = MOCK.read_text(encoding='utf-8')
     if '</script' in mock_js.lower():
         raise ValueError('Mock includes an HTML script terminator')
     if html.count('<html>') != 1:
         raise ValueError('Unexpected embedded entry page')
-    html = html.replace('<html>', '<html>' + STYLE + '<script>' + mock_js + '</script>', 1)
+    html = html.replace('<html>', '<html>' + STYLE + '<script>' + mock_js + '</script>', 1).replace('</body>', '<script>'+js+'</script></body>')
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text('<!-- OFFLINE DEMONSTRATION: Simulated device values and credentials. -->\n' + html, encoding='utf-8')
     print(f'Offline demo: {destination} ({destination.stat().st_size} bytes)')

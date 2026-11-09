@@ -19,6 +19,7 @@ import struct
 import sys
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'tools'))
@@ -31,16 +32,16 @@ VENDOR = HERE / 'originals' / 'NMC_Firmware_01_18_0005_X2JYN.zip'
 FACTORY_IMAGE_BYTES = 1517029
 KNOWN_V042_SHA256 = 'db0cede9c360b71a36dc68425970b8119005f170b3d9cfb7bda4eba2e7515757'
 OUTPUT_NAME = 'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'
-JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-notifications.js', 'ui-dashboard.js', 'ui-auth.js', 'ui-start.js']
+JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-notifications.js', 'ui-dashboard.js', 'ui-updates.js', 'ui-auth.js', 'ui-start.js']
 # Deliberately select only static, non-control help resource strings.
 # Original help content at these paths IS LOST; it is a remaining blocker.
 RESOURCE_NAMES = [
-    '/Help/hlpnetw.htm', '/html/synoptic/dhtml.js', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
+    '/Help/hlpnetw.htm', '/html/synoptic/dhtml.js', '/html/synoptic/ajax.js', '/html/synoptic/png.js', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
     '/Help/hlpenv.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
     '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
     '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
-    '/Help/hlpweek.htm', '/Help/hlpelog.htm',
+    '/Help/hlpweek.htm', '/Help/hlpelog.htm', '/Help/hlpindex.htm',
 ]
 
 # Legacy synoptic graphics are already unusable in v0.5: dhtml.js is repurposed.
@@ -54,7 +55,7 @@ RETIRED_SYNOPTIC = [
  '/html/synoptic/ups_Dell_measure_11.js', '/html/synoptic/ups_on_line.js',
  '/html/synoptic/ups_measure_31_phph.js', '/html/synoptic/ups_measure_11_simple.js',
  '/html/synoptic/ups_measure_11_simple_extremec.js',
- '/Help/hlpmenu.htm', '/Help/hlpsnmp.htm', '/Help/hlpsenv.htm', '/Help/hlpmng.htm'
+ '/Help/hlpmenu.htm', '/Help/hlpsnmp.htm', '/Help/hlpsenv.htm', '/Help/hlpmng.htm', '/menu.htm', '/html/mgeweb.css', '/toolbar_main.htm', '/default.htm', '/mgeups/default.htm'
 ]
 
 BOOTSTRAP_RESOURCE = RESOURCE_NAMES[0]
@@ -67,7 +68,7 @@ OLD_CHUNK_RESOURCES = [
     '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
     '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
-    '/Help/hlpweek.htm', '/Help/hlpelog.htm',
+    '/Help/hlpweek.htm', '/Help/hlpelog.htm', '/Help/hlpindex.htm',
 ]
 
 
@@ -169,7 +170,34 @@ def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, 
     return {BOOTSTRAP_RESOURCE: [x.decode('ascii').rstrip(' ') for x in boot],**allocated}
 
 
-def source_blob() -> tuple[str, str, bytes]:
+def firmware_schema_source(application: bytes) -> str:
+    """Embed only the OEM field map as a recovery catalog, never default values/secrets.
+
+    The live XML transport on H910P can return invalid content. The catalog
+    permits readable configuration navigation, but is NOT evidence of live values.
+    """
+    start = application.find(b'<SYSTEM_CONFIG')
+    end = application.find(b'</SYSTEM_CONFIG>', start)
+    if start < 0 or end < 0:
+        raise ValueError('Required OEM configuration schema missing from firmware')
+    xml = application[start:end+len(b'</SYSTEM_CONFIG>')]
+    root = ET.fromstring(xml)
+    groups = []
+    for group in root.findall('GROUP'):
+        items=[]
+        for el in group.findall('ITEM'):
+            if el.get('access') != 'RW':
+                continue
+            key = el.get('object', '')
+            if not re.fullmatch(r'(?:System|Environment)\.[A-Za-z0-9_.\[\]]{1,110}',key):
+                continue
+            items.append([key, el.get('type','String:49'), el.get('unit',''), el.get('restart') == 'TRUE'])
+        if items:
+            groups.append([group.get('id','Settings'), group.get('hidden') == 'TRUE', items])
+    return 'window.U=window.U||{};U.oemCatalog='+json.dumps(groups,separators=(',',':'),ensure_ascii=True)+';'
+
+
+def source_blob(application: bytes) -> tuple[str, str, bytes]:
     css = (SRC / 'tailwind-compiled.css').read_text(encoding='utf-8') + '\n' + (SRC / 'ui.css').read_text(encoding='utf-8')
     js_files = []
     for name in JAVASCRIPT_FILES:
@@ -178,7 +206,7 @@ def source_blob() -> tuple[str, str, bytes]:
             logo = base64.b64encode((SRC / 'dell-white.svg').read_bytes()).decode('ascii')
             script += '\nU.embedLogo("data:image/svg+xml;base64,' + logo + '");U.installConsole();'
         js_files.append(script)
-    scripts = '\n'.join(js_files)
+    scripts = '\n'.join([firmware_schema_source(application)] + js_files)
     content = (css + '\0' + scripts).encode('utf-8')
     return css, scripts, gzip.compress(content, compresslevel=9, mtime=0)
 
@@ -189,7 +217,8 @@ def browser_bootstrap(asset_paths: list[str]) -> list[str]:
     return [
         '(async function(){',
         'try{',
-
+        'var files='+json.dumps(asset_paths,separators=(',',':'))+';',
+        'for(var n=0;n<files.length;n++){await new Promise(function(ok,bad){var el=document.createElement("script");el.src=files[n];el.onload=ok;el.onerror=function(){bad(Error("Embedded resource missing: "+files[n]))};document.head.appendChild(el)})}',
         'var vm=document.createElement("meta");vm.name="viewport";vm.content="width=device-width,initial-scale=1";document.head.appendChild(vm);',
         'if(typeof DecompressionStream!=="function")throw Error("Modern browser compression support required");',
         'var s=atob(window.H910P_PACK||"");',
@@ -201,7 +230,7 @@ def browser_bootstrap(asset_paths: list[str]) -> list[str]:
         'if(p<0)throw Error("Invalid embedded asset package");',
         'var css=document.createElement("style");css.textContent=t.slice(0,p);document.head.appendChild(css);',
         'var js=document.createElement("script");js.textContent=t.slice(p+1);document.head.appendChild(js);',
-        '}catch(e){document.getElementById("app").innerHTML="<div style=\'font:16px Arial;padding:32px\'>Unable to load the custom interface. <a href=\'/default.htm\'>Open original Dell management</a>.</div>";console.error("NMC UI:",e)}',
+        '}catch(e){document.getElementById("app").innerHTML="<div style=\'font:16px Arial;padding:32px\'>Unable to load the custom interface. <a href=\'/app_upload.htm\'>Open firmware recovery</a>.</div>";console.error("NMC UI:",e)}',
         '})();',
     ]
 
@@ -213,10 +242,7 @@ def index_page(names: list[str]) -> str:
     all other scripts manually. That caused the real browser to initialize with
     an empty H910P_PACK and fail. This creates an actual native load sequence.
     """
-    doc = '<!doctype html><html><main id=app></main>'
-    for name in names:
-        doc += '<script src=' + name + '></script>'
-    return doc
+    return '<!doctype html><html><main id=app></main><script src='+BOOTSTRAP_RESOURCE+'></script>'
 
 
 def main() -> None:
@@ -234,7 +260,7 @@ def main() -> None:
     before = original.unpacked
     base, records = discover(before)
     resource_by_path = {d['url']: d for d in records}
-    css, js, compressed_assets = source_blob()
+    css, js, compressed_assets = source_blob(before)
     b64 = base64.b64encode(compressed_assets).decode('ascii')
     resources = distribute(b64, resource_by_path, before)
     html = index_page(list(resources)[1:] + [BOOTSTRAP_RESOURCE])

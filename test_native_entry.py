@@ -43,23 +43,25 @@ class NativeEntryTests(unittest.TestCase):
     def test_index_fits_native_static_slots(self):
         # Original /index.htm consists of two zero-terminated string slots.
         self.assertEqual(len(self.original),713)
-        self.assertEqual(self.result['native_index_script_count'], len(self.result['repurposed_original_help_pages']))
-        self.assertGreaterEqual(self.result['native_index_script_count'], 3)
+        self.assertEqual(self.result['native_index_script_count'], 1)
+        self.assertGreaterEqual(len(self.result['repurposed_original_help_pages']), 18)
 
     def test_all_asset_chunks_precede_bootstrap(self):
         names=self.result['repurposed_original_help_pages']
-        self.assertEqual(self.parser.sources,names[1:]+names[:1])
+        self.assertEqual(self.parser.sources,names[:1])
         self.assertEqual(self.parser.frames,[])
         self.assertIn('<main id=app>',self.original)
 
     def test_all_scripts_have_javascript_mime(self):
-        for path in self.parser.sources:
+        for path in self.result['repurposed_original_help_pages']:
             with self.subTest(path=path):
                 self.assertEqual(self.table[path]['mime_enum'],21)
                 self.assertTrue((self.site/path.lstrip('/')).is_file())
 
     def test_no_missing_pack_initialization(self):
-        joined='\n'.join((self.site/path.lstrip('/')).read_text('ascii') for path in self.parser.sources)
+        joined='\n'.join((self.site/path.lstrip('/')).read_text('ascii') for path in self.result['repurposed_original_help_pages'])
+        for path in self.result['repurposed_original_help_pages'][1:]:
+            self.assertIn(path,joined, 'Bootstrap must dynamically load '+path)
         self.assertIn('window.H910P_PACK="";',joined)
         self.assertIn('new DecompressionStream("gzip")',joined)
         self.assertGreater(len(re.findall(r'window.H910P_PACK\+=',joined)),50)

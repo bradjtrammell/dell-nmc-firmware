@@ -1,7 +1,7 @@
 /* H910P v0.5: local, desktop-first management surfaces; OEM XML is transport, never UI.
  * No network fetches except explicit same-origin NMC endpoints. No CDN.
  */
-U.uiVersion='0.5.2';
+U.uiVersion='0.5.3';
 U.config.loaded=false;
 U.config.search='';
 U.eventSearch='';
@@ -20,11 +20,11 @@ U.consoleMeta={
 U.pretty=function(name){return String(name||'').replace(/^System\./,'').replace(/\[([0-9]+)\]/g,' $1 ').replace(/([A-Za-z])([0-9]+)/g,'$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g,'$1 $2').replace(/([a-z0-9])([A-Z])/g,'$1 $2').replace(/[._]/g,' ').replace(/\s+/g,' ').trim().replace(/\b(Dhcp|Dns|Smtp|Snmp|Ntp|Ip|Mac|Ups|Url|Id)\b/g,function(s){return s.toUpperCase()})};
 U.fieldCategory=function(name,group){
  var s=(name+' '+group).toLowerCase();
- if(/(smtp|mail|notify|notification|recipient|alert)/.test(s))return 'notification';
- if(/(snmp|trap|community)/.test(s))return 'snmp';
+ if(/(smtp|mail|notify|notification|recipient|alert|email)/.test(s))return 'notification';
+ if(/(snmp|trap|community|networkmanagementsystem)/.test(s))return 'snmp';
  if(/(ntp|timezone|time.zone|clock|timeserver|datetime)/.test(s))return 'time';
  if(/(weekly|schedule|calendar)/.test(s))return 'schedule';
- if(/(shutdown|client|agent|grace|autostart)/.test(s))return 'shutdown';
+ if(/(shutdown|client|agent|grace|autostart)/.test(s))return /clientcfg|client|agent/.test(s)?'clients':'shutdown';
  if(/(password|security|login|access|auth|user|https|ssh|telnet|session)/.test(s))return 'access';
  if(/(network|ethernet|ipv4|ipv6|ipaddress|gateway|netmask|subnet|dns|dhcp|hostname|domain|tcpport)/.test(s))return 'network';
  return 'system';
@@ -58,7 +58,7 @@ U.configView=function(page){if(page==='notification')return U.notificationView()
  U.configFieldMap={};
  var head=U.heading('MANAGEMENT / '+page.toUpperCase(),meta[0],meta[1])+U.warning();
  var info='<div class="section-lead">'+U.ico(meta[2])+'<p>'+U.esc(meta[3])+'</p></div>';
- var notice=(U.config.error?'<div class="notice error" role="alert">'+U.ico('alert')+'<span>'+U.esc(U.config.error)+'</span></div>':'')+(U.config.message?'<div class="notice info" role="status">'+U.ico('check')+'<span>'+U.esc(U.config.message)+'</span></div>':'');
+ var notice=(U.config.warning?'<div class="notice info" role="status">'+U.ico('info')+'<span>'+U.esc(U.config.warning)+'</span></div>':'')+(U.config.error?'<div class="notice error" role="alert">'+U.ico('alert')+'<span>'+U.esc(U.config.error)+'</span></div>':'')+(U.config.message?'<div class="notice info" role="status">'+U.ico('check')+'<span>'+U.esc(U.config.message)+'</span></div>':'');
  var content='';
  if(U.config.busy&&!U.config.loaded)content='<div class="loading-lines" role="status">'+U.ico('refresh')+'<strong>Reading configuration from the NMC…</strong><p>Discovering the controls supported by this firmware.</p></div>';
  else if(!U.config.loaded)content='<div class="empty-state">'+U.ico('network')+'<strong>Waiting for device settings</strong><p>Select Refresh settings to try again.</p></div>';
@@ -69,7 +69,7 @@ U.configView=function(page){if(page==='notification')return U.notificationView()
 };
 U.nativeContext=function(page){var info=U.pageInfo(page);return info[5]?'<div class="device-reference"><span>'+U.ico('info')+' Some advanced settings are still available in the original device pages.</span><a href="'+U.esc(info[5])+'">Open advanced '+U.esc(info[1])+U.ico('external')+'</a></div>':''};
 U.editorBody=function(f,index){return '<div class="editor-top">'+U.ico('sliders')+'<div><span>MANAGEMENT SETTING</span><h2 id="editor-title">'+U.esc(U.pretty(f.name))+'</h2></div></div><p class="editor-help">'+U.esc(U.fieldHelp(f))+'</p><div class="editor-current"><span>Current value</span><strong>'+U.esc(U.fieldValue(f))+'</strong></div><form id="editor-form"><label for="editor-value">New value</label>'+U.fieldInput(f,U.fieldMasked(f)?'':U.config.values[f.name])+'<small>'+U.esc(f.type)+(f.restart?' · Card restart may be required':'')+'</small><p class="editor-error" role="alert" id="editor-error" hidden></p><div class="editor-footer"><button type="button" class="btn btn-quiet" id="editor-cancel">Cancel</button><button type="submit" class="btn btn-primary" id="editor-next">Review change '+U.ico('arrow')+'</button></div></form>'};
-U.editSetting=function(index){var f=U.configFieldMap[index],dialog=document.getElementById('setting-dialog');if(!f||!dialog||U.config.saving)return;
+U.editSetting=function(index){var f=U.configFieldMap[index],dialog=document.getElementById('setting-dialog');if(!f||!dialog||U.config.saving)return;if(!U.config.valuesLive){U.config.error='Editing is disabled until the card supplies live configuration values. No changes were submitted.';U.render(false);return}
  U.editor={field:f,index:index,step:'edit',value:''};dialog.innerHTML=U.editorBody(f,index);dialog.showModal();document.getElementById('editor-value').focus();};
 U.reviewEdit=function(){if(!U.editor)return;var f=U.editor.field,input=document.getElementById('editor-value'),error=document.getElementById('editor-error'),value=input&&input.value;
  try{U.configValidate(f,value)}catch(e){error.hidden=false;error.textContent=e.message;input.focus();return}
@@ -124,6 +124,6 @@ U.onConsoleSubmit=function(e){if(e.target.id==='editor-form'){e.preventDefault()
 U.installConsole=function(){
  var oldRender=U.render;U.render=function(navigate){oldRender(navigate);if(U.page==='events')U.filterEvents();if(U.config.search)U.searchSettings(U.config.search)};
  var nav=U.navto;U.navto=function(page){if(U.page!==page){U.config.message='';U.config.error='';U.config.search=''}nav(page);U.loadPageData()};
- U.loadPageData=function(){if(U.page==='events'&&!U.events.length&&!U.eventsBusy)U.loadEvents();else if(U.consoleMeta[U.page]||U.page==='controls'){if(!U.config.loaded&&!U.config.busy)U.loadConfig()}else if(U.page==='system'&&!Object.keys(U.identity).length&&!U.identityBusy)U.loadIdentity()};
+ U.loadPageData=function(){if(U.page==='events'&&!U.events.length&&!U.eventsBusy)U.loadEvents();else if(U.consoleMeta[U.page]||U.page==='controls'){if(!U.config.loaded&&!U.config.busy)U.loadConfig()}else if(U.page==='system'){if(!Object.keys(U.identity).length&&!U.identityBusy)U.loadIdentity();if(!U.config.loaded&&!U.config.busy)U.loadConfig()}};
  /* The authentication gate starts data loads after a successful sign-in. */
 };

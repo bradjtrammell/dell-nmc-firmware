@@ -2,6 +2,16 @@
 
 A desktop-first, offline-capable web management interface **embedded directly into Dell H910P NMC firmware** (Dell base `01.18.0005`). No CDN, external management server, cloud service, or Docker is needed to browse the UI. All new frontend code is here in source form; the vendor NET+OS firmware remains proprietary.
 
+## v0.5.3 — XML failure recovery, all-page data coverage and firmware maintenance
+
+**Experimental; this version has not been tested on the physical H910P.** Firmware: **1,516,340 bytes**, **689 bytes smaller than OEM**, SHA-256 `3a5d34ddf7fa9699b044e4e4d9f96562f1b80e1167db35f0ce352d0013bfe422`. See [v0.5.3 engineering status](docs/engineering-status-0.5.3.md) for precise implementation and remaining limitations. Latest source introduces a firmware-derived, no-secret field catalog used only when the OEM descriptor HTTP response cannot be parsed. The interface still requires live device values for editing and confirms individual writes through independent readback. All four OEM email slots are available in the catalog even if the descriptor endpoint returns invalid XML; no notification delivery is claimed until the user configures a real receiver and the card reports success.
+
+The maintenance page now checks actual GitHub Releases on demand and lists compatible BIN assets, and accepts a local BIN with full NET+OS image checksum validation before a browser POST. **GitHub UI-only Flash0 updates, on-card asset rollback, and guaranteed browser firmware upload are not implemented.** The user-proven HTTP/1.0 multipart POST remains the tested upgrade transport. The bootloader and firmware upload callback are unchanged; the old Dell menu and stylesheet have been retired for ROM space. A minimal unchanged OEM upload-status page remains available.
+
+**Verification:** offline firmware, compressor, native-entry, ROM bootstrap execution and full browser simulations. No on-hardware v0.5.3 acceptance or live email/power tests.
+
+---
+
 ## v0.5.2 — Authentication and sign-in backdrop correction
 
 **Candidate; not yet tested on physical hardware.** Firmware size: **1,515,865 bytes** (1,164 bytes under the Dell factory BIN). SHA-256: `e45b92abbd02555818332a0b4638fe8cfe440dd1d25a9727bd6c68271904167a`. The owner reported that the v0.5.1 login rejected credentials accepted by the OEM card, and the sign-in background appeared to stop before the bottom of the screen.

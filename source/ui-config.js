@@ -3,31 +3,47 @@
  * Every write is user-confirmed and read back through get_object.xml.
  */
 U.config={groups:[],values:{},busy:false,error:'',message:'',saving:''};
+U.configFromCatalog=function(){
+ var all=U.oemCatalog||[],groups=[];U.power.groups=[];
+ all.forEach(function(g){
+  var fields=g[2].map(function(f){return {name:f[0],type:f[1],unit:f[2],restart:!!f[3]}});
+  var m=g[0].match(/^Control\.Outlet\[(\d+)\]$/);
+  if(m){var cmds={};fields.forEach(function(f){var match=f.name.match(/\.(OffDelay|OnDelay|Toggle)$/);if(match)cmds[match[1]]=f.name});U.power.groups.push({number:Number(m[1]),commands:cmds});return}
+  if(!g[1]&&fields.length)groups.push({name:g[0],fields:fields});
+ });
+ if(!groups.length)throw Error('Embedded OEM settings catalog is unavailable');
+ return groups;
+};
 U.configDoc=function(xml){
  var doc=new DOMParser().parseFromString(xml,'application/xml');
- if(doc.querySelector('parsererror'))throw Error('Invalid configuration descriptor');
+ if(doc.querySelector('parsererror'))throw Error('Configuration endpoint did not return a valid XML descriptor');
  var groups=[];
  Array.from(doc.getElementsByTagName('GROUP')).forEach(function(group){
   if(group.getAttribute('hidden')==='TRUE')return;
   var fields=Array.from(group.getElementsByTagName('ITEM')).filter(function(el){
    var key=el.getAttribute('object')||'';
-   return el.getAttribute('access')==='RW'&&/^System\.[A-Za-z0-9_.\[\]]{1,110}$/.test(key);
+   return el.getAttribute('access')==='RW'&&/^(?:System|Environment)\.[A-Za-z0-9_.\[\]]{1,110}$/.test(key);
   }).map(function(el){return {name:el.getAttribute('object'),type:el.getAttribute('type')||'String:49',unit:el.getAttribute('unit')||'',restart:el.getAttribute('restart')==='TRUE'};});
   if(fields.length)groups.push({name:group.getAttribute('id')||'Settings',fields:fields});
  });
- if(!groups.length)throw Error('No editable configuration objects in descriptor');
+ if(!groups.length)throw Error('Configuration response has no editable OEM settings');
  return groups;
 };
 U.loadConfig=function(){
  if(U.config.busy)return Promise.resolve();
- U.config.busy=true;U.config.error='';U.config.message='';U.render(false);
- return Promise.all([
-  U.request('/configuration_descriptor.xml',{},10000),
-  U.request('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=System.*'},10000)
- ]).then(function(response){
-  U.config.groups=U.configDoc(response[0]);
-  U.config.values=U.xml(response[1]);U.config.loaded=true;
- }).catch(function(e){U.config.error=e.message})
+ U.config.busy=true;U.config.error='';U.config.message='';U.config.warning='';U.render(false);
+ var descriptor=U.request('/configuration_descriptor.xml',{},10000).then(function(body){
+  try{var parsed=U.configDoc(body);U.config.descriptorSource='device';return parsed}
+  catch(e){U.config.warning='The card did not return a readable settings catalog. Showing the original firmware field catalog instead.';U.config.descriptorSource='embedded';return U.configFromCatalog()}
+ }).catch(function(){U.config.descriptorSource='embedded';U.config.warning='The card settings catalog is unavailable. Showing the embedded OEM field catalog.';return U.configFromCatalog()});
+ var values=U.request('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=System.*'},10000)
+  .then(function(body){return U.xml(body)}).catch(function(e){U.config.warning=(U.config.warning?U.config.warning+' ':'')+'Live configuration values unavailable: '+e.message;return null});
+ return Promise.all([descriptor,values]).then(function(result){
+  U.config.groups=result[0];U.config.values=result[1]||{};
+  U.config.valuesLive=!!result[1];U.config.loaded=true;
+  /* Power actions cannot be advertised until their live descriptors are received. */
+  if(U.config.descriptorSource==='embedded')U.power.groups=[];
+ }).catch(function(e){U.config.loaded=false;U.config.error=e.message})
  .finally(function(){U.config.busy=false;U.render(false)});
 };
 U.configValidate=function(f,value){
@@ -54,7 +70,12 @@ U.configEscape=function(value){return U.esc(value)};
 U.power={groups:[],busy:false,message:'',error:''};
 U.powerGroups=function(doc){var groups=[];Array.from(doc.getElementsByTagName('GROUP')).forEach(function(g){var m=(g.getAttribute('id')||'').match(/^Control\.Outlet\[(\d+)\]$/);if(!m)return;var cmds={};Array.from(g.getElementsByTagName('ITEM')).forEach(function(el){var name=el.getAttribute('object')||'',act=name.match(/^System\.Outlet\[(\d+)\]\.(OffDelay|OnDelay|Toggle)$/);if(act&&act[1]===m[1]&&el.getAttribute('access')==='RW')cmds[act[2]]=name});if(Object.keys(cmds).length)groups.push({number:Number(m[1]),commands:cmds})});return groups};
 var U_originalConfigDoc=U.configDoc;
-U.configDoc=function(xml){var d=new DOMParser().parseFromString(xml,'application/xml');if(!d.querySelector('parsererror'))U.power.groups=U.powerGroups(d);return U_originalConfigDoc(xml)};
+U.configDoc=function(xml){
+ var d=new DOMParser().parseFromString(xml,'application/xml');
+ if(d.querySelector('parsererror'))throw Error('Invalid device settings XML');
+ U.power.groups=U.powerGroups(d);
+ return U_originalConfigDoc(xml);
+};
 U.controlsView=function(){var groups=U.power.groups;
  return U.heading('PROTECTED POWER CONTROL','UPS control','Native power controls using the original Dell controller commands.')+U.warning()+
  (U.power.error?'<div class="notice error" role="alert">'+U.ico('alert')+U.esc(U.power.error)+'</div>':'')+

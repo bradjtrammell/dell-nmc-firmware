@@ -66,14 +66,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_body(b'<html>not XML</html>' if Handler.invalid_xml else MOCK,'text/xml')
 
 def run():
-    html=(FILES/'index.htm').read_text('ascii')
-    paths=DATA['repurposed_original_help_pages']
-    # Reproduce the *real* native page's script order without inventing an asset preload.
-    script_paths=re.findall(r'<script src=([^>]+)></script>',html)
-    assert script_paths == paths[1:] + paths[:1], 'Native entry page omits or reorders embedded scripts'
-    html=re.sub(r'<script src=([^>]+)></script>',
-        lambda m:'<script>'+(FILES/m.group(1).lstrip('/')).read_text('ascii')+'</script>',html)
-    assert '<script src=' not in html
+    from tools.embedded_assets import inline_html
+    html=inline_html(BASE.parent)
     mock = r"""<script>
 window.__rejectXML=false;window.__requests=[];
 window.fetch=async function(url,opt){

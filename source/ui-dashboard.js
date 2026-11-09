@@ -14,9 +14,8 @@ U.overview=function(){
  '</div></section>';
  return baseOverview().replace('<div class="hero-status">',shortcuts+'<div class="hero-status">')+activity;
 };
-/* User-facing descriptions, with no claim that an installer exists yet. */
-U.firmwareView=function(){return U.heading('MAINTENANCE','Software updates','View the installed version and maintain the management interface.')+U.warning()+
+/* Local maintenance and GitHub release discovery. Native asset-store OTA is not claimed. */
+U.firmwareView=function(){return U.heading('MAINTENANCE','Software updates','Check releases and install a compatible device firmware image.')+U.warning()+
  '<div class="maintenance-band"><div>'+U.ico('shield')+'<span>Management interface</span><strong>v'+U.uiVersion+'</strong></div><div>'+U.ico('server')+'<span>Device firmware</span><strong>01.18.0005</strong></div></div>'+
- '<section class="setting-section"><div class="setting-section-head"><h2>Update this device</h2><span>Manual firmware updates available</span></div><div class="maintenance-text"><h3>Install a firmware image</h3><p>Firmware updates use the network card’s built-in upload service. Download a compatible firmware image from a trusted source and use the provided installation instructions. The card must confirm that the image was written before it restarts.</p><a class="btn btn-quiet" href="/app_upload.htm">'+U.ico('external')+' View firmware update status</a></div></section>'+
- '<section class="setting-section"><div class="setting-section-head"><h2>Check for interface updates</h2><span>Not available yet</span></div><div class="maintenance-text"><h3>Automatic updates are being developed</h3><p>We are working on a way to install interface updates directly from GitHub without replacing the full device firmware. The existing interface will continue working without internet access.</p><a class="btn btn-quiet" href="https://github.com/bradjtrammell/dell-nmc-firmware/releases" target="_blank" rel="noopener noreferrer">'+U.ico('external')+' View published releases on GitHub</a><p>Checking GitHub requires internet access in your browser. It does not download or install anything on your UPS.</p></div></section>';
+ U.updaterView();
 };
