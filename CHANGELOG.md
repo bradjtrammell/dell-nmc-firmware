@@ -1,5 +1,17 @@
 # Change log
 
+## 0.5.1 — 2026-11-09 — UI accessibility, recipients, and login
+
+- Moved user-supplied white Dell logo to the top-left rail and corrected its sizing at desktop/mobile breakpoints.
+- Added a real, centered sign-in form validated against the OEM-protected Basic-auth endpoint, browser-memory-only credentials, request-header binding and a Lock control. This does not replace the server's native access controls or encrypt HTTP.
+- Added quick dashboard actions and a device-recorded recent-event feed (read-only).
+- Replaced technical Email[0..3] rows with four discovered recipient cards and modal editors, triggered-event selections, explicit review, sequential single-field writes, and readback. A partial failure is surfaced honestly.
+- Exposed SMTP server/sender settings, ntfy and Monita email ingestion and Discord email-to-webhook bridge setup flows without false “not installed” gates. The NMC itself still only delivers via OEM SMTP.
+- Updated user-facing help and updater copy; no claim of a functioning GitHub asset installer.
+- Retired 47,762 static bytes of already-unusable OEM synoptic/Help presentation resources while leaving ARM executable and native callbacks untouched.
+- Image is 1,515,874 bytes (1,155 under the factory BIN). Identical outputs from OEM ZIP and verified v0.4.2 BIN. SHA-256: `3dbe3c27952cb5b56bdc956c05d6e9b4b64c20125afe196e7baff451f536c2bb`.
+- Offline firmware, native-entry, compressor and browser tests pass. **Hardware acceptance and live notification delivery remain unverified.**
+
 ## 0.5.0 — 2026-11-09 — next-generation native management surfaces
 
 - Added a bundled white, alpha-transparent Dell brand mark in the upper-right header, derived from the owner's supplied artwork; no CDN.

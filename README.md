@@ -2,6 +2,33 @@
 
 A desktop-first, offline-capable web management interface **embedded directly into Dell H910P NMC firmware** (Dell base `01.18.0005`). No CDN, external management server, cloud service, or Docker is needed to browse the UI. All new frontend code is here in source form; the vendor NET+OS firmware remains proprietary.
 
+## v0.5.1 — Notification manager, Dell branding and authenticated sign-in
+
+**Hardware status:** v0.5.0 was reported installed by the owner; v0.5.1 is built and browser-tested **offline only**, and must not be represented as tested on a real H910P until installation and read-only verification are reported.
+
+This update builds directly on the embedded Dell 01.18.0005 application and retains its original executable instructions and RomPager callback pointers. No CDN or separate server is required to open the management interface.
+
+- Corrected the **white transparent Dell logo to the upper-left** of the management sidebar.
+- Added a centered username/password screen. The entered credentials are verified by a **real, protected Dell Basic-auth endpoint** (`GET /app_upload.htm`) before opening the management UI. Credentials are kept only in browser memory; **Lock** clears the current UI state and requires a fresh sign-in. This is a browser-side sign-in experience using existing Dell HTTP authentication, **not** a new server authorization layer or a guarantee that the underlying plain-HTTP transport is encrypted. Continue to restrict device network access.
+- Refined the dashboard with quick access to events, protected output status, notifications, maintenance, and a live feed of recorded UPS events alongside gauges and power flow.
+- Replaced raw `System.Email[n]` key/value rows with **four real recipient slots**. The exact OEM descriptor advertises `Email.Email[0]` through `Email.Email[3]`, each with `System.Email[n].Recipient`, `System.Email[n].Selected`, and per-recipient event selections. The new modal editor stages individual user-approved changes and independently reads each back from the original NMC API before reporting success. A partial failure is reported instead of being silently treated as success.
+- Showed outgoing SMTP server and sender settings separately from notification recipients. The four-slot cap is derived from the actual descriptor, not hard-coded fake recipients.
+- Replaced “not installed” service gates with **setup guidance** for ntfy inbound SMTP, Monita inbound email, and Discord SMTP-to-webhook bridges. Users can assign available email slots to these receiving addresses. **No direct native ntfy, Monita, Discord, webhook, or push transport has been added.** The remote service/gateway must already be configured to accept mail.
+- Rewrote technical release/update copy for device owners. UI-only auto-update from GitHub is **not implemented**, pending measured Flash0 storage, static file serving, authenticated package verification, and recoverable installation.
+- Reclaimed 47,762 bytes of static presentation strings from redundant original synoptic and legacy help pages, preserving callback pointers and executable bytes. The stock Dell synoptic UI and selected stock Help pages are **not functional** in this image. The native firmware-upload handler remains intact; the new UI still does **not** implement every legacy control workflow.
+
+**v0.5.1 BIN:** 1,515,874 bytes, 1,155 bytes under the OEM 1,517,029-byte image.
+
+**SHA-256:** `3dbe3c27952cb5b56bdc956c05d6e9b4b64c20125afe196e7baff451f536c2bb`
+
+Validated offline: exact binary decompression and CRC, embedded asset reconstruction, unchanged callback pointers and non-allowlisted executable bytes; 18 firmware regressions, 4 compressor regressions, 4 native-entry checks, the 15-screen browser suite, sign-in/lock checks, and notification/form workflow browser checks with simulated Dell device responses. Rebuilt from both verified OEM ZIP and verified v0.4.2 BIN with **byte-identical outputs**.
+
+**Not yet hardware verified:** sign-in behavior on the physical card, live configuration XML compatibility, recipient delivery, sequential changes/partial-failure behavior, full UI feature parity and v0.5.1 image acceptance/boot. The build is experimental and should not be distributed as a fully qualified production replacement.
+
+The [manual HTTP/1.0 POST deployment method](docs/firmware-deployment-http-post.md) remains the recommended upload method. It must report success on the card’s status page before treating a flash as complete.
+
+---
+
 ## v0.5.0 — Operational UI expansion (firmware candidate)
 
 The original H910P was successfully flashed with **custom UI v0.4.2** via HTTP/1.0 multipart POST on November 9, 2026. The card rebooted and served `/index.htm` directly. **v0.5.0 has passed offline firmware and browser tests but has NOT been tested on real hardware.** Keep the proven v0.4.2 BIN as a recovery reference.

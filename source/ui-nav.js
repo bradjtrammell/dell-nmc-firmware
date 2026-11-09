@@ -1,8 +1,9 @@
 /* Stable, keyboard-operable shell. Refreshes do not destroy navigation or scroll. */
 U.render=function(navigate){
+ if(U.auth&&!U.auth.header)return;
  var app=document.getElementById('app');if(!app)return;
  if(!document.getElementById('sidebar')){
-  app.innerHTML=U.chrome();app.addEventListener('click',U.click);app.addEventListener('input',function(e){if(U.onConsoleInput)U.onConsoleInput(e)});app.addEventListener('change',function(e){if(U.onConsoleChange)U.onConsoleChange(e)});app.addEventListener('submit',function(e){if(U.onConsoleSubmit)U.onConsoleSubmit(e)});
+  app.innerHTML=U.chrome();if(!app.__handlersBound){app.__handlersBound=true;app.addEventListener('click',U.click);app.addEventListener('input',function(e){if(U.onConsoleInput)U.onConsoleInput(e)});app.addEventListener('change',function(e){if(U.onConsoleChange)U.onConsoleChange(e)});app.addEventListener('submit',function(e){if(U.onConsoleSubmit)U.onConsoleSubmit(e)});}
   window.addEventListener('keydown',function(e){
    if(e.key==='Escape'){var rail=document.getElementById('sidebar'),toggle=document.getElementById('menu-toggle');
     if(rail&&toggle){rail.classList.remove('open');toggle.setAttribute('aria-expanded','false')}}

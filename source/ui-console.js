@@ -1,7 +1,7 @@
 /* H910P v0.5: local, desktop-first management surfaces; OEM XML is transport, never UI.
  * No network fetches except explicit same-origin NMC endpoints. No CDN.
  */
-U.uiVersion='0.5.0';
+U.uiVersion='0.5.1';
 U.config.loaded=false;
 U.config.search='';
 U.eventSearch='';
@@ -43,7 +43,7 @@ U.fieldHelp=function(f){var n=f.name.toLowerCase();
  if(/ntp/.test(n))return 'Time server used to synchronize event timestamps.';
  if(/shutdown|delay|timer/.test(n))return 'Review the operating consequences before changing this delay.';
  if(f.restart)return 'Saving may restart the NMC network service.';
- return 'Setting published as read/write by this card.';
+ return 'This setting is managed by the device.';
 };
 U.fieldMasked=function(f){return /password|community|secret|token|credential|privatekey/i.test(f.name)};
 U.fieldValue=function(f){var raw=U.config.values[f.name];if(U.fieldMasked(f))return raw?'Configured — hidden':'Not reported';if(raw===undefined||raw===null||raw==='')return 'Not reported';if(f.type==='Boolean')return String(raw)==='1'?'Enabled':String(raw)==='0'?'Disabled':String(raw);return String(raw)+(f.unit?' '+f.unit:'')};
@@ -54,26 +54,20 @@ U.fieldInput=function(f,value){var type=f.type||'',kind=type.split(':')[0];var l
  return '<input '+attrs+' type="'+inputType+'" value="'+U.esc(secret?'':v)+'" '+(secret?'autocomplete="new-password"':'autocomplete="off"')+' spellcheck="false" inputmode="'+(kind==='Integer'||kind==='Time'?'numeric':'text')+'">';
 };
 U.configToolbar=function(){return '<div class="settings-toolbar"><label class="search-field">'+U.ico('chart')+'<span class="sr-only">Search settings</span><input id="settings-search" type="search" placeholder="Search available device settings" value="'+U.esc(U.config.search)+'" autocomplete="off" aria-label="Search available device settings"></label><button id="load-config" type="button" class="btn btn-quiet" '+(U.config.busy?'disabled':'')+'>'+U.ico('refresh')+(U.config.busy?'Reading card…':'Refresh settings')+'</button></div>'};
-U.configView=function(page){var meta=U.consoleMeta[page]||['Device settings','Available settings','sliders',''],groups=U.configFor(page),count=0;
+U.configView=function(page){if(page==='notification')return U.notificationView();var meta=U.consoleMeta[page]||['Device settings','Available settings','sliders',''],groups=U.configFor(page),count=0;
  U.configFieldMap={};
  var head=U.heading('MANAGEMENT / '+page.toUpperCase(),meta[0],meta[1])+U.warning();
  var info='<div class="section-lead">'+U.ico(meta[2])+'<p>'+U.esc(meta[3])+'</p></div>';
  var notice=(U.config.error?'<div class="notice error" role="alert">'+U.ico('alert')+'<span>'+U.esc(U.config.error)+'</span></div>':'')+(U.config.message?'<div class="notice info" role="status">'+U.ico('check')+'<span>'+U.esc(U.config.message)+'</span></div>':'');
  var content='';
  if(U.config.busy&&!U.config.loaded)content='<div class="loading-lines" role="status">'+U.ico('refresh')+'<strong>Reading configuration from the NMC…</strong><p>Discovering the controls supported by this firmware.</p></div>';
- else if(!U.config.loaded)content='<div class="empty-state">'+U.ico('network')+'<strong>Waiting for device configuration</strong><p>Use Refresh settings to retry the authenticated configuration request.</p></div>';
- else if(!groups.length)content='<div class="empty-state">'+U.ico('info')+'<strong>No editable controls advertised for this section</strong><p>The card has not exposed read/write settings matching this category. You can still inspect the original management handler.</p></div>';
+ else if(!U.config.loaded)content='<div class="empty-state">'+U.ico('network')+'<strong>Waiting for device settings</strong><p>Select Refresh settings to try again.</p></div>';
+ else if(!groups.length)content='<div class="empty-state">'+U.ico('info')+'<strong>No settings available for this section</strong><p>The device has not provided editable settings for this section. You may be able to find them in the advanced device pages.</p></div>';
  else content=groups.map(function(g){return '<section class="setting-section" aria-label="'+U.esc(U.pretty(g.name))+'"><div class="setting-section-head"><h2>'+U.esc(U.pretty(g.name))+'</h2><span>'+g.fields.length+' settings</span></div>'+g.fields.map(function(f){var id=count++;U.configFieldMap[id]=f;var label=U.pretty(f.name);return '<div class="setting-row" data-search="'+U.esc((label+' '+g.name+' '+U.fieldValue(f)).toLowerCase())+'"><div class="setting-copy"><strong>'+U.esc(label)+'</strong><p>'+U.esc(U.fieldHelp(f))+'</p></div><div class="setting-actions"><span class="setting-current" title="Current NMC value">'+U.esc(U.fieldValue(f))+'</span><button type="button" class="btn btn-quiet" data-edit="'+id+'" '+(U.config.saving?'disabled':'')+' aria-label="Edit '+U.esc(label)+'">Edit '+U.ico('arrow')+'</button></div></div>'}).join('')+'</section>'}).join('');
- var desc='<div class="inline-summary"><strong>'+count+'</strong><span>editable settings discovered</span><i></i><span>Changes require review and readback confirmation</span></div>';
+ var desc='<div class="inline-summary"><strong>'+count+'</strong><span>editable settings discovered</span><i></i><span>Changes require review and confirmation from the device</span></div>';
  return head+info+notice+(page==='notification'?U.notificationDestinations():'')+U.configToolbar()+desc+content+U.nativeContext(page);
 };
-U.notificationDestinations=function(){var channels=[
- ['mail','Email','Native SMTP','Uses the NMC built-in event engine and configured recipients.','ready'],
- ['activity','ntfy','SMTP receiver path','Route NMC email into an ntfy topic through a compatible SMTP receiver.','planned'],
- ['users','Monita','Email / Syslog integration','Send events to a Monita ingress supported by your server; no direct API transport is implemented.','planned'],
- ['network','Discord','HTTPS webhook bridge','Requires an HTTPS-capable relay or future native TLS/webhook engine.','planned']
- ];return '<section class="delivery-section"><div class="setting-section-head"><h2>Delivery destinations</h2><span>Card capabilities</span></div><div class="delivery-grid">'+channels.map(function(c){return '<div class="delivery-item">'+U.ico(c[0])+'<div><h3>'+c[1]+'</h3><strong>'+c[2]+'</strong><p>'+c[3]+'</p><span class="delivery-label '+c[4]+'">'+(c[4]==='ready'?'Built-in transport':'Integration not installed')+'</span></div></div>'}).join('')+'</div></section>'};
-U.nativeContext=function(page){var info=U.pageInfo(page);return info[5]?'<div class="device-reference"><span>'+U.ico('info')+' Additional original firmware tools may still be needed while native coverage is being verified.</span><a href="'+U.esc(info[5])+'">Open original '+U.esc(info[1])+U.ico('external')+'</a></div>':''};
+U.nativeContext=function(page){var info=U.pageInfo(page);return info[5]?'<div class="device-reference"><span>'+U.ico('info')+' Some advanced settings are still available in the original device pages.</span><a href="'+U.esc(info[5])+'">Open advanced '+U.esc(info[1])+U.ico('external')+'</a></div>':''};
 U.editorBody=function(f,index){return '<div class="editor-top">'+U.ico('sliders')+'<div><span>MANAGEMENT SETTING</span><h2 id="editor-title">'+U.esc(U.pretty(f.name))+'</h2></div></div><p class="editor-help">'+U.esc(U.fieldHelp(f))+'</p><div class="editor-current"><span>Current value</span><strong>'+U.esc(U.fieldValue(f))+'</strong></div><form id="editor-form"><label for="editor-value">New value</label>'+U.fieldInput(f,U.fieldMasked(f)?'':U.config.values[f.name])+'<small>'+U.esc(f.type)+(f.restart?' · Card restart may be required':'')+'</small><p class="editor-error" role="alert" id="editor-error" hidden></p><div class="editor-footer"><button type="button" class="btn btn-quiet" id="editor-cancel">Cancel</button><button type="submit" class="btn btn-primary" id="editor-next">Review change '+U.ico('arrow')+'</button></div></form>'};
 U.editSetting=function(index){var f=U.configFieldMap[index],dialog=document.getElementById('setting-dialog');if(!f||!dialog||U.config.saving)return;
  U.editor={field:f,index:index,step:'edit',value:''};dialog.innerHTML=U.editorBody(f,index);dialog.showModal();document.getElementById('editor-value').focus();};
@@ -92,7 +86,7 @@ U.commitEdit=function(){var ed=U.editor;if(!ed||ed.step!=='review'||U.config.sav
  }).then(function(response){var found=U.xml(response),actual=found[f.name];
   if(U.fieldMasked(f)){U.config.message='Credential submitted to NMC. The card masks readback; verify authentication before ending this session.';return}
   if(String(actual)!==value)throw Error('Readback differs from the requested value; change not verified');
-  U.config.values[f.name]=actual;U.config.message=U.pretty(f.name)+' successfully verified by NMC readback.';
+  U.config.values[f.name]=actual;U.config.message=U.pretty(f.name)+' updated. The device confirmed the change.';
  }).catch(function(e){U.config.error='Update not confirmed: '+e.message}).finally(function(){U.config.saving='';U.editor=null;var dialog=document.getElementById('setting-dialog');if(dialog)dialog.close();U.render(false)});
 };
 U.searchSettings=function(text){U.config.search=text;var rows=Array.from(document.querySelectorAll('.setting-row'));var q=text.toLowerCase().trim();rows.forEach(function(row){row.hidden=!!q&&!row.dataset.search.includes(q)});document.querySelectorAll('.setting-section').forEach(function(group){group.hidden=!Array.from(group.querySelectorAll('.setting-row')).some(function(r){return !r.hidden})});};
@@ -105,15 +99,21 @@ U.eventsView=function(){var has=U.events.length;
  (has?'<div class="table-scroll"><table class="events-table"><thead><tr><th>Level</th><th>Event</th><th>Recorded</th><th>#</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty-state">'+U.ico('calendar')+'<strong>'+U.esc(U.eventsBusy?'Reading event history…':U.eventsError?'Unable to read event history':'No events returned')+'</strong><p>'+U.esc(U.eventsError||'Use Refresh log to query the device again.')+'</p></div>')+'</section><div class="section-actions"><a class="btn btn-quiet" href="/logevent.csv" download>'+U.ico('upload')+'Download event CSV</a></div>';
 };
 U.filterEvents=function(){var q=U.eventSearch.toLowerCase().trim(),l=U.eventLevel;Array.from(document.querySelectorAll('.event-table-row')).forEach(function(r){r.hidden=!!q&&!r.dataset.event.includes(q)||l!=='all'&&r.dataset.level!==l})};
-U.firmwareView=function(){return U.heading('MAINTENANCE / UPDATE','Firmware & updates','Local firmware recovery and the future UI-only release channel.')+U.warning()+
- '<div class="maintenance-band"><div>'+U.ico('shield')+'<span>Currently serving the custom UI</span><strong>v'+U.uiVersion+'</strong></div><div>'+U.ico('server')+'<span>Dell firmware base</span><strong>01.18.0005</strong></div></div>'+
- '<section class="setting-section"><div class="setting-section-head"><h2>Full firmware installation</h2><span>Available via native NMC handler</span></div><div class="maintenance-text"><h3>Verified manual POST workflow</h3><p>The H910P accepts a verified BIN through <code>/Forms/app_upload_1</code> using HTTP/1.0 multipart POST. This worked on physical hardware with v0.4.2. Firmware acceptance must be confirmed from the original status page, not the HTTP redirect alone.</p><p>Use your prepared, checksum-verified build and the documented release-specific deployment command. Do not re-upload while a write or reboot is underway.</p><a class="btn btn-quiet" href="/app_upload.htm">'+U.ico('external')+'View firmware-upload status</a></div></section>'+
- '<section class="setting-section"><div class="setting-section-head"><h2>UI-only updates from GitHub</h2><span>Research & implementation</span></div><div class="maintenance-text"><h3>Separate Flash0 asset store</h3><p>We are validating flash capacity, static-file serving, signed release packages and rollback before this becomes available. The UI does not yet modify its own assets or contact GitHub.</p><div class="update-roadmap"><span>'+U.ico('check')+'Firmware boot proven</span><span>'+U.ico('info')+'Asset store not yet verified</span><span>'+U.ico('info')+'Automatic updater unavailable</span></div></div></section>';
-};
 /* Keep branded logo inside the self-hosted UI package. Caller owns the image. */
-U.embedLogo=function(uri){var old=U.chrome;U.chrome=function(){return (old().replace('</header>','<img class="dell-header-logo" width="132" height="40" alt="Dell" src="'+uri+'"></header>').replace('<span class="brand-mark">DELL<span class="brand-slash">/</span></span>','<span class="brand-mark brand-square">H910P<span class="brand-slash">/</span></span>').replace('Firmware 01.18.0005','Firmware 01.18.0005 · UI v'+U.uiVersion))+'<dialog class=\"setting-dialog\" id=\"setting-dialog\" aria-labelledby=\"editor-title\"></dialog>'};};
+U.embedLogo=function(uri){
+ U.brandLogo=uri;
+ var old=U.chrome;
+ U.chrome=function(){
+  return old()
+   .replace('<span class="brand-mark">DELL<span class="brand-slash">/</span></span>',
+    '<img class="dell-brand-logo" src="'+uri+'" width="150" height="48" alt="Dell">')
+   .replace('</div></header>', '<button type="button" class="lock-action" id="lock-interface" title="Lock this management screen">'+U.ico('lock')+' Lock</button></div></header>')
+   .replace('Firmware 01.18.0005','Firmware 01.18.0005 · UI v'+U.uiVersion)
+   +'<dialog class="setting-dialog" id="setting-dialog" aria-labelledby="editor-title"></dialog>';
+ };
+};
 U.management=function(){return U.page==='firmware'?U.firmwareView():U.configView(U.page)};
-U.onConsoleClick=function(e){var edit=e.target.closest('[data-edit]');if(edit){U.editSetting(Number(edit.dataset.edit));return true}
+U.onConsoleClick=function(e){if(e.target.closest('#lock-interface')){U.lockInterface();return true}var edit=e.target.closest('[data-edit]');if(edit){U.editSetting(Number(edit.dataset.edit));return true}
  if(e.target.closest('#editor-cancel')){document.getElementById('setting-dialog').close();U.editor=null;return true}
  if(e.target.closest('#editor-back')){U.editSetting(U.editor.index);return true}
  if(e.target.closest('#editor-apply')){U.commitEdit();return true}
@@ -125,5 +125,5 @@ U.installConsole=function(){
  var oldRender=U.render;U.render=function(navigate){oldRender(navigate);if(U.page==='events')U.filterEvents();if(U.config.search)U.searchSettings(U.config.search)};
  var nav=U.navto;U.navto=function(page){if(U.page!==page){U.config.message='';U.config.error='';U.config.search=''}nav(page);U.loadPageData()};
  U.loadPageData=function(){if(U.page==='events'&&!U.events.length&&!U.eventsBusy)U.loadEvents();else if(U.consoleMeta[U.page]||U.page==='controls'){if(!U.config.loaded&&!U.config.busy)U.loadConfig()}else if(U.page==='system'&&!Object.keys(U.identity).length&&!U.identityBusy)U.loadIdentity()};
- U.loadPageData();
+ /* The authentication gate starts data loads after a successful sign-in. */
 };

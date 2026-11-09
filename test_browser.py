@@ -74,7 +74,20 @@ def run():
     html=re.sub(r'<script src=([^>]+)></script>',
         lambda m:'<script>'+(FILES/m.group(1).lstrip('/')).read_text('ascii')+'</script>',html)
     assert '<script src=' not in html
-    mock='<script>\nwindow.__rejectXML=false;window.__requests=[];\nwindow.fetch=async function(url,opt){window.__requests.push([url,opt?.method||\'GET\',opt?.body||\'\']);if(url===\'/get_object.xml\')return {ok:true,text:async()=>window.__rejectXML?\'not xml\':JSON_MOCK};if(url===\'/product.xml\')return {ok:true,text:async()=>\'<PRODUCT><MODEL>Dell H910P</MODEL><PASSWORD>hidden-secret</PASSWORD><FIRMWARE>01.18.0005</FIRMWARE></PRODUCT>\'};if(url===\'/logevent.csv\')return {ok:true,text:async()=>"2026-11-08,AC Power Restored\\n2026-11-07,NMC Restart\\n"};return {ok:false,status:404,text:async()=>\'\'};};\n</script>'.replace('JSON_MOCK',json.dumps(MOCK.decode('utf8')))
+    mock = r"""<script>
+window.__rejectXML=false;window.__requests=[];
+window.fetch=async function(url,opt){
+ window.__requests.push([url,(opt&&opt.method)||'GET',(opt&&opt.body)||'']);
+ if(url==='/app_upload.htm'){
+  if(opt&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4=')return {ok:true,status:200,text:async function(){return 'OK'}};
+  return {ok:false,status:401,text:async function(){return 'Denied'}};
+ }
+ if(url==='/get_object.xml')return {ok:true,status:200,text:async function(){return window.__rejectXML?'not xml':JSON_MOCK}};
+ if(url==='/product.xml')return {ok:true,status:200,text:async function(){return '<PRODUCT><MODEL>Dell H910P</MODEL><PASSWORD>hidden-secret</PASSWORD><FIRMWARE>01.18.0005</FIRMWARE></PRODUCT>'}};
+ if(url==='/logevent.csv')return {ok:true,status:200,text:async function(){return '2026-11-08,AC Power Restored\n2026-11-07,NMC Restart\n'}};
+ return {ok:false,status:404,text:async function(){return ''}};
+};
+</script>""".replace('JSON_MOCK',json.dumps(MOCK.decode('utf8')))
     html=html.replace('<html>', '<html>'+mock)
     report={};errors=[]
     with sync_playwright() as p:
@@ -82,14 +95,28 @@ def run():
         page=browser.new_page(viewport={'width':1600,'height':1000},device_scale_factor=1)
         page.on('pageerror',lambda e:errors.append(str(e)))
         page.set_content(html,wait_until='load')
+        page.get_by_role('heading',name='Sign in to your UPS').wait_for(timeout=15000)
+        page.screenshot(path=str(BASE/'login-desktop.png'),full_page=True)
+        assert page.locator('#sidebar').count()==0
+        page.locator('#signin-user').fill('invalid')
+        page.locator('#signin-pass').fill('bad-password')
+        page.get_by_role('button',name='Sign in').click()
+        page.get_by_text('The username or password was not accepted.').wait_for(timeout=6000)
+        assert page.locator('#sidebar').count()==0
+        page.locator('#signin-user').fill('admin')
+        page.locator('#signin-pass').fill('admin')
+        page.get_by_role('button',name='Sign in').click()
         page.get_by_text('53%',exact=True).first.wait_for(timeout=15000)
         assert page.get_by_text('100%',exact=True).count()>=1
         assert page.get_by_text('16m 30s',exact=True).count()==1
         assert page.locator('iframe,frame,frameset').count()==0
         assert page.locator('.ic').count()>25
         assert page.locator('.power-path').count()==1
+        assert page.locator('.dell-brand-logo').count()==1
+        assert page.locator('.dell-brand-logo').get_attribute('src').startswith('data:image/svg+xml;base64,')
+        assert page.locator('.dell-header-logo').count()==0
         assert page.get_by_text('Utility power healthy').count()>0
-        assert page.locator('[data-page]').count()==15
+        assert page.locator('#sidebar [data-page]').count()==15
         report['embedded_decompression_and_desktop_instrumentation']='PASS'
         report['frame_free_15_section_navigation']='PASS'
         page.screenshot(path=str(BASE/'instrument-panel-desktop.png'),full_page=True)
@@ -98,7 +125,7 @@ def run():
             assert page.locator('main h1').count()==1,target
         report['all_15_routes_render']='PASS'
         page.locator('[data-page="controls"]').click()
-        assert page.locator('a[href="/default.htm"]').count()>=1
+        assert page.locator('a[href="/app_upload.htm"]').count()>=1
         assert page.locator('a[href="/ups_cntr.htm"]').count()==1
         report['legacy_power_control_handoff_present']='PASS'
         page.locator('[data-page="events"]').click()
@@ -117,6 +144,9 @@ def run():
         phone=browser.new_page(viewport={'width':390,'height':844},device_scale_factor=1)
         phone.on('pageerror',lambda e:errors.append(str(e)))
         phone.set_content(html,wait_until='load')
+        phone.locator('#signin-user').fill('admin')
+        phone.locator('#signin-pass').fill('admin')
+        phone.get_by_role('button',name='Sign in').click()
         phone.get_by_text('53%',exact=True).first.wait_for(timeout=15000)
         phone.get_by_role('button',name='Toggle navigation').click()
         phone.locator('[data-page="electrical"]').click()
@@ -130,8 +160,22 @@ def run():
         assert page.get_by_text('hidden-secret').count()==0
         report['authenticated_product_identity_and_secret_filter']='PASS'
         requests=page.evaluate('window.__requests')
-        assert all(a in ['/get_object.xml','/configuration_descriptor.xml','/logevent.csv','/product.xml'] for a,b,c in requests)
+        assert all(a in ['/app_upload.htm','/get_object.xml','/configuration_descriptor.xml','/logevent.csv','/product.xml'] for a,b,c in requests)
         assert all(a!='/Forms/set_obj_2' for a,b,c in requests)
+        # Lock clears in-memory credentials, hides all management views, and
+        # requires the OEM credential challenge again for the next sign-in.
+        page.locator('#lock-interface').click()
+        page.get_by_role('heading',name='Sign in to your UPS').wait_for(timeout=5000)
+        assert page.locator('#sidebar').count()==0
+        assert page.evaluate('window.U.auth.header')==''
+        page.locator('#signin-user').fill('admin')
+        page.locator('#signin-pass').fill('admin')
+        page.get_by_role('button',name='Sign in').click()
+        page.locator('#sidebar').wait_for(timeout=12000)
+        page.locator('[data-page="overview"]').first.click()
+        page.get_by_text('53%',exact=True).first.wait_for(timeout=12000)
+        assert page.locator('#sidebar').count()==1
+        report['real_oem_authentication_login_and_lock']='PASS'
         assert not errors,errors
         report['no_external_requests_or_ups_writes']='PASS'
         report['uncaught_javascript_errors']=errors

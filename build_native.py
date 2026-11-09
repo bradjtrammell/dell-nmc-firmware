@@ -31,7 +31,7 @@ VENDOR = HERE / 'originals' / 'NMC_Firmware_01_18_0005_X2JYN.zip'
 FACTORY_IMAGE_BYTES = 1517029
 KNOWN_V042_SHA256 = 'db0cede9c360b71a36dc68425970b8119005f170b3d9cfb7bda4eba2e7515757'
 OUTPUT_NAME = 'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'
-JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-start.js']
+JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-notifications.js', 'ui-dashboard.js', 'ui-auth.js', 'ui-start.js']
 # Deliberately select only static, non-control help resource strings.
 # Original help content at these paths IS LOST; it is a remaining blocker.
 RESOURCE_NAMES = [
@@ -41,6 +41,20 @@ RESOURCE_NAMES = [
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
     '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
     '/Help/hlpweek.htm', '/Help/hlpelog.htm',
+]
+
+# Legacy synoptic graphics are already unusable in v0.5: dhtml.js is repurposed.
+# Reclaim their fixed STRING slots only; preserve every dynamic callback/descriptor.
+# This intentionally removes the old OEM power-diagram presentation, not its backend.
+RETIRED_SYNOPTIC = [
+ '/html/synoptic/ajax.js', '/html/synoptic/png.js',
+ '/html/synoptic/ups_on_line_bpmanu.js', '/html/synoptic/ups_on_line_bpauto.js',
+ '/html/synoptic/ups_measure_33.js', '/html/synoptic/ups_measure_31.js',
+ '/html/synoptic/ups_measure_11.js', '/html/synoptic/ups_line_interactive.js',
+ '/html/synoptic/ups_Dell_measure_11.js', '/html/synoptic/ups_on_line.js',
+ '/html/synoptic/ups_measure_31_phph.js', '/html/synoptic/ups_measure_11_simple.js',
+ '/html/synoptic/ups_measure_11_simple_extremec.js',
+ '/Help/hlpmenu.htm', '/Help/hlpsnmp.htm', '/Help/hlpsenv.htm', '/Help/hlpmng.htm'
 ]
 
 BOOTSTRAP_RESOURCE = RESOURCE_NAMES[0]
@@ -270,6 +284,22 @@ def main() -> None:
         filepath = site / name.lstrip('/')
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_bytes(b''.join(updated[off:off+cap] for off,cap in spans))
+    retired_count = 0
+    for name in RETIRED_SYNOPTIC:
+        d = resource_by_path[name]
+        for it in d['items']:
+            if it['type'] != 1:
+                continue  # Keep every dynamic handler/callback unmodified.
+            offset = it['offset']
+            end = before.find(b'\0', offset, min(offset+8192, len(before)))
+            if end < offset:
+                raise ValueError('Unterminated retired UI string in '+name)
+            cap = end-offset
+            if cap:
+                updated[offset:end] = b' ' * cap
+                allowed.update(range(offset,end))
+                retired_count += cap
+
     differences = [i for i,(a,b) in enumerate(zip(before,updated)) if a!=b]
     assert len(before)==len(updated)
     assert differences and set(differences)<=allowed
@@ -313,6 +343,8 @@ def main() -> None:
         'firmware_within_factory_image_size':len(result)<=FACTORY_IMAGE_BYTES,
         'repurposed_original_help_pages':list(resources),
         'cleared_unused_prior_help_chunks':unused_old_chunks,
+        'retired_legacy_synoptic_resources': RETIRED_SYNOPTIC,
+        'retired_legacy_synoptic_static_bytes': retired_count,
         'original_management_uses_legacy_frames':True,
         'power_and_configuration_actions_in_new_ui':'DESCRIPTOR-BACKED RW CONFIG AND DOCUMENTED OUTLET COMMANDS (SIMULATED BROWSER TESTS); ORIGINAL UI RETAINED',
         'unverified':['NMC hardware boot','Firmware upload acceptance','Actual NMC HTTP-serving','Live XML compatibility','Automatic firmware recovery','Legacy help availability','Flash memory headroom'],
