@@ -1,0 +1,9 @@
+# Dell firmware is proprietary, user-provided, and never published.
+originals/
+build/
+*.bin
+*.zip
+*.pyc
+__pycache__/
+.pytest_cache/
+.DS_Store
