@@ -1,76 +1,77 @@
 # Dell H910P NMC — Instrument Panel
 
-Desktop-first, frame-free custom web interface **embedded inside the original Dell NMC application**, targeting H910P A06 / vendor firmware **01.18.0005**. It serves from the NMC's own address; no external application or Docker deployment.
+A desktop-first, offline-capable web management interface **embedded directly into Dell H910P NMC firmware** (Dell base `01.18.0005`). No CDN, external management server, cloud service, or Docker is needed to browse the UI. All new frontend code is here in source form; the vendor NET+OS firmware remains proprietary.
 
-## v0.4.2 — Native upload-test build
+## v0.5.0 — Operational UI expansion (firmware candidate)
 
-**The old v0.4.1 build should not be used again.** We found that its generated `/index.htm` referenced the bootstrap but did not load the 15 JavaScript chunks containing the new UI. The old browser tests supplied those chunks manually and masked the defect. Version 0.4.2 corrects the native page and the tests.
+The original H910P was successfully flashed with **custom UI v0.4.2** via HTTP/1.0 multipart POST on November 9, 2026. The card rebooted and served `/index.htm` directly. **v0.5.0 has passed offline firmware and browser tests but has NOT been tested on real hardware.** Keep the proven v0.4.2 BIN as a recovery reference.
 
-An optimal, byte-exact LZSS2 encoder also reduces the modified firmware image to **1,507,635 bytes**, which is **9,394 bytes smaller** than Dell's original **1,517,029-byte** firmware. No OEM images, UPS controller instructions, callbacks, or static resource pointers were removed to achieve the reduction. The only application-data edits are original `/index.htm` and 16 repurposed legacy Help resources, whose MIME type is changed to JavaScript.
+### New in v0.5.0
 
-This is an experimental software candidate, not evidence of successful device upload. Dell's native uploader previously returned `ERROR : HTTP transfert failure` after a `303 See Other` on the larger v0.4.1 image. **The actual cause of that upload failure remains unproven.** A new 0.4.2 upload tests whether reduced size matters while also fixing the startup bug.
+- Reworked the native configuration pages into categorized, searchable management sections with descriptive titles, live read-only values, clear supported-versus-unavailable states, and keyboard-friendly modal editors.
+- Clicking **Edit** opens a dialog, validates on review, then requires a second explicit **Apply to NMC** action. Upload uses the existing same-origin `Configuration.xml` multipart endpoint and checks device readback before declaring success. Secrets remain masked; credential writes are reported as submitted rather than device-readback verified.
+- Load configuration automatically when entering device management sections rather than leaving pages empty until a manual fetch.
+- Added searchable event records, severity filters, refresh control and CSV export; severity is inferred from message text and is not a device-provided classification.
+- Notification page provides existing SMTP settings and clearly labels ntfy, Monita and Discord delivery *as not installed*, with their potential event-ingest paths. Direct webhooks, new native event handlers and SMTP mail sending tests are NOT implemented.
+- Firmware page shows the installed **UI version 0.5.0** distinct from Dell base `01.18.0005`, the proven manual HTTP/1.0 POST update path, and an honest GitHub/UI-only updater status (**not yet implemented**).
+- User-supplied Dell logo was converted to white with transparency and vectorized; its SVG is packaged into the local UI and displayed in the upper-right. No external assets, fonts or dependencies.
+- Increased available UI storage by repurposing original `/html/synoptic/dhtml.js` and the already-overwritten Help-resource slots. The old Dell *synoptic/diagram frontend* will no longer work; original UPS backend and firmware upload handler remain in place. This is part of the approved single-UI transition; **do not use v0.5.0 if full legacy Dell interface fallback is required**.
+- The 1,512,695-byte BIN is 4,334 bytes smaller than the original Dell image (1,517,029 bytes). ARM executable, boot header, resource descriptors, and native callbacks are unchanged; only allowlisted static UI bytes and MIME metadata are patched.
+- Deterministic builds from either the owner's original Dell ZIP **or an exact checksum-matching custom v0.4.2 BIN** produce byte-identical v0.5.0 firmware.
 
-The firmware's internally advertised Dell version remains **01.18.0005**. The separate `0.4.2` number tracks this custom UI source and BIN; no downgrade field is introduced.
+### Not yet complete
 
-## UI design
+- The physical card has NOT run v0.5.0. All 15 routes render in browser mocks, but availability of actual editable NMC settings depends on the live configuration descriptor; many specialized workflows (weekly schedule, shutdown clients, event recipient selection, SNMP traps, user management) still require hardware API discovery and verification. No false claim of complete parity.
+- The independent Flash0 UI asset store, GitHub-only UI updater, automatic rollback, custom notification dispatcher, HTTP webhooks and direct ntfy/Monita/Discord delivery are **not yet implemented**.
+- Native power control remains based on the descriptor's observed `Control.Outlet[n]` commands with exact typed confirmation and no end-to-end device-power test. Treat power-command submission as unconfirmed until output state is observed on hardware.
+- Firmware restoration through `/Forms/app_upload_1` requires the NMC still boots, is reachable, and serves the native uploader. This is not a guarantee of recovery from an unbootable image.
 
-Personality: precise, assured, industrial — a professional power-distribution control console. A light `#f2f6f7` content canvas, white instruments, Dell blue `#007db8`, green `#087a53`, charcoal `#18272f` side navigation, warm amber `#a86814`, red `#b93e30`. Tight, angular 4–5 px radii; Segoe UI/Arial and tabular numeric readouts; dense management navigation; SVG icons and animated power-flow paths. Motion lasts roughly 180–220 ms and respects `prefers-reduced-motion`. Desktop is the priority; a mobile fallback exists.
+## Build from the exact proven v0.4.2 BIN
 
-## Existing functionality
-
-- 15 management destinations derived from the owner's frame-by-frame recording of the original NMC UI.
-- Live read-only UPS load, charge, runtime, voltage and output telemetry via existing `get_object.xml` XML endpoints; local trend chart, events, refresh/retry states.
-- Native configuration editor reads the original NMC `configuration_descriptor.xml`, displays descriptor-advertised RW fields, validates a single change, requests confirmation, submits `Configuration.xml` to `/Forms/set_obj_2`, and requests an independent readback before displaying success.
-- Native outlet command panel uses only the original descriptor's `Control.Outlet[n]` objects, with explicit typed confirmation. Command acceptance is not treated as observed power-state completion.
-- Product identification filters password- and community-like values.
-- Existing Dell firmware-management and incomplete native workflows remain accessible through their original URLs. Weekly scheduling and some vendor-specific configuration operations are **not** a completed native replacement.
-
-## Build
-
-**Inputs:** Python 3.11+, C++17 compiler (`g++`), owner-provided Dell vendor ZIP in `originals/NMC_Firmware_01_18_0005_X2JYN.zip`. Python libraries for firmware building are standard-library only. No network or NMC connection is needed to build. Build on Linux with:
+The **simplest local build**, requiring no Dell website and no OEM ZIP, is:
 
 ```bash
-python3 build_native.py
-python3 tools/test_validation.py
+python3 build_native.py --from-v042 "$HOME/Downloads/H910P_Custom_UI_v0.4.2.bin"
+```
+
+The builder refuses any v0.4.2 BIN whose SHA-256 does not equal:
+
+`db0cede9c360b71a36dc68425970b8119005f170b3d9cfb7bda4eba2e7515757`
+
+Alternatively, put the original `NMC_Firmware_01_18_0005_X2JYN.zip` inside `originals/` and run `python3 build_native.py`.
+
+**Toolchain:** Python 3.11+ standard library, C++17 compiler `g++` (for the repository's lossless optimal LZSS2 compressor). No network access needed once the sources and baseline image are present.
+
+Output: `build/H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin`
+
+Expected **v0.5.0** SHA-256:
+
+`b9d3a17c8d26267d6d9e4c678097c63911d73c219ae8d250e972e31465eca77b`
+
+Exact size: **1,512,695 bytes**.
+
+We reproduced identical output bytes using both input methods. The firmware build checks the CRC, decompression round trip, metadata pointers, allowable binary changes, embedded UI reconstruction, and factory BIN-size ceiling.
+
+## Tests
+
+```bash
+python3 tools/test_validation.py          # Needs the two OEM ZIP test fixtures
 python3 tools/test_optimal_encoder.py
 python3 test_native_entry.py
-```
-
-Output: `build/H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin` and `build/VALIDATION.json`. Firmware build fails if the optimized BIN exceeds the OEM BIN, has invalid header/CRC, contains unexpected modified executable bytes, or fails a full decompression round trip.
-
-For Playwright Chromium browser tests (Chromium expected at `/usr/bin/chromium`):
-
-```bash
-python3 test_browser.py
+python3 test_browser.py                   # Needs Playwright + Chromium
 python3 test_config_browser.py
-python3 test_http_integration.py
 ```
 
-The HTTP integration test **skips** in environments where Chromium refuses loopback navigation. Simulated browser and XML tests do not prove NMC runtime compatibility.
+The 18 firmware tests, 4 compressor tests, 4 native-entry tests and two browser suites passed on the authoring machine using mocked UPS/NMC responses; no real-hardware v0.5.0 claim is implied. Run `node --check source/*.js` individually for JS syntax checks.
 
-## What offline validation establishes
+## Firmware deployment
 
-- Both vendor images decode and validate.
-- Exact startup header, image format, RAM and flash address fields, RomPager pointers and dynamic callbacks are preserved.
-- The original application length is unchanged, with changed bytes limited to allowlisted UI resources and MIME enum fields.
-- The modified BIN CRC validates and its decompression equals the precise patched application.
-- The NMC entry page contains all 16 native script references **in the correct order**, and their descriptor MIME types are JavaScript.
-- Browser tests load precisely the embedded script contents in that order and simulate the Dell M2M endpoints, including error and control confirmation states.
+The **proven device upload method** is a single HTTP/1.0 multipart POST (not a browser HTTP/1.1 upload), and positive firmware-write confirmation on `/app_upload.htm` after the redirect. Do not follow the 302/303 automatically; those statuses do not establish flash success. See [`docs/firmware-deployment-http-post.md`](docs/firmware-deployment-http-post.md). The GitHub updater is tracked separately in ADR-0001 and remains unavailable.
 
-**Not yet established:** whether the H910P accepts the upload, boots and serves the full UI, implements the simulated XML forms exactly, or supports automatic recovery.
+## Design identity
 
-## Project files
+Precise, industrial, assured — a control-room instrument panel with a light `#f2f6f7` content canvas, Dell blue `#007db8`, charcoal `#18272f` sidebar, green `#087a53` system statuses, angular 4–5 px corners and Segoe UI/Arial. Sparse borders and strong typography maintain hierarchy, with short animations and reduced-motion support. Every screen must work offline at 360px and larger. No framework runtime/CDN is loaded; Tailwind is compiled ahead of time.
 
-- `build_native.py` — immutable-address UI patching, browser entry, image rebuild.
-- `tools/lzss_opt.cpp` — optimal byte-cost LZSS2 parser/encoder. Produces a lossless stream accepted by the Python decoder.
-- `tools/h910p_rebuild.py` — independent reference decoder, checksum and header parser.
-- `tools/rompager_map.py` — original NMC resource descriptor mapping.
-- `source/` — complete current UI CSS, SVG/icon utilities, navigation and JS.
-- `test_native_entry.py`, `test_browser.py`, `test_config_browser.py`, `tools/test_optimal_encoder.py`, `tools/test_validation.py` — validation.
-- `originals/`, `build/` — local/private, excluded from Git. Do not redistribute vendor firmware or user credentials in this public repo.
+## Licensing and scope
 
-Official Dell firmware: https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=x2jyn
-
-## Live device upload issue (v0.4.1)
-
-The browser submitted `POST /Forms/app_upload_1` with 1,533,873 request bytes (BIN + multipart overhead), and the NMC responded `303 See Other` redirecting to `/app_upload.htm`. The page displayed `ERROR : HTTP transfert failure`. That 303 establishes only an application response, not image acceptance. Neither binary size nor browser MIME encoding is confirmed as the root cause. Version 0.4.2 is smaller than Dell's original image, eliminating the demonstrated size overage but not establishing whether the transport error is resolved.
+`originals/`, `build/`, binary firmware and proprietary Dell components are excluded from the public Git repository. Users supply their own lawful firmware image for local patching. Dell and the Dell logo are trademarks of Dell Inc.; inclusion of owner-supplied artwork does not imply Dell endorsement. Code in this repository remains distinct from Dell's proprietary NET+OS application.

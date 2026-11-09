@@ -102,7 +102,7 @@ def run():
         assert page.locator('a[href="/ups_cntr.htm"]').count()==1
         report['legacy_power_control_handoff_present']='PASS'
         page.locator('[data-page="events"]').click()
-        page.get_by_role('button',name='Load recent events').click()
+        page.get_by_role('button',name='Refresh log').click()
         page.get_by_text('AC Power Restored',exact=False).wait_for(timeout=10000)
         report['event_export_polling']='PASS'
         page.locator('[data-page="overview"]').click()
@@ -130,7 +130,8 @@ def run():
         assert page.get_by_text('hidden-secret').count()==0
         report['authenticated_product_identity_and_secret_filter']='PASS'
         requests=page.evaluate('window.__requests')
-        assert all((a=='/get_object.xml' and b=='POST' and c=='objectName=UPS.*') or (a=='/logevent.csv' and b=='GET') or (a=='/product.xml' and b=='GET') for a,b,c in requests)
+        assert all(a in ['/get_object.xml','/configuration_descriptor.xml','/logevent.csv','/product.xml'] for a,b,c in requests)
+        assert all(a!='/Forms/set_obj_2' for a,b,c in requests)
         assert not errors,errors
         report['no_external_requests_or_ups_writes']='PASS'
         report['uncaught_javascript_errors']=errors

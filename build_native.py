@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from pathlib import Path
+import argparse
 import base64
 import gzip
 import json
@@ -27,12 +28,14 @@ from rompager_map import discover
 SRC = HERE / 'source'
 OUT = HERE / 'build'
 VENDOR = HERE / 'originals' / 'NMC_Firmware_01_18_0005_X2JYN.zip'
+FACTORY_IMAGE_BYTES = 1517029
+KNOWN_V042_SHA256 = 'db0cede9c360b71a36dc68425970b8119005f170b3d9cfb7bda4eba2e7515757'
 OUTPUT_NAME = 'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'
-JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-start.js']
+JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-start.js']
 # Deliberately select only static, non-control help resource strings.
 # Original help content at these paths IS LOST; it is a remaining blocker.
 RESOURCE_NAMES = [
-    '/Help/hlpnetw.htm', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
+    '/Help/hlpnetw.htm', '/html/synoptic/dhtml.js', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
     '/Help/hlpenv.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
     '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
@@ -41,8 +44,20 @@ RESOURCE_NAMES = [
 ]
 
 BOOTSTRAP_RESOURCE = RESOURCE_NAMES[0]
+# Every page here was already overwritten by the verified v0.4.2 build.
+# Reset unused old chunks to deterministic blanks so OEM and v0.4.2 inputs
+# produce exactly the same application and resulting firmware image.
+OLD_CHUNK_RESOURCES = [
+    '/Help/hlpnetw.htm', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
+    '/Help/hlpenv.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
+    '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
+    '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
+    '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
+    '/Help/hlpweek.htm', '/Help/hlpelog.htm',
+]
 
-def rebuild_optimized(original, unpacked: bytes) -> bytes:
+
+def rebuild_optimized(original, unpacked: bytes, max_size: int = FACTORY_IMAGE_BYTES) -> bytes:
     """Losslessly compress the patched ARM application, preserving its image header.
 
     A proper 8-token-state dynamic-programming LZSS2 encoder is built locally
@@ -69,8 +84,8 @@ def rebuild_optimized(original, unpacked: bytes) -> bytes:
     checked = read_image(image)
     if checked.unpacked != unpacked or checked.header[:32] != original.header[:32]:
         raise ValueError('Optimized firmware round-trip/header mismatch')
-    if len(image) > len(original.original):
-        raise ValueError(f'Optimized image still exceeds original by {len(image)-len(original.original)} bytes')
+    if len(image) > max_size:
+        raise ValueError(f'Optimized image exceeds factory firmware size limit by {len(image)-max_size} bytes')
     return image
 
 
@@ -142,7 +157,14 @@ def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, 
 
 def source_blob() -> tuple[str, str, bytes]:
     css = (SRC / 'tailwind-compiled.css').read_text(encoding='utf-8') + '\n' + (SRC / 'ui.css').read_text(encoding='utf-8')
-    scripts = '\n'.join((SRC / name).read_text(encoding='utf-8') for name in JAVASCRIPT_FILES)
+    js_files = []
+    for name in JAVASCRIPT_FILES:
+        script = (SRC / name).read_text(encoding='utf-8')
+        if name == 'ui-console.js':
+            logo = base64.b64encode((SRC / 'dell-white.svg').read_bytes()).decode('ascii')
+            script += '\nU.embedLogo("data:image/svg+xml;base64,' + logo + '");U.installConsole();'
+        js_files.append(script)
+    scripts = '\n'.join(js_files)
     content = (css + '\0' + scripts).encode('utf-8')
     return css, scripts, gzip.compress(content, compresslevel=9, mtime=0)
 
@@ -184,8 +206,16 @@ def index_page(names: list[str]) -> str:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--from-v042', type=Path, help='Build using an exact SHA-256 verified local v0.4.2 BIN instead of the Dell vendor ZIP')
+    args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
-    _, firmware = load_zip(VENDOR)
+    if args.from_v042:
+        firmware = args.from_v042.read_bytes()
+        if sha256(firmware) != KNOWN_V042_SHA256:
+            raise ValueError('Supplied firmware does not match the proven v0.4.2 baseline; build aborted')
+    else:
+        _, firmware = load_zip(VENDOR)
     original = read_image(firmware)
     before = original.unpacked
     base, records = discover(before)
@@ -195,6 +225,11 @@ def main() -> None:
     resources = distribute(b64, resource_by_path, before)
     html = index_page(list(resources)[1:] + [BOOTSTRAP_RESOURCE])
     patches = {'/index.htm': html, **resources}
+    # Normalization of legacy Help chunks makes the result identical regardless
+    # of whether users begin with OEM firmware or the already-installed v0.4.2.
+    unused_old_chunks = [n for n in OLD_CHUNK_RESOURCES if n not in resources]
+    for name in unused_old_chunks:
+        patches[name] = ['' for _ in slots_of(before, resource_by_path[name])]
     assert len(html.encode('ascii')) <= sum(length for _, length in slots_of(before, resource_by_path['/index.htm'])), 'Entry page exceeds native RomPager capacity'
     updated = bytearray(before)
     allowed = set()
@@ -261,9 +296,10 @@ def main() -> None:
     binary.write_bytes(result)
     report={
         'status':'EXPERIMENTAL: NOT APPROVED FOR FLASHING LIVE NMC',
+        'source_image': 'verified-v0.4.2' if args.from_v042 else 'vendor-01.18.0005',
         'original_sha256':sha256(firmware),'custom_sha256':sha256(result),
         'original_bytes':len(firmware),'custom_bytes':len(result),
-        'firmware_size_delta':len(result)-len(firmware),
+        'firmware_size_delta':len(result)-FACTORY_IMAGE_BYTES,
         'application_size_unchanged':len(before)==len(updated),
         'compressed_ui_bytes':len(compressed_assets),'base64_ui_bytes':len(b64),
         'modified_application_byte_count':len(differences),
@@ -274,8 +310,9 @@ def main() -> None:
         'embedded_ui_round_trip_exact':True,
         'native_index_script_count':len(re.findall(r'<script src=',html)),
         'native_index_scripts_load_in_order':True,
-        'firmware_within_factory_image_size':len(result)<=len(firmware),
+        'firmware_within_factory_image_size':len(result)<=FACTORY_IMAGE_BYTES,
         'repurposed_original_help_pages':list(resources),
+        'cleared_unused_prior_help_chunks':unused_old_chunks,
         'original_management_uses_legacy_frames':True,
         'power_and_configuration_actions_in_new_ui':'DESCRIPTOR-BACKED RW CONFIG AND DOCUMENTED OUTLET COMMANDS (SIMULATED BROWSER TESTS); ORIGINAL UI RETAINED',
         'unverified':['NMC hardware boot','Firmware upload acceptance','Actual NMC HTTP-serving','Live XML compatibility','Automatic firmware recovery','Legacy help availability','Flash memory headroom'],

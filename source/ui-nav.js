@@ -2,7 +2,7 @@
 U.render=function(navigate){
  var app=document.getElementById('app');if(!app)return;
  if(!document.getElementById('sidebar')){
-  app.innerHTML=U.chrome();app.addEventListener('click',U.click);
+  app.innerHTML=U.chrome();app.addEventListener('click',U.click);app.addEventListener('input',function(e){if(U.onConsoleInput)U.onConsoleInput(e)});app.addEventListener('change',function(e){if(U.onConsoleChange)U.onConsoleChange(e)});app.addEventListener('submit',function(e){if(U.onConsoleSubmit)U.onConsoleSubmit(e)});
   window.addEventListener('keydown',function(e){
    if(e.key==='Escape'){var rail=document.getElementById('sidebar'),toggle=document.getElementById('menu-toggle');
     if(rail&&toggle){rail.classList.remove('open');toggle.setAttribute('aria-expanded','false')}}
@@ -15,7 +15,7 @@ U.render=function(navigate){
  var v=document.getElementById('view');
  var views={overview:U.overview,electrical:U.electrical,outlets:U.outlets,events:U.eventsView,system:U.systemView,controls:U.controlsView};
  if(v){
-  var isDynamic=['overview','electrical','outlets','events','system'].indexOf(U.page)!==-1||!!(U.config&&U.config.groups.length);
+  var isDynamic=true;
   var shouldUpdate=navigate||isDynamic;
   if(shouldUpdate){
    var html=(views[U.page]||U.management)();
@@ -38,6 +38,7 @@ U.render=function(navigate){
  if(navigate){var title=v&&v.querySelector('h1');if(title)title.focus({preventScroll:true})}
 };
 U.click=function(e){
+ if(U.onConsoleClick&&U.onConsoleClick(e))return;
  var nav=e.target.closest('[data-page]');if(nav){U.navto(nav.dataset.page);var rail=document.getElementById('sidebar');rail.classList.remove('open');var toggle=document.getElementById('menu-toggle');if(toggle)toggle.setAttribute('aria-expanded','false');return}
  if(e.target.closest('#refresh')||e.target.closest('#retry')){U.poll();return}
  if(e.target.closest('#load-events')){U.loadEvents();return}

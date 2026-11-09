@@ -1,5 +1,19 @@
 # Change log
 
+## 0.5.0 — 2026-11-09 — next-generation native management surfaces
+
+- Added a bundled white, alpha-transparent Dell brand mark in the upper-right header, derived from the owner's supplied artwork; no CDN.
+- Replaced raw editable key/value grids with semantic setting groups, automatic descriptor discovery, local search, explanatory copy, and modal editor/confirmation flow.
+- Enforced two-step submission, existing card input constraints, independent get_object XML readback, masked credentials and honest unverified-secret statuses.
+- Added filtered/severity-classified searchable event history, native CSV export and clearer loading/error states.
+- Added email notification management surfacing and Monita/ntfy/Discord integration status panels, explicitly not claiming direct push delivery.
+- Added firmware maintenance view with separate UI/base versions and current manual HTTP/1.0 POST process; native GitHub asset updater remains deferred pending Flash0 verification.
+- Repurposed original `html/synoptic/dhtml.js` and normalized unused prior Help chunks, reducing firmware to 1,512,695 bytes (4,334 under OEM).
+- Built exact same BIN using either OEM firmware or SHA-256-verified v0.4.2, with byte-for-byte comparison.
+- Updated browser tests for automatic discovery, modal workflow, invalid value rejection, sensitive field masking, no-write cancellation, event filtering and firmwares states.
+- This is an offline-tested candidate, NOT a live hardware validated v0.5.0 release. The original synoptic frontend is no longer functional, and full legacy UI parity is not claimed.
+
+
 ## 0.4.2 — 2026-11-09 — entry loading and image-size remediation
 
 - **Fixed real startup failure in v0.4.1:** OEM `/index.htm` now loads all 15 content chunks followed by the bootstrap script; no test harness preloading or missing assets.

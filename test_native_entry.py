@@ -43,7 +43,8 @@ class NativeEntryTests(unittest.TestCase):
     def test_index_fits_native_static_slots(self):
         # Original /index.htm consists of two zero-terminated string slots.
         self.assertEqual(len(self.original),713)
-        self.assertEqual(self.result['native_index_script_count'],16)
+        self.assertEqual(self.result['native_index_script_count'], len(self.result['repurposed_original_help_pages']))
+        self.assertGreaterEqual(self.result['native_index_script_count'], 3)
 
     def test_all_asset_chunks_precede_bootstrap(self):
         names=self.result['repurposed_original_help_pages']
