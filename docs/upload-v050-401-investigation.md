@@ -32,3 +32,23 @@ This strongly isolates the observed failure to the live card's HTTP authenticati
 The prior command saved the HTTP response headers at `~/Downloads/H910P-v0.5.0-upload-headers.txt`. Inspect the status and any `WWW-Authenticate` challenge there (do not share credentials). Compare with the result of a read-only authenticated GET of `/app_upload.htm`. If the GET also returns 401, resolve the credential/HTTP-auth state first. If GET returns 200, it may be publicly readable, so **does not prove POST permission**; further handler-specific research is needed before another firmware upload.
 
 Do not repeat the POST or change the BIN until the cause of the 401 is established.
+
+## Confirmed authenticated-GET comparison
+
+The operator supplied another GET check immediately after the failed v0.5.0 upload:
+
+- `GET /app_upload.htm`, no credentials: **HTTP 401**, `WWW-Authenticate: Basic realm="Network Management Card :"`.
+- `GET /app_upload.htm`, `--basic --user admin:admin`: **HTTP 200**.
+- `POST /Forms/app_upload_1`, same credential flag: **HTTP 401** before body completion.
+
+**Interpretation:** Credentials work for this protected *GET*. A generic incorrect username/password cannot account for the observed difference. This does not prove POST authorization or capability. Do not retry firmware flash solely on this basis.
+
+## A specific OEM capability switch to check before further uploads
+
+Dell's H910P manual explicitly documents **Network Settings → Firmware Upload** (default **Enabled**), with the description: authorizes remote updating of embedded firmware. Its state can be **Enabled/Disabled**; confirm whether it is enabled on this running card without making a change.
+
+Independent inspection of the original firmware confirms the network configuration form `/set_net.htm` and a backend property named **`FirmwareUpload`**, plus distinct original strings **`ERROR : Firmware upload is not available`** and **`Configure the firmware upload setting on`**. These are credible evidence that upload permission can be separately disabled even when the firmware status page is readable.
+
+**Evidence-based next check:** Log in and *read* `http://192.168.0.174/set_net.htm` (OEM Network Settings) to inspect `Firmware Upload`. Do **not** change IP, DHCP, credentials, or other network settings. If Disabled, this is a plausible cause to verify before any controlled change; if Enabled, investigate POST-specific authentication/access handling instead. It is **not established** that disabling it yields HTTP 401 specifically, so do not claim a confirmed root cause.
+
+Sources: Dell Network Management Card User's Guide, 'Card Defaults' table and 'Network Settings' section (https://manualzilla.com/doc/6875280/dell-network-management-card-user-s-guide); original OEM NET+OS 01.18.0005 BIN unpacked locally, `/Forms/set_net_1` and `/set_net.htm` resource strings.
