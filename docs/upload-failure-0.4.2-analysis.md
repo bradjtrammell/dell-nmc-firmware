@@ -18,3 +18,12 @@ Try the v0.4.2 image using a single HTTP/1.0 multipart POST without `Expect: 100
 The Dell 01.18.0005 release note states the firmware BIN is uploaded using the card's built-in web Firmware Upgrade page. Its 01.03.0006 changelog also mentions an NMC reset when `iGotoFirmwareUploadMode` returns errors, indicating a distinct upload-mode transition. No evidence proves the encountered error's exact underlying cause yet.
 
 **Do not claim solved:** neither the HTTP/1.0 test nor a vendor-original control upload has been tried against the actual H910P. Do not use the results of the local mock to assert device acceptance.
+
+## Confirmed hardware upload — November 9, 2026
+
+The user executed a targeted `curl --http1.0` multipart firmware POST for v0.4.2 to `http://192.168.0.174/Forms/app_upload_1` using Basic authentication, `Expect:` disabled, `Connection: close`, and `file=@...;filename=Dell_nmc_01_18_0005.bin;type=application/octet-stream`. The client reported HTTP **302**, 1,507,862 upload bytes and 5.707875 seconds elapsed. Subsequently, the NMC's original `/app_upload.htm` page displayed the exact device message:
+
+> SUCCESS : Firmware was successfully written in FLASH.
+> Restart in progress. Wait a few minutes and click on Refresh button.
+
+This is **live device confirmation that the firmware image was accepted and written to FLASH**. It does **not yet establish that reboot completed, the patched application boots, the 16 embedded script resources load, management UI renders, or any native control works**. These require separate read-only hardware follow-up checks. Do not treat an HTTP 302 alone as confirmation; the success is based on the NMC's follow-up status page. Earlier stock-browser HTTP/1.1 upload returned an error, but its precise difference from the successful HTTP/1.0 request has not been experimentally isolated.
