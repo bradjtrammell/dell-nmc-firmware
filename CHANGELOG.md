@@ -1,13 +1,26 @@
-# Change log
+# Changelog
 
-## 0.2.0 — 2026-11-08
+## 0.5.10 — Tab session continuity and XML transport reliability (experimental)
 
-- Replaced the simple prototype design with the desktop-first Dell Instrument Panel visual system.
-- Added 15 navigation destinations aligned to the existing H910P management interface.
-- Added SVG icons, radial gauges, animated power flow, refined electrical status, and event-history view.
-- Preserved the original native power and configuration handlers; no UPS writes from the new UI.
-- Reworked asset packaging into deterministic gzip resources with a modern-browser decompression loader; reduced overwritten legacy Help URLs from 12 to 9.
-- Corrected focus handling and navigation state so background telemetry refreshes do not recreate the application shell.
-- Added strict executable-byte allowlist, RomPager pointer verification, CRC and compressed asset round-trip validation.
-- Added all-section and error-recovery browser tests with mocked read-only NMC responses.
-- **Outstanding:** no live-device verification, firmware-image size increased by 12,213 bytes, nine Help pages are repurposed, and management forms remain legacy.
+- Restored authentication across a same-tab refresh by saving the NMC Basic header in tab-scoped browser storage and revalidating it before showing controls.
+- Lock now clears tab storage and in-memory authorization; rejected cached credentials are discarded.
+- Serialized all device XML and CGI operations to prevent poll/configuration races on the memory-constrained NMC.
+- Added a single bounded retry for idempotent XML reads, retained last valid measurements on one missed poll, and preserved visible warnings for repeated failures.
+- Retained all prior management pages, four native email slots, unlimited relay destinations and separate SMTP configuration.
+- Switched the embedded Dell logo to the equivalent encoded SVG data URI and trimmed unused runtime code to remain within the factory firmware image limit.
+- Added session restoration and XML regression checks; on-device validation remains outstanding.
+
+
+## 0.5.9 — Browser sign-in correction (experimental)
+
+- Changed the formal browser sign-in request and card API requests to use explicit Basic Authorization without browser-managed Basic-auth credential negotiation.
+- Corrected the error displayed when the device sign-in request times out.
+- Preserved card-side authorization and in-memory credentials; no authentication bypass.
+- Removed developer-facing notification disclaimer from the management screen.
+- Retained and retested the four native email slots, provider-specific destinations, and separate SMTP manager.
+- Added dedicated authentication regression checks and rebuilt the firmware under the factory image-size limit.
+
+## 0.5.8 — Notification manager
+
+- Unified notification destinations in a table, with up to four native email recipients and unlimited additional supported relay destinations.
+- Added separate SMTP configuration modal and destination-level actions.

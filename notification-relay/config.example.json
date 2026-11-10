@@ -1,0 +1,9 @@
+{
+  "listen": "127.0.0.1",
+  "port": 9444,
+  "nmc_url": "http://192.168.0.174",
+  "allowed_origin": "http://192.168.0.174",
+  "data_file": "/var/lib/h910p-relay/destinations.json",
+  "poll_seconds": 15,
+  "allow_http_destinations": false
+}
