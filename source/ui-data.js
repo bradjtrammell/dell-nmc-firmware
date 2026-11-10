@@ -20,8 +20,15 @@ U.xml=function(text){
  if(!Object.keys(data).length)throw Error('UPS object names missing from XML');
  return data;
 };
-U.request=function(url,opt,ms){if(typeof url!=='string'||!/^\/(?!\/)/.test(url))return Promise.reject(Error('Only local device requests are supported'));var c=new AbortController(),t=setTimeout(function(){c.abort()},ms||8000),options=Object.assign({credentials:'same-origin',cache:'no-store',signal:c.signal},opt||{});options.headers=Object.assign({},(opt&&opt.headers)||{});if(U.auth&&U.auth.header)options.headers.Authorization=U.auth.header;return fetch(url,options).then(function(r){if(r.status===401)throw Error('Access denied. Check your sign-in and card permissions.');if(!r.ok)throw Error('The card returned HTTP '+r.status);return r.text()}).finally(function(){clearTimeout(t)})};
-U.poll=function(){if(U.busy)return Promise.resolve();U.busy=true;U.updateActivity();return U.request('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=UPS.*'},8000).then(function(t){U.data=U.xml(t);U.updated=Date.now();U.error='';U.history.push({l:U.val('load'),b:U.val('battery'),at:U.updated});if(U.history.length>72)U.history.shift()}).catch(function(e){U.error=e.name==='AbortError'?'NMC did not respond within 8 seconds.':e.message}).finally(function(){U.busy=false;U.render(false)})};
+/* The H910P's CGI XML handlers are memory-constrained: serialize reads/writes. */
+U.ioQueue=Promise.resolve();U.pollFailures=0;
+U.request=function(url,opt,ms){
+ if(typeof url!=='string'||!/^\/(?!\/)/.test(url))return Promise.reject(Error('Only local device requests are supported'));
+ var run=function(){var c=new AbortController(),t=setTimeout(function(){c.abort()},ms||8000),options=Object.assign({mode:'same-origin',credentials:'omit',redirect:'error',cache:'no-store',signal:c.signal},opt||{});options.headers=Object.assign({},(opt&&opt.headers)||{});if(U.auth&&U.auth.header)options.headers.Authorization=U.auth.header;return fetch(url,options).then(function(r){if(r.status===401||r.status===403)throw Error('Access denied. Check your sign-in and card permissions.');if(!r.ok)throw Error('The card returned HTTP '+r.status);return r.text()}).finally(function(){clearTimeout(t)})};
+ var result=U.ioQueue.then(run,run);U.ioQueue=result.catch(function(){});return result;
+};
+U.readXML=function(url,opt,ms){return U.request(url,opt,ms).then(function(body){var xml=body.replace(/^\uFEFF/,'').replace(/\u0000+$/,'').trim(),doc=new DOMParser().parseFromString(xml,'application/xml');if(!xml||doc.querySelector('parsererror')||!doc.documentElement||doc.documentElement.tagName.toLowerCase()==='html')throw Error('Invalid XML returned by NMC');return xml}).catch(function(e){if(e.message==='Invalid XML returned by NMC'||e.name==='AbortError')return new Promise(function(resolve){setTimeout(resolve,350)}).then(function(){return U.request(url,opt,ms)}).then(function(body){var doc=new DOMParser().parseFromString(body,'application/xml');if(doc.querySelector('parsererror'))throw Error('Invalid XML returned by NMC');return body});throw e})};
+U.poll=function(){if(U.busy)return Promise.resolve();U.busy=true;U.updateActivity();return U.readXML('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=UPS.*'},8000).then(function(t){U.data=U.xml(t);U.updated=Date.now();U.error='';U.pollFailures=0;U.history.push({l:U.val('load'),b:U.val('battery'),at:U.updated});if(U.history.length>72)U.history.shift()}).catch(function(e){U.pollFailures++;if(!U.updated||U.pollFailures>=2||e.message.indexOf('Access denied')===0)U.error=e.name==='AbortError'?'NMC did not respond within 8 seconds.':e.message}).finally(function(){U.busy=false;U.render(false)})};
 U.loadEvents=function(){if(U.eventsBusy)return;U.eventsBusy=true;U.eventsError='';U.request('/logevent.csv',{},8000).then(function(t){U.events=t.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).slice(-75).reverse()}).catch(function(e){U.eventsError=e.message}).finally(function(){U.eventsBusy=false;U.render(false)})};
 U.updateActivity=function(){var refresh=document.getElementById('refresh');if(refresh){refresh.disabled=U.busy;refresh.classList.toggle('spinning',U.busy)}};
 /* Authenticated, same-origin read of the NMC's device identification XML. */
@@ -29,7 +36,7 @@ U.identity={};U.identityBusy=false;U.identityError='';
 U.loadIdentity=function(){
  if(U.identityBusy)return Promise.resolve();
  U.identityBusy=true;U.identityError='';U.render(false);
- return U.request('/product.xml',{},8000).then(function(body){
+ return U.readXML('/product.xml',{},8000).then(function(body){
   var doc=new DOMParser().parseFromString(body,'application/xml');
   if(doc.querySelector('parsererror'))throw Error('Invalid product identification XML');
   var rows={};

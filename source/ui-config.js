@@ -32,11 +32,11 @@ U.configDoc=function(xml){
 U.loadConfig=function(){
  if(U.config.busy)return Promise.resolve();
  U.config.busy=true;U.config.error='';U.config.message='';U.config.warning='';U.render(false);
- var descriptor=U.request('/configuration_descriptor.xml',{},10000).then(function(body){
+ var descriptor=U.readXML('/configuration_descriptor.xml',{},10000).then(function(body){
   try{var parsed=U.configDoc(body);U.config.descriptorSource='device';return parsed}
   catch(e){U.config.warning='The card did not return a readable settings catalog. Showing the original firmware field catalog instead.';U.config.descriptorSource='embedded';return U.configFromCatalog()}
  }).catch(function(){U.config.descriptorSource='embedded';U.config.warning='The card settings catalog is unavailable. Showing the embedded OEM field catalog.';return U.configFromCatalog()});
- var values=U.request('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=System.*'},10000)
+ var values=U.readXML('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=System.*'},10000)
   .then(function(body){return U.xml(body)}).catch(function(e){U.config.warning=(U.config.warning?U.config.warning+' ':'')+'Live configuration values unavailable: '+e.message;return null});
  return Promise.all([descriptor,values]).then(function(result){
   U.config.groups=result[0];U.config.values=result[1]||{};
@@ -64,7 +64,6 @@ U.configValidate=function(f,value){
  if(value.length===0)throw Error('A value is required');
  return value;
 };
-U.configEscape=function(value){return U.esc(value)};
 /* Power commands are represented in the OEM descriptor as hidden Control.Outlet groups.
  * Never mix these imperative commands into ordinary editable configuration. */
 U.power={groups:[],busy:false,message:'',error:''};
@@ -81,7 +80,7 @@ U.controlsView=function(){var groups=U.power.groups;
  (U.power.error?'<div class="notice error" role="alert">'+U.ico('alert')+U.esc(U.power.error)+'</div>':'')+
  (U.power.message?'<div class="notice info" role="status">'+U.ico('info')+U.esc(U.power.message)+'</div>':'')+
  '<div class="instrument-grid power-instruments">'+U.metric('chart','Load',U.money(U.val('load'),'%'),'Present UPS capacity')+U.metric('battery','Battery',U.money(U.val('battery'),'%'),'Available backup charge')+U.metric('clock','Runtime',U.runtime(),'At the present load')+U.metric('zap','Output',U.money(U.val('output'),' V'),'Protected AC voltage')+'</div><section class="panel wide"><div class="section-title"><div><h2>Protected output groups</h2><p>Power actions require the precise confirmation phrase</p></div>'+U.btn(U.config.busy?'Loading...':'Load controls','load-config','refresh')+'</div>'+
- (groups.length?groups.map(function(g){var current=U.get('UPS.OutletSystem.Outlet['+g.number+'].PresentStatus.SwitchOnOff');return '<div class="output-row power-control"><div class="output-icon">'+U.ico('plug')+'</div><div><h2>Output group '+g.number+'</h2><p>'+U.esc(current==='1'?'Currently on':current==='0'?'Currently off':'State not reported')+'</p></div><div class="power-buttons">'+[['OnDelay','Power on'],['Toggle','Restart'],['OffDelay','Power off']].filter(function(a){return !!g.commands[a[0]]}).map(function(a){return '<button type="button" class="btn '+(a[0]==='OffDelay'?'danger-btn':'btn-quiet')+'" data-power="'+g.number+':'+a[0]+'" '+(U.power.busy?'disabled':'')+'>'+U.esc(a[1])+'</button>'}).join('')+'</div></div>'}).join(''):'<div class="empty-state">'+U.ico('shield')+'<strong>Control capability not loaded</strong><p>Load the NMC descriptor before enabling power actions.</p></div>')+'</section><div class="section-actions">'+U.nativeLink('/ups_cntr.htm','Original Dell power controls')+'</div>'};
+ (groups.length?groups.map(function(g){var current=U.get('UPS.OutletSystem.Outlet['+g.number+'].PresentStatus.SwitchOnOff');return '<div class="output-row power-control"><div class="output-icon">'+U.ico('plug')+'</div><div><h2>Output group '+g.number+'</h2><p>'+U.esc(current==='1'?'Currently on':current==='0'?'Currently off':'State not reported')+'</p></div><div class="power-buttons">'+[['OnDelay','Power on'],['Toggle','Restart'],['OffDelay','Power off']].filter(function(a){return !!g.commands[a[0]]}).map(function(a){return '<button type="button" class="btn '+(a[0]==='OffDelay'?'danger-btn':'btn-quiet')+'" data-power="'+g.number+':'+a[0]+'" '+(U.power.busy?'disabled':'')+'>'+U.esc(a[1])+'</button>'}).join('')+'</div></div>'}).join(''):'<div class="empty-state">'+U.ico('shield')+'<strong>Control capability not loaded</strong><p>Load the NMC descriptor before enabling power actions.</p></div>')+'</section>'};
 U.sendPower=function(number,action){var group=U.power.groups.find(function(g){return g.number===number}),field=group&&group.commands[action];if(!field||U.power.busy)return;
  var verb={OnDelay:'POWER ON',OffDelay:'POWER OFF',Toggle:'RESTART'}[action],phrase=verb+' GROUP '+number;
  if(window.prompt('Power control: '+phrase+'\nType exactly: '+phrase)!==phrase)return;

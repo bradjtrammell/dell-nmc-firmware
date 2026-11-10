@@ -1,46 +1,55 @@
-# H910P firmware installation — HTTP/1.0 POST
+# Dell H910P v0.5.7 firmware installation — Linux
 
-**Pinned candidate:** Dell H910P custom UI v0.5.3 on original firmware 01.18.0005.
+**Experimental firmware.** Latest confirmed working user installation remains v0.5.6. This candidate has not been flashed on physical H910P hardware in this pass.
 
-- Expected BIN name: `H910P_Custom_UI_v0.5.3.bin`
-- Expected byte count: `1516340`
-- Expected SHA-256: `3a5d34ddf7fa9699b044e4e4d9f96562f1b80e1167db35f0ce352d0013bfe422`
-- Device IP shown below is the owner's current LAN test card. For distribution replace with the owner's device IP.
-- The NMC is assumed reachable and still able to serve its original native firmware upload handler.
+## Firmware identity
 
-The original Dell firmware uploader is invoked through `POST /Forms/app_upload_1` with multipart field `file` using HTTP/1.0, `Expect:` disabled, `Connection: close`. This method **previously worked on the owner's physical card**. No physical v0.5.3 upload has yet been performed. A `302` or `303` is only a redirect, NOT firmware acceptance. A physical-card status page reporting `SUCCESS : Firmware was successfully written in FLASH` is required to establish that the image was written.
+- File: `H910P_Custom_UI_v0.5.7.bin`
+- Bytes: 1,516,937
+- SHA-256: `3cd000b680868d960b8fdbf3c897be188ba2cd4f3784b3ad69b5d47f736dfdb6`
+- Base Dell firmware: 01.18.0005
 
-Run this command block on Linux, after saving the verified BIN into Downloads. It keeps the interactive shell open and does not write any other device settings:
+Do not flash onto critical equipment without an accepted recovery procedure. An HTTP 200 or 302 after upload is not proof the firmware is written or that the UI starts. Allow the card to finish writing and restart before browsing the UI.
+
+## Operator-controlled HTTP/1.0 command block
+
+The example targets the known test NMC at `192.168.0.174`. It prompts for the configured NMC password and does not silently suppress the firmware endpoint response code.
 
 ```bash
-BIN="$HOME/Downloads/H910P_Custom_UI_v0.5.3.bin"
-EXPECTED="3a5d34ddf7fa9699b044e4e4d9f96562f1b80e1167db35f0ce352d0013bfe422"
+BIN="$HOME/Downloads/H910P_Custom_UI_v0.5.7.bin"
+EXPECTED="3cd000b680868d960b8fdbf3c897be188ba2cd4f3784b3ad69b5d47f736dfdb6"
+NMC="192.168.0.174"
 
-if [ ! -f "$BIN" ]; then
-  echo "Firmware BIN not found: $BIN"
-elif [ "$(sha256sum "$BIN" | cut -d' ' -f1)" != "$EXPECTED" ]; then
-  echo "Checksum mismatch — upload canceled."
-else
-  curl --http1.0 \
-    --basic --user 'admin:admin' \
-    --header 'Expect:' \
-    --header 'Connection: close' \
-    --connect-timeout 15 \
-    --max-time 300 \
-    --form "file=@${BIN};filename=Dell_nmc_01_18_0005.bin;type=application/octet-stream" \
-    --dump-header "$HOME/Downloads/H910P-v0.5.3-upload-headers.txt" \
-    --output /dev/null \
-    --write-out '\nHTTP Status: %{http_code}\nBytes Sent: %{size_upload}\nElapsed: %{time_total}s\n' \
-    'http://192.168.0.174/Forms/app_upload_1'
-  STATUS=$?
-  if [ "$STATUS" -ne 0 ]; then
-    echo "Transfer failed (curl exit $STATUS). Do not assume the firmware was written."
-  else
-    echo "POST ended. Check http://192.168.0.174/app_upload.htm for the explicit flash result."
-  fi
-fi
+printf '%s  %s\n' "$EXPECTED" "$BIN" | sha256sum -c - &&
+test "$(wc -c < "$BIN")" -eq 1516937 &&
+curl --http1.0 \
+  --basic \
+  --user admin \
+  --header 'Expect:' \
+  --header 'Connection: close' \
+  --connect-timeout 15 \
+  --max-time 300 \
+  --show-error \
+  --form "file=@${BIN};filename=Dell_nmc_01_18_0005.bin;type=application/octet-stream" \
+  --dump-header "$HOME/Downloads/H910P-v0.5.7-upload-headers.txt" \
+  --output "$HOME/Downloads/H910P-v0.5.7-upload-response.html" \
+  --write-out '\nHTTP Status: %{http_code}\nBytes Sent: %{size_upload}\nElapsed: %{time_total}s\n' \
+  "http://${NMC}/Forms/app_upload_1"
 ```
 
-After an explicit flash-write success message and reboot, verify `/index.htm`, the Dell sign-in form, native dashboard, event history and management read-only pages. **Do not issue power controls or live recipient configuration changes until the new build is verified on the physical device.**
+After the card processes the image, open `http://192.168.0.174/app_upload.htm` to look for the **literal Dell success message** `SUCCESS : Firmware was successfully written in FLASH`. Then open `http://192.168.0.174/default.htm` in a private browser window and verify dashboard, login and live UPS values. Check `index.htm?view=network` and `default.htm?view=notification` as deep-link examples.
 
-Do not flash this image to unqualified NMC hardware or assume recovery from an unbootable image is possible. Keep previously captured v0.5.2 and factory-firmware images in user-controlled backups. An accessible native `/app_upload.htm` is the minimum post-boot recovery path, not a bootloader recovery guarantee.
+Do not equate the browser's first login or missing authorization dialog with credential safety. This card uses HTTP Basic authentication; deploying the UI on a plain HTTP management network exposes credentials to network observers. Use trusted management LAN/VPN restrictions.
+
+## Read-only post-flash verification
+
+```bash
+python3 tools/probe_live_nmc.py \
+  --nmc http://192.168.0.174 \
+  --firmware ./H910P_Custom_UI_v0.5.7.bin \
+  --manifest build/VALIDATION.json \
+  --user admin \
+  --output ./h910p-v0.5.7-verification.json
+```
+
+This probe downloads selected static resources for comparison; it never submits UPS power or configuration writes. The diagnostic does not substitute for visual boot and management tests.

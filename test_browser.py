@@ -73,7 +73,7 @@ window.__rejectXML=false;window.__requests=[];
 window.fetch=async function(url,opt){
  window.__requests.push([url,(opt&&opt.method)||'GET',(opt&&opt.body)||'']);
  if(url==='/app_upload.htm'){
-  if(opt&&opt.credentials==='same-origin'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4=')return {ok:true,status:200,text:async function(){return 'OK'}};
+  if(opt&&opt.credentials==='omit'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4=')return {ok:true,status:200,text:async function(){return 'OK'}};
   return {ok:false,status:401,text:async function(){return 'Denied'}};
  }
  if(url==='/get_object.xml')return {ok:true,status:200,text:async function(){return window.__rejectXML?'not xml':JSON_MOCK}};
@@ -121,7 +121,7 @@ window.fetch=async function(url,opt){
         assert page.locator('.ic').count()>25
         assert page.locator('.power-path').count()==1
         assert page.locator('.dell-brand-logo').count()==1
-        assert page.locator('.dell-brand-logo').get_attribute('src').startswith('data:image/svg+xml;base64,')
+        assert page.locator('.dell-brand-logo').get_attribute('src').startswith('data:image/svg+xml,')
         assert page.locator('.dell-header-logo').count()==0
         assert page.get_by_text('Utility power healthy').count()>0
         assert page.locator('#sidebar [data-page]').count()==15
@@ -133,15 +133,17 @@ window.fetch=async function(url,opt){
             assert page.locator('main h1').count()==1,target
         report['all_15_routes_render']='PASS'
         page.locator('[data-page="controls"]').click()
-        assert page.locator('a[href="/app_upload.htm"]').count()>=1
-        assert page.locator('a[href="/ups_cntr.htm"]').count()==1
-        report['legacy_power_control_handoff_present']='PASS'
+        assert page.locator('a[href="/ups_cntr.htm"]').count()==0
+        assert page.locator('main h1').count()==1
+        report['native_power_control_screen_no_legacy_handoff']='PASS'
         page.locator('[data-page="events"]').click()
         page.get_by_role('button',name='Refresh log').click()
         page.get_by_text('AC Power Restored',exact=False).wait_for(timeout=10000)
         report['event_export_polling']='PASS'
         page.locator('[data-page="overview"]').click()
         page.evaluate('window.__rejectXML=true')
+        page.get_by_role('button',name='Refresh now').click()
+        assert page.evaluate('window.U.error')==''  # one transient cycle retains last-good measurements
         page.get_by_role('button',name='Refresh now').click()
         page.get_by_text('Invalid XML returned by NMC',exact=False).wait_for(timeout=10000)
         report['malformed_xml_explicit_error']='PASS'
@@ -184,7 +186,7 @@ window.fetch=async function(url,opt){
         page.get_by_text('53%',exact=True).first.wait_for(timeout=12000)
         assert page.locator('#sidebar').count()==1
         report['real_oem_authentication_login_and_lock']='PASS'
-        report['login_basic_auth_same_origin_credentials']='PASS'
+        report['login_explicit_basic_credentials_without_browser_cache']='PASS'
         assert not errors,errors
         report['no_external_requests_or_ups_writes']='PASS'
         report['uncaught_javascript_errors']=errors

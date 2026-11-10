@@ -3,6 +3,11 @@
  * the security boundary. Credentials stay in RAM and are never persisted.
  */
 U.auth={header:'',name:'',pending:false};
+U.sessionKey='h910p.auth.tab';
+U.forget=function(){try{sessionStorage.removeItem(U.sessionKey)}catch(e){}};
+U.remember=function(){try{sessionStorage.setItem(U.sessionKey,JSON.stringify([U.auth.name,U.auth.header]))}catch(e){}};
+U.checkAuth=function(header){var c=new AbortController(),t=setTimeout(function(){c.abort()},10000);return fetch('/app_upload.htm',{method:'GET',mode:'same-origin',credentials:'omit',redirect:'error',cache:'no-store',headers:{Authorization:header},signal:c.signal}).then(function(r){if(r.status===401||r.status===403)throw Error('The username or password was not accepted.');if(!r.ok)throw Error('The card returned HTTP '+r.status+'. Please try again.')}).finally(function(){clearTimeout(t)})};
+
 U.authLogo=U.brandLogo||'';
 U.signInScreen=function(error){
  var app=document.getElementById('app');
@@ -18,17 +23,11 @@ U.authSubmit=function(e){
  U.auth.pending=true;button.disabled=true;button.textContent='Signing in…';msg.hidden=true;
  /* HTTP Basic is native to Dell's OEM card; use its existing permission check. */
  var header='Basic '+btoa(unescape(encodeURIComponent(name+':'+pass)));
- var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},10000);
- fetch('/app_upload.htm',{method:'GET',credentials:'same-origin',cache:'no-store',headers:{Authorization:header},signal:controller.signal}).then(function(res){
-  if(res.status===401||res.status===403)throw Error('The username or password was not accepted.');
-  if(!res.ok)throw Error('The card returned HTTP '+res.status+'. Please try again.');
-  U.auth.header=header;U.auth.name=name;U.auth.pending=false;
-  U.startApp();
- }).catch(function(err){U.auth.header='';U.auth.pending=false;U.signInScreen(err.name==='AbortError'?'The card did not respond. Check your connection.':err.message)}).finally(function(){clearTimeout(timer)});
+ U.checkAuth(header).then(function(){U.auth.header=header;U.auth.name=name;U.auth.pending=false;U.remember();U.startApp()}).catch(function(err){U.auth.header='';U.auth.pending=false;U.signInScreen(err.name==='AbortError'?'Sign-in timed out. The management card did not finish authentication.':err.message)});
 };
 U.lockInterface=function(){
  if(U.config.saving||U.power.busy)return;
- U.auth.header='';U.auth.name='';U.data={};U.events=[];U.history=[];U.updated=0;U.config.values={};U.config.loaded=false;U.identity={};
+ U.forget();U.auth.header='';U.auth.name='';U.data={};U.events=[];U.history=[];U.updated=0;U.config.values={};U.config.loaded=false;U.identity={};
  clearInterval(U.timer);U.timer=0;U.signInScreen('');
 };
 U.startApp=function(){
@@ -36,4 +35,10 @@ U.startApp=function(){
  clearInterval(U.timer);
  U.timer=setInterval(function(){if(document.visibilityState==='visible'&&U.auth.header)U.poll()},15000);
 };
-U.login=function(){U.signInScreen('')};
+U.login=function(){
+ var cached;try{cached=JSON.parse(sessionStorage.getItem(U.sessionKey)||'null')}catch(e){}
+ if(!Array.isArray(cached)||typeof cached[0]!=='string'||typeof cached[1]!=='string'||cached[0].length>80||!/^Basic [A-Za-z0-9+/=]{4,512}$/.test(cached[1])){U.forget();U.signInScreen('');return}
+ U.auth.name=cached[0];U.auth.pending=true;
+ document.getElementById('app').innerHTML='<div class="signin-page"><section class="signin-panel" role="status"><h1>Reconnecting to your UPS</h1><p>Restoring your session…</p></section></div>';
+ U.checkAuth(cached[1]).then(function(){U.auth.header=cached[1];U.auth.pending=false;U.startApp()}).catch(function(e){U.auth.pending=false;U.auth.header='';if(e.message==='The username or password was not accepted.')U.forget();U.signInScreen(e.name==='AbortError'?'Connection timed out; sign in to try again.':e.message)});
+};

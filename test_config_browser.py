@@ -20,7 +20,7 @@ window.fetch=async function(url,opt){
  var m=(opt&&opt.method)||'GET',b=(opt&&opt.body)||'';
  window.__calls.push({url:url,method:m,body:typeof b==='string'?b:'FORMDATA'});
  var response='';
- if(url==='/app_upload.htm'){return opt&&opt.credentials==='same-origin'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4='?{ok:true,status:200,text:async function(){return 'OK'}}:{ok:false,status:401,text:async function(){return 'Denied'}}}
+ if(url==='/app_upload.htm'){return opt&&opt.credentials==='omit'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4='?{ok:true,status:200,text:async function(){return 'OK'}}:{ok:false,status:401,text:async function(){return 'Denied'}}}
  if(url==='/get_object.xml'){
   if(b==='objectName=UPS.*')response='<GET_OBJECT><OBJECT name="UPS.PowerSummary.PercentLoad">53</OBJECT><OBJECT name="UPS.PowerSummary.RemainingCapacity">100</OBJECT></GET_OBJECT>';
   else if(b==='objectName=System.*')response='<GET_OBJECT>'+Object.keys(window.__current).map(function(k){return '<OBJECT name="'+k+'">'+window.__current[k]+'</OBJECT>'}).join('')+'</GET_OBJECT>';
@@ -57,7 +57,7 @@ def main():
   assert page.locator('input[type=password]').count()==0
   report['network_settings_automatically_discovered_without_manual_fetch']='PASS'
   assert page.locator('.dell-brand-logo').count()==1
-  assert page.locator('.dell-brand-logo').get_attribute('src').startswith('data:image/svg+xml;base64,')
+  assert page.locator('.dell-brand-logo').get_attribute('src').startswith('data:image/svg+xml,')
   report['embedded_white_transparent_dell_logo']='PASS'
   page.screenshot(path=str(ROOT/'build'/'network-settings-desktop.png'),full_page=True)
   page.get_by_role('button',name='Edit Network IP Mask').click()
@@ -83,21 +83,34 @@ def main():
   assert page.locator('.setting-row:not([hidden])').count()==2
   report['instant_settings_search']='PASS'
   page.locator('[data-page="notification"]').click()
-  page.locator('.recipient').first.wait_for(timeout=15000)
-  assert page.locator('.recipient').count()==4
-  assert page.get_by_text('Monita',exact=True).count()==1
-  assert page.get_by_text('ntfy',exact=True).count()==1
-  assert page.get_by_text('Discord',exact=True).count()==1
-  assert page.locator('.recipient').count()==4
+  page.locator('.destination-table').wait_for(timeout=15000)
+  assert page.locator('.destination-table thead th').all_text_contents()==['Destination','Type','Status','Actions']
+  assert page.locator('.destination-table tbody tr').count()==1
+  assert page.get_by_text('No destinations configured.',exact=False).count()==1
+  assert page.get_by_text('0 of 4 email slots configured',exact=False).count()==1
+  assert page.locator('#bridge-connect-form').count()==1
+  page.get_by_role('button',name='SMTP settings').click()
+  assert page.locator('dialog[open] #smtp-form').count()==1
+  assert page.locator('#smtp-form').get_by_label('SMTP server').count()==1
+  page.locator('#smtp-form').get_by_label('SMTP server').fill('smtp.lan')
+  page.locator('#smtp-form button[type=submit]').click()
+  assert page.get_by_role('button',name='Apply to NMC').count()==1
+  page.locator('#smtp-apply').click()
+  page.get_by_text('SMTP settings saved',exact=False).wait_for(timeout=12000)
+  assert page.locator('.destination-table tbody tr').count()==1
+  report['smtp_separate_modal_and_device_readback']='PASS'
   page.screenshot(path=str(ROOT/'build'/'notifications-desktop.png'),full_page=True)
-  report['four_oem_email_slots_with_service_guides']='PASS'
-  page.get_by_role('button',name='Add destination').click()
+  report['one_table_no_empty_slot_rows']='PASS'
+  page.get_by_role('button',name='Add Destination').click()
+  page.locator('#destination-type').select_option('email')
+  page.locator('#destination-picker button[type=submit]').click()
   page.locator('#recipient-address').fill('ops@example.test')
   page.get_by_role('button',name='Review changes').click()
   page.get_by_role('button',name='Save destination').click()
   page.get_by_text('Recipient saved and verified').wait_for(timeout=12000)
   assert page.get_by_text('ops@example.test').count()>=1
-  assert page.locator('.recipient .recipient-status.enabled').count()==1
+  assert page.locator('.destination-table tbody tr .recipient-status.enabled').count()==1
+  assert page.locator('.destination-table tbody tr').count()==1
   assert len(page.evaluate('window.__writes'))>=3
   report['recipient_modal_saves_with_confirmed_device_readback']='PASS'
   page.locator('[data-page="access"]').click()
@@ -118,7 +131,7 @@ def main():
   report['event_severity_filter_and_search']='PASS'
   page.screenshot(path=str(ROOT/'build'/'events-desktop.png'),full_page=True)
   page.locator('[data-page="firmware"]').click()
-  assert page.get_by_text('v0.5.3').count()>=1
+  assert page.get_by_text('v0.5.10').count()>=1
   assert page.locator('#github-check').count()==1
   assert page.locator('#firmware-file').count()==1
   page.screenshot(path=str(ROOT/'build'/'firmware-updater-desktop.png'),full_page=True)
@@ -146,7 +159,7 @@ def main():
   page.get_by_text('Showing the original firmware field catalog',exact=False).wait_for(timeout=12000)
   assert page.locator('.setting-row').count()>=1
   page.locator('[data-page="notification"]').click()
-  assert page.locator('.recipient').count()==4
+  assert page.locator('.destination-table tbody tr').count()>=1
   report['malformed_descriptor_falls_back_to_exact_oem_catalog']='PASS'
   page.evaluate("""() => {
     U.config.valuesLive=false;
@@ -159,7 +172,7 @@ def main():
   page.evaluate("""() => {
     const old=window.fetch;
     window.fetch=(url,options)=>String(url).startsWith('https://api.github.com/') ?
-     Promise.resolve({ok:true,status:200,json:async()=>({name:'Test release',tag_name:'v0.5.9',html_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/tag/v0.5.9',assets:[{name:'H910P_test.bin',browser_download_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/download/v0.5.9/H910P_test.bin'}]})}) : old(url,options);
+     Promise.resolve({ok:true,status:200,json:async()=>({name:'Test release',tag_name:'v0.5.10',html_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/tag/v0.5.10',assets:[{name:'H910P_test.bin',browser_download_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/download/v0.5.10/H910P_test.bin'}]})}) : old(url,options);
   }""")
   page.locator('[data-page="firmware"]').click()
   page.locator('#github-check').click()

@@ -1,0 +1,2 @@
+# Pinned for reproducible asset compression
+zopfli==0.4.2

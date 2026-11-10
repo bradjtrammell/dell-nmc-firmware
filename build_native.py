@@ -13,6 +13,8 @@ from pathlib import Path
 import argparse
 import base64
 import gzip
+import zopfli.gzip
+from urllib.parse import quote
 import json
 import re
 import struct
@@ -32,16 +34,16 @@ VENDOR = HERE / 'originals' / 'NMC_Firmware_01_18_0005_X2JYN.zip'
 FACTORY_IMAGE_BYTES = 1517029
 KNOWN_V042_SHA256 = 'db0cede9c360b71a36dc68425970b8119005f170b3d9cfb7bda4eba2e7515757'
 OUTPUT_NAME = 'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'
-JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-notifications.js', 'ui-dashboard.js', 'ui-updates.js', 'ui-auth.js', 'ui-start.js']
+JAVASCRIPT_FILES = ['ui-data.js', 'ui-state.js', 'ui-view.js', 'ui-pages.js', 'ui-config.js', 'ui-nav.js', 'ui-console.js', 'ui-notifications.js', 'ui-notification-bridge.js', 'ui-dashboard.js', 'ui-updates.js', 'ui-auth.js', 'ui-start.js']
 # Deliberately select only static, non-control help resource strings.
 # Original help content at these paths IS LOST; it is a remaining blocker.
 RESOURCE_NAMES = [
     '/Help/hlpnetw.htm', '/html/synoptic/dhtml.js', '/html/synoptic/ajax.js', '/html/synoptic/png.js', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
-    '/Help/hlpenv.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
-    '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
+    '/Help/hlpweek.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
+    '/Help/hlpacce.htm', '/Help/hlpenlog.htm', '/Help/hlpmail.htm',
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
-    '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
-    '/Help/hlpweek.htm', '/Help/hlpelog.htm', '/Help/hlpindex.htm',
+    '/Help/hlpcli.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
+    '/Help/hlpenv.htm', '/Help/hlpelog.htm', '/Help/hlpindex.htm',
 ]
 
 # Legacy synoptic graphics are already unusable in v0.5: dhtml.js is repurposed.
@@ -55,7 +57,7 @@ RETIRED_SYNOPTIC = [
  '/html/synoptic/ups_Dell_measure_11.js', '/html/synoptic/ups_on_line.js',
  '/html/synoptic/ups_measure_31_phph.js', '/html/synoptic/ups_measure_11_simple.js',
  '/html/synoptic/ups_measure_11_simple_extremec.js',
- '/Help/hlpmenu.htm', '/Help/hlpsnmp.htm', '/Help/hlpsenv.htm', '/Help/hlpmng.htm', '/menu.htm', '/html/mgeweb.css', '/toolbar_main.htm', '/default.htm', '/mgeups/default.htm'
+ '/Help/hlpmenu.htm', '/Help/hlpsnmp.htm', '/Help/hlpsenv.htm', '/Help/hlpmng.htm'
 ]
 
 BOOTSTRAP_RESOURCE = RESOURCE_NAMES[0]
@@ -64,11 +66,11 @@ BOOTSTRAP_RESOURCE = RESOURCE_NAMES[0]
 # produce exactly the same application and resulting firmware image.
 OLD_CHUNK_RESOURCES = [
     '/Help/hlpnetw.htm', '/Help/hlpconf.htm', '/Help/hlpnoti.htm',
-    '/Help/hlpenv.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
-    '/Help/hlpacce.htm', '/Help/hlpcli.htm', '/Help/hlpmail.htm',
+    '/Help/hlpweek.htm', '/Help/hlpcont.htm', '/Help/hlpprop.htm',
+    '/Help/hlpacce.htm', '/Help/hlpenlog.htm', '/Help/hlpmail.htm',
     '/Help/hlpsyst.htm', '/Help/hlpfirm.htm', '/Help/hlpulog.htm',
-    '/Help/hlpenlog.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
-    '/Help/hlpweek.htm', '/Help/hlpelog.htm', '/Help/hlpindex.htm',
+    '/Help/hlpcli.htm', '/Help/hlptime.htm', '/Help/hlpslog.htm',
+    '/Help/hlpenv.htm', '/Help/hlpelog.htm', '/Help/hlpindex.htm',
 ]
 
 
@@ -139,7 +141,7 @@ def pack_statements(statement_lines: list[str], spans: list[tuple[int, int]]) ->
     return output
 
 
-def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, list[str]]:
+def distribute(base64_data: str, resources: dict, unpacked: bytes, compressed_bytes: int) -> dict[str, list[str]]:
     """Bootstrap is served as one script; other resource chunks are loaded in order.
 
     One script reference in /index.htm removes its fixed-capacity page-count
@@ -148,7 +150,10 @@ def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, 
     allocated = {}
     cursor = 0
     initializing = True
-    for name in RESOURCE_NAMES[1:]:
+    # Pack largest available static resources first to fit the 672-byte
+    # default.htm entry (each referenced script consumes scarce HTML bytes).
+    ordered = sorted(RESOURCE_NAMES[1:], key=lambda name: sum(length for _, length in slots_of(unpacked, resources[name])), reverse=True)
+    for name in ordered:
         spans = slots_of(unpacked, resources[name])
         statements = []
         for _, capacity in spans:
@@ -166,7 +171,7 @@ def distribute(base64_data: str, resources: dict, unpacked: bytes) -> dict[str, 
         if cursor == len(base64_data):break
     if cursor != len(base64_data):
         raise ValueError('Cannot store compressed assets: insufficient static resource storage')
-    boot = pack_statements(browser_bootstrap(list(allocated)),slots_of(unpacked,resources[BOOTSTRAP_RESOURCE]))
+    boot = pack_statements(browser_bootstrap(len(base64_data), compressed_bytes),slots_of(unpacked,resources[BOOTSTRAP_RESOURCE]))
     return {BOOTSTRAP_RESOURCE: [x.decode('ascii').rstrip(' ') for x in boot],**allocated}
 
 
@@ -199,50 +204,75 @@ def firmware_schema_source(application: bytes) -> str:
 
 def source_blob(application: bytes) -> tuple[str, str, bytes]:
     css = (SRC / 'tailwind-compiled.css').read_text(encoding='utf-8') + '\n' + (SRC / 'ui.css').read_text(encoding='utf-8')
+    # Remove CSS documentation comments before deterministic asset compression.
+    # Keep all selectors, declarations, and ordering intact.
+    css = re.sub(r'/\*[\s\S]*?\*/', '', css)
+    css = re.sub(r'\s*([{};])\s*', r'\1', css)
+    css = re.sub(r'\n+', '', css)
+    css = re.sub(r'\s*([:,>])\s*', r'\1', css)
     js_files = []
     for name in JAVASCRIPT_FILES:
         script = (SRC / name).read_text(encoding='utf-8')
+        # Preserve readable source while omitting non-runtime JS block comments
+        # from constrained embedded RomPager static resource slots.
+        script = re.sub(r'(?m)^[ \t]*/\*[\s\S]*?\*/', '', script)
+        script = re.sub(r'(?m)^[ \t]+', '', script)
+        if name in ('ui-notifications.js','ui-notification-bridge.js'):
+            script = script.replace('\n', '')
         if name == 'ui-console.js':
-            logo = base64.b64encode((SRC / 'dell-white.svg').read_bytes()).decode('ascii')
-            script += '\nU.embedLogo("data:image/svg+xml;base64,' + logo + '");U.installConsole();'
-        js_files.append(script)
+            logo = quote((SRC / 'dell-white.svg').read_text('utf-8'),safe="/=:;,+-_.!~*'()")
+            script += '\nU.embedLogo("data:image/svg+xml,' + logo + '");U.installConsole();'
+        js_files.append(script.replace("\n", ""))
     scripts = '\n'.join([firmware_schema_source(application)] + js_files)
     content = (css + '\0' + scripts).encode('utf-8')
-    return css, scripts, gzip.compress(content, compresslevel=9, mtime=0)
+    return css, scripts, zopfli.gzip.compress(content, numiterations=500)
 
 
-def browser_bootstrap(asset_paths: list[str]) -> list[str]:
-    # DecompressionStream is supplied by current desktop Chromium / Firefox;
-    # no external network requests or scripting libraries are needed.
+def browser_bootstrap(expected_bytes: int, compressed_bytes: int) -> list[str]:
+    """All payloads load in native parser order BEFORE this bootstrap.
+
+    The v0.5.3-v0.5.5 dynamic loader made the UI depend on sequential
+    onload events for 17 requests and failed on physical H910P HTTP service.
+    Avoid dynamic network requests in the startup path.
+    """
     return [
         '(async function(){',
+        'document.querySelector("main").id="app";',
         'try{',
-        'var files='+json.dumps(asset_paths,separators=(',',':'))+';',
-        'for(var n=0;n<files.length;n++){await new Promise(function(ok,bad){var el=document.createElement("script");el.src=files[n];el.onload=ok;el.onerror=function(){bad(Error("Embedded resource missing: "+files[n]))};document.head.appendChild(el)})}',
+        f'var expected={expected_bytes};',
+        'var s=window.H910P_PACK||"";',
+        'if(s.length!==expected)throw Error("Incomplete assets ("+s.length+"/"+expected+" bytes)");',
         'var vm=document.createElement("meta");vm.name="viewport";vm.content="width=device-width,initial-scale=1";document.head.appendChild(vm);',
-        'if(typeof DecompressionStream!=="function")throw Error("Modern browser compression support required");',
-        'var s=atob(window.H910P_PACK||"");',
-        'var a=new Uint8Array(s.length);',
-        'for(var i=0;i<s.length;i++)a[i]=s.charCodeAt(i);',
+        'if(typeof DecompressionStream!=="function")throw Error("Browser lacks gzip support");',
+        'var alphabet="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+-;<=>?@^_`{|}~";',
+        'var lookup={};for(var i=0;i<alphabet.length;i++)lookup[alphabet.charCodeAt(i)]=i;',
+        f'var a=new Uint8Array({compressed_bytes});',
+        'for(var k=0,o=0;k<s.length;k+=5,o+=4){var n=0;for(var j=0;j<5;j++){var digit=lookup[s.charCodeAt(k+j)];if(digit===undefined)throw Error("Invalid asset data");n=n*85+digit;}if(n>4294967295)throw Error("Asset overflow");for(var j=3;j>=0;j--){if(o+j<a.length)a[o+j]=n%256;n=Math.floor(n/256)}}',
+
         'var z=new Blob([a]).stream().pipeThrough(new DecompressionStream("gzip"));',
-        'var t=await new Response(z).text();',
-        'var p=t.indexOf("\\u0000");',
-        'if(p<0)throw Error("Invalid embedded asset package");',
-        'var css=document.createElement("style");css.textContent=t.slice(0,p);document.head.appendChild(css);',
-        'var js=document.createElement("script");js.textContent=t.slice(p+1);document.head.appendChild(js);',
-        '}catch(e){document.getElementById("app").innerHTML="<div style=\'font:16px Arial;padding:32px\'>Unable to load the custom interface. <a href=\'/app_upload.htm\'>Open firmware recovery</a>.</div>";console.error("NMC UI:",e)}',
+        'var code=await new Response(z).text(),p=code.indexOf("\\u0000");',
+        'if(p<0)throw Error("Missing asset separator");',
+        'var css=document.createElement("style");css.textContent=code.slice(0,p);document.head.appendChild(css);',
+        'var js=document.createElement("script");js.textContent=code.slice(p+1);document.head.appendChild(js);',
+        '}catch(e){var a=document.getElementById("app");a.textContent="Unable to load the custom interface: "+e.message+". ";var l=document.createElement("a");l.href="/app_upload.htm";l.textContent="Firmware recovery";a.appendChild(l);console.error("H910P UI:",e)}',
         '})();',
     ]
 
 
-def index_page(names: list[str]) -> str:
-    """Load all chunk scripts before the bootstrap; fit 713 original static bytes.
+def index_page(names: list[str], entry: str = '/default.htm') -> str:
+    """Use only *static, parser ordered script tags*, like working v0.5.2.
 
-    v0.4.1 included only the bootstrap resource and its browser tests injected
-    all other scripts manually. That caused the real browser to initialize with
-    an empty H910P_PACK and fail. This creates an actual native load sequence.
+    Short relative root URLs leave room for an always-present emergency
+    recovery link even when JavaScript cannot execute.
     """
-    return '<!doctype html><html><main id=app></main><script src='+BOOTSTRAP_RESOURCE+'></script>'
+    if not names or names[-1] != BOOTSTRAP_RESOURCE:
+        raise ValueError('Bootstrap must be the final script')
+    html = '<main id=a>' + ''.join(
+        '<script src=' + name.lstrip('/') + '></script>' for name in names
+    )
+    if len(html.encode('ascii')) > (672 if entry == '/default.htm' else 713):
+        raise ValueError('Native entry page capacity exceeded: ' + entry)
+    return html
 
 
 def main() -> None:
@@ -261,16 +291,19 @@ def main() -> None:
     base, records = discover(before)
     resource_by_path = {d['url']: d for d in records}
     css, js, compressed_assets = source_blob(before)
-    b64 = base64.b64encode(compressed_assets).decode('ascii')
-    resources = distribute(b64, resource_by_path, before)
+    b64 = base64.b85encode(compressed_assets, pad=True).decode('ascii')
+    resources = distribute(b64, resource_by_path, before, len(compressed_assets))
     html = index_page(list(resources)[1:] + [BOOTSTRAP_RESOURCE])
-    patches = {'/index.htm': html, **resources}
+    # /default.htm is the browser's standard NMC landing page. Keep /index.htm
+    # available as an alias. Do not expose the old empty legacy frameset.
+    patches = {'/default.htm': html, '/index.htm': html, **resources}
     # Normalization of legacy Help chunks makes the result identical regardless
     # of whether users begin with OEM firmware or the already-installed v0.4.2.
     unused_old_chunks = [n for n in OLD_CHUNK_RESOURCES if n not in resources]
     for name in unused_old_chunks:
         patches[name] = ['' for _ in slots_of(before, resource_by_path[name])]
-    assert len(html.encode('ascii')) <= sum(length for _, length in slots_of(before, resource_by_path['/index.htm'])), 'Entry page exceeds native RomPager capacity'
+    for entry in ('/default.htm', '/index.htm'):
+        assert len(html.encode('ascii')) <= sum(length for _, length in slots_of(before, resource_by_path[entry])), 'Entry page exceeds native RomPager capacity: '+entry
     updated = bytearray(before)
     allowed = set()
     site = OUT / 'served-native-ui'
@@ -279,18 +312,18 @@ def main() -> None:
         d = resource_by_path[name]
         spans = slots_of(before, d)
         # The boot entry page is split at tag boundaries, not JS statements.
-        if name == '/index.htm':
+        if name in ('/index.htm', '/default.htm'):
             # Fixed page slots happen to be 412 + 301; any HTML boundary is valid.
             text = value.encode('ascii')
             pieces=[]
             cursor=0
+            # RomPager concatenates consecutive STRING fragments. Fill each
+            # slot exactly up to its capacity, padding only the final slot.
+            # This permits an HTML attribute to cross a slot boundary without
+            # injecting spaces into a resource URL.
             for i, (_, cap) in enumerate(spans):
-                if i == len(spans)-1:
-                    chunk=text[cursor:]
-                else:
-                    split=text.rfind(b'>', cursor, cursor+cap)
-                    if split<cursor:raise ValueError('Cannot safely split entry HTML')
-                    chunk=text[cursor:split+1];cursor=split+1
+                chunk=text[cursor:cursor+cap]
+                cursor += len(chunk)
                 if len(chunk)>cap:raise ValueError(f'Index HTML exceeds available space by {len(chunk)-cap} bytes')
                 pieces.append(chunk+b' '*(cap-len(chunk)))
             if len(pieces)!=len(spans) or cursor+len(text[cursor:])!=len(text):
@@ -302,7 +335,7 @@ def main() -> None:
         for (off, cap), chunk in zip(spans, pieces):
             updated[off:off+cap] = chunk
             allowed.update(range(off, off + cap))
-        if name != '/index.htm':
+        if name not in ('/index.htm', '/default.htm'):
             # RomPager's MIME enum is encoded in resource metadata, not URL.
             mime_off = d['descriptor_offset'] + 20
             updated[mime_off:mime_off+4] = struct.pack('>I', 21)
@@ -311,8 +344,13 @@ def main() -> None:
         filepath.parent.mkdir(parents=True, exist_ok=True)
         filepath.write_bytes(b''.join(updated[off:off+cap] for off,cap in spans))
     retired_count = 0
+    retired_resource_names = []
+    active_resource_names = set(resources)
     for name in RETIRED_SYNOPTIC:
+        if name in active_resource_names:
+            continue  # A packed JS resource must never be blanked after installation.
         d = resource_by_path[name]
+        retired_resource_names.append(name)
         for it in d['items']:
             if it['type'] != 1:
                 continue  # Keep every dynamic handler/callback unmodified.
@@ -341,11 +379,39 @@ def main() -> None:
         assert latest['items']==d['items']
         assert latest['item_table_offset']==d['item_table_offset']
         assert latest['descriptor_offset']==d['descriptor_offset']
+    # The firmware is the deliverable, not the temporary pre-retirement files.
+    # Export and validate each resource from the final re-decoded BIN. This
+    # catches subsequent overwrite by cleanup passes (the v0.5.4 regression).
+    live_resource_bytes = {}
+    for name in patches:
+        descriptor = table[name]
+        live_resource_bytes[name] = b''.join(
+            reread.unpacked[off:off + cap]
+            for off, cap in slots_of(reread.unpacked, descriptor)
+        )
+        export_path = site / name.lstrip('/')
+        if export_path.read_bytes() != live_resource_bytes[name]:
+            raise AssertionError('Final firmware resource diverged from packed source: ' + name)
+    # Assert no asset-bearing resource was touched by presentation retirement.
+    for name in resources:
+        if name not in live_resource_bytes:
+            raise AssertionError('Missing firmware resource: ' + name)
+    # Every intended JS chunk must survive in the actual firmware.
+    final_scripts = '\n'.join(
+        live_resource_bytes[name].decode('ascii') for name in resources
+    )
+    final_encoded = ''.join(re.findall(
+        r'window\.H910P_PACK\+="([^"]+)";', final_scripts
+    ))
+    if final_encoded != b64:
+        raise AssertionError('Final firmware embedded package corrupted')
+    if gzip.decompress(base64.b85decode(final_encoded)[:len(compressed_assets)]) != (css+'\0'+js).encode('utf-8'):
+        raise AssertionError('Final firmware asset round trip failed')
     # Reconstruct compressed assets *only* from the resources as actually packed.
     packed_site='\n'.join((site/name.lstrip('/')).read_text('ascii') for name in resources)
-    extracted=''.join(re.findall(r'window\.H910P_PACK\+="([A-Za-z0-9+/=]+)";', packed_site))
+    extracted=''.join(re.findall(r'window\.H910P_PACK\+="([^"]+)";', packed_site))
     assert extracted == b64, 'Embedded chunks differ from authored package'
-    unpacked_assets=gzip.decompress(base64.b64decode(extracted))
+    unpacked_assets=gzip.decompress(base64.b85decode(extracted)[:len(compressed_assets)])
     assert unpacked_assets == (css+'\0'+js).encode('utf-8'), 'Embedded CSS/JS round-trip failed'
     (site/'index.html').write_bytes((site/'index.htm').read_bytes())
     binary=OUT/OUTPUT_NAME
@@ -357,7 +423,7 @@ def main() -> None:
         'original_bytes':len(firmware),'custom_bytes':len(result),
         'firmware_size_delta':len(result)-FACTORY_IMAGE_BYTES,
         'application_size_unchanged':len(before)==len(updated),
-        'compressed_ui_bytes':len(compressed_assets),'base64_ui_bytes':len(b64),
+        'compressed_ui_bytes':len(compressed_assets),'encoded_ui_bytes':len(b64),'embedded_encoding':'base85',
         'modified_application_byte_count':len(differences),
         'all_changed_bytes_within_static_ui_allowlist':True,
         'boot_header_and_original_callbacks_preserved':True,
@@ -365,14 +431,19 @@ def main() -> None:
         'firmware_crc_valid':True,
         'embedded_ui_round_trip_exact':True,
         'native_index_script_count':len(re.findall(r'<script src=',html)),
+        'landing_page': '/default.htm',
+        'native_default_script_count':len(re.findall(r'<script src=',html)),
         'native_index_scripts_load_in_order':True,
+        'bootstrap_mode':'static parser ordered (no async resource fetch)',
         'firmware_within_factory_image_size':len(result)<=FACTORY_IMAGE_BYTES,
         'repurposed_original_help_pages':list(resources),
         'cleared_unused_prior_help_chunks':unused_old_chunks,
-        'retired_legacy_synoptic_resources': RETIRED_SYNOPTIC,
+        'retired_legacy_synoptic_resources': retired_resource_names,
         'retired_legacy_synoptic_static_bytes': retired_count,
+        'legacy_entry_pages_preserved':False,
+        'legacy_default_replaced_by_native_ui':True,
         'original_management_uses_legacy_frames':True,
-        'power_and_configuration_actions_in_new_ui':'DESCRIPTOR-BACKED RW CONFIG AND DOCUMENTED OUTLET COMMANDS (SIMULATED BROWSER TESTS); ORIGINAL UI RETAINED',
+        'power_and_configuration_actions_in_new_ui':'DESCRIPTOR-BACKED RW CONFIG AND DOCUMENTED OUTLET COMMANDS (SIMULATED BROWSER TESTS); OEM ENTRY PAGES RESTORED, SOME LEGACY ASSETS REPURPOSED',
         'unverified':['NMC hardware boot','Firmware upload acceptance','Actual NMC HTTP-serving','Live XML compatibility','Automatic firmware recovery','Legacy help availability','Flash memory headroom'],
     }
     (OUT/'VALIDATION.json').write_text(json.dumps(report,indent=2)+'\n')

@@ -52,7 +52,7 @@ U.performFirmwareUpload=function(file){
  var body=new FormData();body.append('file',file,'Dell_nmc_01_18_0005.bin');
  U.updater.busy=true;U.updater.result='Sending firmware to the original NMC upload handler…';U.render(false);
  var c=new AbortController(),timer=setTimeout(function(){c.abort()},180000),headers={};if(U.auth&&U.auth.header)headers.Authorization=U.auth.header;
- fetch('/Forms/app_upload_1',{method:'POST',credentials:'same-origin',headers:headers,body:body,redirect:'manual',signal:c.signal})
+ fetch('/Forms/app_upload_1',{method:'POST',credentials:'omit',headers:headers,body:body,redirect:'manual',signal:c.signal})
   .then(function(r){if(r.status===401||r.status===403)throw Error('The card refused firmware-upload authorization.');
    if(r.type==='opaqueredirect'||r.status===302||r.status===303)U.updater.result='Uploader returned a redirect. Open NMC flash-write status to verify success; a redirect alone is not confirmation.';
    else if(!r.ok)throw Error('Upload returned HTTP '+r.status);

@@ -1,126 +1,151 @@
-# Dell H910P NMC — Instrument Panel
+# Dell H910P Network Management Card — Modern Firmware
 
-A desktop-first, offline-capable web management interface **embedded directly into Dell H910P NMC firmware** (Dell base `01.18.0005`). No CDN, external management server, cloud service, or Docker is needed to browse the UI. All new frontend code is here in source form; the vendor NET+OS firmware remains proprietary.
+A modern, locally hosted management interface for the Dell H910P Network Management Card. This project modernizes the interface **inside the NMC firmware**, preserving the card's hardware and Dell's underlying UPS communications. The goal is a complete replacement for the original browser interface—not a separate dashboard or an always-on management server.
 
-## v0.5.3 — XML failure recovery, all-page data coverage and firmware maintenance
+**Current release baseline: v0.5.10** · Based on Dell NMC firmware 01.18.0005 · **Experimental / not recommended for production use**
 
-**Experimental; this version has not been tested on the physical H910P.** Firmware: **1,516,340 bytes**, **689 bytes smaller than OEM**, SHA-256 `3a5d34ddf7fa9699b044e4e4d9f96562f1b80e1167db35f0ce352d0013bfe422`. See [v0.5.3 engineering status](docs/engineering-status-0.5.3.md) for precise implementation and remaining limitations. Latest source introduces a firmware-derived, no-secret field catalog used only when the OEM descriptor HTTP response cannot be parsed. The interface still requires live device values for editing and confirms individual writes through independent readback. All four OEM email slots are available in the catalog even if the descriptor endpoint returns invalid XML; no notification delivery is claimed until the user configures a real receiver and the card reports success.
+The custom interface runs on real H910P hardware, but development and device-level qualification are ongoing. Critical UPS power-control, recovery, and update operations must be validated before this firmware is used in a production environment.
 
-The maintenance page now checks actual GitHub Releases on demand and lists compatible BIN assets, and accepts a local BIN with full NET+OS image checksum validation before a browser POST. **GitHub UI-only Flash0 updates, on-card asset rollback, and guaranteed browser firmware upload are not implemented.** The user-proven HTTP/1.0 multipart POST remains the tested upgrade transport. The bootloader and firmware upload callback are unchanged; the old Dell menu and stylesheet have been retired for ROM space. A minimal unchanged OEM upload-status page remains available.
+## Why I built this
 
-**Verification:** offline firmware, compressor, native-entry, ROM bootstrap execution and full browser simulations. No on-hardware v0.5.3 acceptance or live email/power tests.
+The H910P remains capable hardware, but its original management interface is dated and cumbersome to navigate. I wanted a single, modern place to see what the UPS is doing, manage its configuration, review events, and eventually update the management firmware without giving up local control or adding a separate service to the network.
 
----
+The interface is hosted by the NMC itself. A modern browser loads the UI and communicates directly with the card's existing endpoints. No cloud connection is required for UPS monitoring or native email notification.
 
-## v0.5.2 — Authentication and sign-in backdrop correction
+## Hardware and firmware
 
-**Candidate; not yet tested on physical hardware.** Firmware size: **1,515,865 bytes** (1,164 bytes under the Dell factory BIN). SHA-256: `e45b92abbd02555818332a0b4638fe8cfe440dd1d25a9727bd6c68271904167a`. The owner reported that the v0.5.1 login rejected credentials accepted by the OEM card, and the sign-in background appeared to stop before the bottom of the screen.
+| Component | Details |
+| --- | --- |
+| Management card | Dell H910P, revision A06 |
+| Base firmware | Dell 01.18.0005 |
+| UPS example | Dell UPS Rack 1920W / 1500W LV |
+| Release baseline | **v0.5.10** |
+| Firmware file | `H910P_Custom_UI_v0.5.10.bin` |
+| Image size | **1,517,026 bytes** |
+| SHA-256 | `e3adea74aad966c15e87f9fdb7407bb9d9d810e20158da54bad639466f70b8bb` |
 
-- **Root cause of login failure in the frontend:** v0.5.1 explicitly used `fetch('/app_upload.htm', {credentials:'omit', headers:{Authorization:...}})`. Per the Fetch API, `omit` excludes HTTP authentication credentials. This release uses `credentials:'same-origin'` and continues to send the candidate Basic header explicitly; the card's real protected endpoint remains the authorization source. No device password is hardcoded into the distributed firmware.
-- **Root cause of background stripe:** a deliberate linear gradient left a contrasting bottom band. Replace it with a solid background, extend the sign-in surface to `100dvh` with `100vh` fallback, and apply the same background to the root while signing in. The login content is now a `div` nested inside the existing outer `main` instead of invalid nested `main` elements.
-- **Test fix:** browser tests now require the correct credential mode and assert sign-in surface geometry, background consistency, and semantic markup. The standalone **interactive demo** accepts any nonempty credentials locally and announces that it is simulated; real firmware does not include that demo bypass. Generate it with `python3 tools/build_demo.py --output build/H910P_offline_demo.html`.
+The firmware builder enforces Dell's original 1,517,029-byte image-size ceiling and validates the packed resources, checksum and image structure. Passing those checks does not replace testing on a physical card.
 
-The card's original HTTP Basic authentication implementation is unchanged. **A browser-auth success in simulation is not proof that the corrected request works on a physical H910P**. Current hardware-proven baseline remains the user's working v0.5.1 until this build is installed and verified.
+## Features
 
----
+The management interface includes 15 sections covering the power dashboard, electrical measurements, output groups, event history, UPS controls, weekly scheduling, shutdown parameters, notification destinations, network, system, shutdown clients, access control, SNMP, time/NTP and firmware maintenance.
 
-## v0.5.1 — Notification manager, Dell branding and authenticated sign-in
+The dashboard reads live UPS telemetry and presents battery, load, power flow and key electrical measurements. The interface includes configuration editing and readback checks where supported by the card. The newer builds add login continuity across same-tab refreshes and bounded recovery from transient XML read failures.
 
-**Hardware status:** v0.5.0 was reported installed by the owner; v0.5.1 is built and browser-tested **offline only**, and must not be represented as tested on a real H910P until installation and read-only verification are reported.
+**Notifications:** One destination table supports four native Dell email recipients (slots **0–3**), and separately configured **Monita, Discord and ntfy destinations without a four-destination limit**. SMTP configuration opens in its own dialog. External HTTPS notifications use an optional local relay; the H910P firmware does not yet provide a proven native HTTPS webhook client. Do not treat the relay as optional if you depend on webhook delivery.
 
-This update builds directly on the embedded Dell 01.18.0005 application and retains its original executable instructions and RomPager callback pointers. No CDN or separate server is required to open the management interface.
+**Authentication:** The card retains its native HTTP Basic authentication mechanism. The custom sign-in is an interface over that mechanism; it is not a replacement server-side session system. Tab-scoped session restoration temporarily stores a reversible Basic authorization header. Use the card only on a trusted management segment or behind an appropriate VPN; avoid sending passwords over untrusted plain HTTP.
 
-- Corrected the **white transparent Dell logo to the upper-left** of the management sidebar.
-- Added a centered username/password screen. The entered credentials are verified by a **real, protected Dell Basic-auth endpoint** (`GET /app_upload.htm`) before opening the management UI. Credentials are kept only in browser memory; **Lock** clears the current UI state and requires a fresh sign-in. This is a browser-side sign-in experience using existing Dell HTTP authentication, **not** a new server authorization layer or a guarantee that the underlying plain-HTTP transport is encrypted. Continue to restrict device network access.
-- Refined the dashboard with quick access to events, protected output status, notifications, maintenance, and a live feed of recorded UPS events alongside gauges and power flow.
-- Replaced raw `System.Email[n]` key/value rows with **four real recipient slots**. The exact OEM descriptor advertises `Email.Email[0]` through `Email.Email[3]`, each with `System.Email[n].Recipient`, `System.Email[n].Selected`, and per-recipient event selections. The new modal editor stages individual user-approved changes and independently reads each back from the original NMC API before reporting success. A partial failure is reported instead of being silently treated as success.
-- Showed outgoing SMTP server and sender settings separately from notification recipients. The four-slot cap is derived from the actual descriptor, not hard-coded fake recipients.
-- Replaced “not installed” service gates with **setup guidance** for ntfy inbound SMTP, Monita inbound email, and Discord SMTP-to-webhook bridges. Users can assign available email slots to these receiving addresses. **No direct native ntfy, Monita, Discord, webhook, or push transport has been added.** The remote service/gateway must already be configured to accept mail.
-- Rewrote technical release/update copy for device owners. UI-only auto-update from GitHub is **not implemented**, pending measured Flash0 storage, static file serving, authenticated package verification, and recoverable installation.
-- Reclaimed 47,762 bytes of static presentation strings from redundant original synoptic and legacy help pages, preserving callback pointers and executable bytes. The stock Dell synoptic UI and selected stock Help pages are **not functional** in this image. The native firmware-upload handler remains intact; the new UI still does **not** implement every legacy control workflow.
+## Release channels and branches
 
-**v0.5.1 BIN:** 1,515,874 bytes, 1,155 bytes under the OEM 1,517,029-byte image.
+| Channel | Git branch | Purpose |
+| --- | --- | --- |
+| **Release** | `main` | Approved firmware baseline. Currently **v0.5.10**. |
+| **Beta** | `dev` | Continuing development, fixes and hardware qualification. |
 
-**SHA-256:** `3dbe3c27952cb5b56bdc956c05d6e9b4b64c20125afe196e7baff451f536c2bb`
+`main` is not a rolling preview branch. All ongoing UI and firmware work belongs in `dev` until reviewed and promoted. The firmware-update interface is being developed to offer a **Release / Beta** selector. Release checks must use published GitHub firmware assets and verify their integrity; choosing `dev` must not treat an arbitrary source commit as a flashable image. The optional update mechanism is not a transactional on-device installer with rollback yet.
 
-Validated offline: exact binary decompression and CRC, embedded asset reconstruction, unchanged callback pointers and non-allowlisted executable bytes; 18 firmware regressions, 4 compressor regressions, 4 native-entry checks, the 15-screen browser suite, sign-in/lock checks, and notification/form workflow browser checks with simulated Dell device responses. Rebuilt from both verified OEM ZIP and verified v0.4.2 BIN with **byte-identical outputs**.
+## Getting started
 
-**Not yet hardware verified:** sign-in behavior on the physical card, live configuration XML compatibility, recipient delivery, sequential changes/partial-failure behavior, full UI feature parity and v0.5.1 image acceptance/boot. The build is experimental and should not be distributed as a fully qualified production replacement.
+Open the NMC in a browser at:
 
-The [manual HTTP/1.0 POST deployment method](docs/firmware-deployment-http-post.md) remains the recommended upload method. It must report success on the card’s status page before treating a flash as complete.
-
----
-
-## v0.5.0 — Operational UI expansion (firmware candidate)
-
-The original H910P was successfully flashed with **custom UI v0.4.2** via HTTP/1.0 multipart POST on November 9, 2026. The card rebooted and served `/index.htm` directly. **v0.5.0 has passed offline firmware and browser tests but has NOT been tested on real hardware.** Keep the proven v0.4.2 BIN as a recovery reference.
-
-### New in v0.5.0
-
-- Reworked the native configuration pages into categorized, searchable management sections with descriptive titles, live read-only values, clear supported-versus-unavailable states, and keyboard-friendly modal editors.
-- Clicking **Edit** opens a dialog, validates on review, then requires a second explicit **Apply to NMC** action. Upload uses the existing same-origin `Configuration.xml` multipart endpoint and checks device readback before declaring success. Secrets remain masked; credential writes are reported as submitted rather than device-readback verified.
-- Load configuration automatically when entering device management sections rather than leaving pages empty until a manual fetch.
-- Added searchable event records, severity filters, refresh control and CSV export; severity is inferred from message text and is not a device-provided classification.
-- Notification page provides existing SMTP settings and clearly labels ntfy, Monita and Discord delivery *as not installed*, with their potential event-ingest paths. Direct webhooks, new native event handlers and SMTP mail sending tests are NOT implemented.
-- Firmware page shows the installed **UI version 0.5.0** distinct from Dell base `01.18.0005`, the proven manual HTTP/1.0 POST update path, and an honest GitHub/UI-only updater status (**not yet implemented**).
-- User-supplied Dell logo was converted to white with transparency and vectorized; its SVG is packaged into the local UI and displayed in the upper-right. No external assets, fonts or dependencies.
-- Increased available UI storage by repurposing original `/html/synoptic/dhtml.js` and the already-overwritten Help-resource slots. The old Dell *synoptic/diagram frontend* will no longer work; original UPS backend and firmware upload handler remain in place. This is part of the approved single-UI transition; **do not use v0.5.0 if full legacy Dell interface fallback is required**.
-- The 1,512,695-byte BIN is 4,334 bytes smaller than the original Dell image (1,517,029 bytes). ARM executable, boot header, resource descriptors, and native callbacks are unchanged; only allowlisted static UI bytes and MIME metadata are patched.
-- Deterministic builds from either the owner's original Dell ZIP **or an exact checksum-matching custom v0.4.2 BIN** produce byte-identical v0.5.0 firmware.
-
-### Not yet complete
-
-- The physical card has NOT run v0.5.0. All 15 routes render in browser mocks, but availability of actual editable NMC settings depends on the live configuration descriptor; many specialized workflows (weekly schedule, shutdown clients, event recipient selection, SNMP traps, user management) still require hardware API discovery and verification. No false claim of complete parity.
-- The independent Flash0 UI asset store, GitHub-only UI updater, automatic rollback, custom notification dispatcher, HTTP webhooks and direct ntfy/Monita/Discord delivery are **not yet implemented**.
-- Native power control remains based on the descriptor's observed `Control.Outlet[n]` commands with exact typed confirmation and no end-to-end device-power test. Treat power-command submission as unconfirmed until output state is observed on hardware.
-- Firmware restoration through `/Forms/app_upload_1` requires the NMC still boots, is reachable, and serves the native uploader. This is not a guarantee of recovery from an unbootable image.
-
-## Build from the exact proven v0.4.2 BIN
-
-The **simplest local build**, requiring no Dell website and no OEM ZIP, is:
-
-```bash
-python3 build_native.py --from-v042 "$HOME/Downloads/H910P_Custom_UI_v0.4.2.bin"
+```text
+http://NMC-IP/default.htm
 ```
 
-The builder refuses any v0.4.2 BIN whose SHA-256 does not equal:
+For example, a lab card at `192.168.1.50` uses `http://192.168.1.50/default.htm`. Sign in using the credentials configured on the card. The default Dell credentials should be changed before putting a card on a management network.
 
-`db0cede9c360b71a36dc68425970b8119005f170b3d9cfb7bda4eba2e7515757`
+### Verify the release BIN
 
-Alternatively, put the original `NMC_Firmware_01_18_0005_X2JYN.zip` inside `originals/` and run `python3 build_native.py`.
-
-**Toolchain:** Python 3.11+ standard library, C++17 compiler `g++` (for the repository's lossless optimal LZSS2 compressor). No network access needed once the sources and baseline image are present.
-
-Output: `build/H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin`
-
-Expected **v0.5.0** SHA-256:
-
-`b9d3a17c8d26267d6d9e4c678097c63911d73c219ae8d250e972e31465eca77b`
-
-Exact size: **1,512,695 bytes**.
-
-We reproduced identical output bytes using both input methods. The firmware build checks the CRC, decompression round trip, metadata pointers, allowable binary changes, embedded UI reconstruction, and factory BIN-size ceiling.
-
-## Tests
+After downloading the **standalone** `H910P_Custom_UI_v0.5.10.bin`:
 
 ```bash
-python3 tools/test_validation.py          # Needs the two OEM ZIP test fixtures
-python3 tools/test_optimal_encoder.py
+BIN="$HOME/Downloads/H910P_Custom_UI_v0.5.10.bin"
+EXPECTED="e3adea74aad966c15e87f9fdb7407bb9d9d810e20158da54bad639466f70b8bb"
+
+printf '%s  %s\n' "$EXPECTED" "$BIN" | sha256sum -c -
+test "$(wc -c < "$BIN")" -eq 1517026
+```
+
+### Build from source
+
+Python 3.11+, `g++` (C++17), and the pinned Python dependencies are required. **Dell's proprietary original firmware archives are not stored in this repository.** Obtain the official 01.18.0005 firmware and, for firmware regression tests, 01.16.0001 from Dell. Place the archives into `originals/` with these filenames:
+
+```text
+originals/NMC_Firmware_01_18_0005_X2JYN.zip
+originals/NMC_Firmware_01_16_0001_YJ6JM.zip
+```
+
+On Linux, from the repository root:
+
+```bash
+python3 -m pip install -r requirements-build.txt
+python3 build_native.py
+```
+
+The build is offline; it does not contact or flash an NMC. Inspect `build/VALIDATION.json`, the generated `build/served-native-ui/` resources, and the final firmware checksum before considering any hardware test. To reproduce the **released** v0.5.10 BIN, build from `main` at the corresponding baseline commit and use the exact Dell original archives; compare the resulting BIN's hash with the table above.
+
+### Run tests
+
+```bash
+python3 -m unittest test_auth_credentials.py -v
+node test_session_restore.js
 python3 test_native_entry.py
-python3 test_browser.py                   # Needs Playwright + Chromium
+python3 test_final_firmware_assets.py
+python3 -m unittest discover -s tools -p 'test_*.py' -v
+python3 test_browser.py
 python3 test_config_browser.py
+python3 test_notification_bridge_browser.py
+python3 -m unittest test_notification_relay.py -v
 ```
 
-The 18 firmware tests, 4 compressor tests, 4 native-entry tests and two browser suites passed on the authoring machine using mocked UPS/NMC responses; no real-hardware v0.5.0 claim is implied. Run `node --check source/*.js` individually for JS syntax checks.
+Browser tests require Chromium and Playwright. The tests cover packaged firmware assets, UI functionality and simulated NMC responses. They do not establish real-device session, power-control, flash or recovery behavior.
 
-## Firmware deployment
+### Flashing an experimental card
 
-The **proven device upload method** is a single HTTP/1.0 multipart POST (not a browser HTTP/1.1 upload), and positive firmware-write confirmation on `/app_upload.htm` after the redirect. Do not follow the 302/303 automatically; those statuses do not establish flash success. See [`docs/firmware-deployment-http-post.md`](docs/firmware-deployment-http-post.md). The GitHub updater is tracked separately in ADR-0001 and remains unavailable.
+Only flash a card you can recover. The Dell firmware upload service is `POST /Forms/app_upload_1`; its status page is `/app_upload.htm`. The following **lab-only** example uses the already verified BIN and prompts for the configured NMC password:
 
-## Design identity
+```bash
+BIN="$HOME/Downloads/H910P_Custom_UI_v0.5.10.bin"
+EXPECTED="e3adea74aad966c15e87f9fdb7407bb9d9d810e20158da54bad639466f70b8bb"
+NMC="192.168.1.50"
 
-Precise, industrial, assured — a control-room instrument panel with a light `#f2f6f7` content canvas, Dell blue `#007db8`, charcoal `#18272f` sidebar, green `#087a53` system statuses, angular 4–5 px corners and Segoe UI/Arial. Sparse borders and strong typography maintain hierarchy, with short animations and reduced-motion support. Every screen must work offline at 360px and larger. No framework runtime/CDN is loaded; Tailwind is compiled ahead of time.
+printf '%s  %s\n' "$EXPECTED" "$BIN" | sha256sum -c - &&
+test "$(wc -c < "$BIN")" -eq 1517026 &&
+curl --http1.0 --basic --user admin \
+  --header 'Expect:' --header 'Connection: close' \
+  --connect-timeout 15 --max-time 300 --show-error \
+  --form "file=@${BIN};filename=Dell_nmc_01_18_0005.bin;type=application/octet-stream" \
+  --dump-header "$HOME/Downloads/H910P-upload-headers.txt" \
+  --output "$HOME/Downloads/H910P-upload-response.html" \
+  --write-out '\nHTTP Status: %{http_code}\nBytes Sent: %{size_upload}\n' \
+  "http://${NMC}/Forms/app_upload_1"
+```
 
-## Licensing and scope
+The NMC must explicitly report **`SUCCESS : Firmware was successfully written in FLASH`**. A 302 redirect does not prove the write succeeded. If the card responds with 401, stop and investigate authorization rather than retrying the upload repeatedly. Verify `default.htm`, UPS telemetry, settings and alerts after restarting.
 
-`originals/`, `build/`, binary firmware and proprietary Dell components are excluded from the public Git repository. Users supply their own lawful firmware image for local patching. Dell and the Dell logo are trademarks of Dell Inc.; inclusion of owner-supplied artwork does not imply Dell endorsement. Code in this repository remains distinct from Dell's proprietary NET+OS application.
+## Serial Settings port
+
+The second RJ45 jack is a **serial Settings port**. Dell documents 9600 baud, 8N1 and no hardware/software flow control. Its configuration menu provides network readout/recovery even if the Ethernet interface is unavailable. **It is not a second Ethernet port or a documented firmware debug console.** See [Serial Settings port](docs/serial-settings-port.md) before connecting a generic Cisco rollover cable: identical RJ45 connectors do not guarantee compatible pinouts.
+
+## Project layout
+
+```text
+source/                 Embedded UI source, styles and assets
+build_native.py         RomPager resource packer and firmware image builder
+tools/                  Firmware parser, compressor and validation tools
+notification-relay/     Optional HTTPS notification transport
+docs/                   Firmware, serial and protocol documentation
+test_*.py               Firmware, authentication and browser tests
+requirements-build.txt  Pinned build dependency
+originals/              Local proprietary Dell firmware inputs (gitignored)
+build/                  Generated outputs (gitignored)
+```
+
+## Current limitations
+
+This is usable experimental firmware, not a completed production replacement. Full device-level verification of power and configuration writes, transport security, browser authentication edge cases, native webhook transport, update rollback and recovery remains in progress. The built-in GitHub firmware discovery and manual upload controls are **not** a verified automatic update-and-rollback system.
+
+For changes, see [CHANGELOG](CHANGELOG.md). For console research, see [Serial Settings port](docs/serial-settings-port.md).
+
+**Maintained independently.** Dell and H910P are trademarks of their respective owners. This project is not affiliated with Dell.

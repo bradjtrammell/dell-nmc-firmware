@@ -21,26 +21,48 @@ U.mailFields=function(){var fields=[];(U.config.groups||[]).forEach(function(g){
  if(/^System\.(Network\.SmtpServer\.|Email\.(Sender|Subject|Message))/.test(f.name))fields.push(f);
  })});return fields};
 U.mailFieldLabel=function(f){var n=f.name;return /HostName$/.test(n)?'SMTP server':/SmtpPort$/.test(n)?'SMTP port':/Authentication$/.test(n)?'Authentication':/\.Login$/.test(n)?'Username':/\.Password$/.test(n)?'Password':/\.Sender$/.test(n)?'From address':/\.Subject$/.test(n)?'Message subject':'Custom message'};
-U.mailFieldInfo=function(f){return /HostName$/.test(f.name)?'Address of the mail server used to deliver alerts.':/SmtpPort$/.test(f.name)?'Port used to contact your outgoing mail server.':/Authentication$/.test(f.name)?'Whether the mail server expects login credentials.':/\.Sender$/.test(f.name)?'Address shown as the sender of alert emails.':'Managed by the UPS built-in email service.'};
+
 U.notificationView=function(){
- var slots=U.recipientSlots(),active=slots.filter(function(s){return U.recipientActive(s)}).length;
- var head=U.heading('NOTIFICATIONS','Notification center','Send UPS alerts to people or services using the card’s built-in email delivery.')+U.warning();
- var alert=U.config.message?'<div class="notice info" role="status">'+U.ico('check')+U.esc(U.config.message)+'</div>':U.config.error?'<div class="notice error" role="alert">'+U.ico('alert')+U.esc(U.config.error)+'</div>':'';
- if(!U.config.loaded)return head+alert+'<div class="empty-state"><strong>'+U.esc(U.config.busy?'Reading notification settings…':'Notification settings are not available')+'</strong><p>'+U.esc(U.config.error||'The card must provide its email configuration before you can manage recipients.')+'</p><button type="button" class="btn btn-primary" id="load-config">Try again</button></div>';
- U.configFieldMap={};var fields=U.mailFields();fields.forEach(function(f,i){U.configFieldMap[i]=f});
- var cards=slots.map(function(slot){var n=slot.index,enabled=U.recipientActive(slot),configured=U.recipientConfigured(slot),address=U.recipientValue(slot,'Recipient');
-  return '<article class="recipient"><div class="recipient-index">'+U.ico('mail')+'</div><div class="recipient-main"><div class="recipient-title"><h3>'+U.esc(configured?address:'Available recipient')+'</h3><span class="recipient-status '+(enabled?'enabled':'')+'">'+(enabled?'Active':'Inactive')+'</span></div><p>'+U.esc(configured?'Alerts are delivered through the UPS email service.':'Add an email address to use this notification destination.')+'</p><div class="recipient-buttons"><button type="button" class="btn btn-quiet" data-recipient="'+n+'">'+U.ico('sliders')+(configured?'Manage recipient':'Add recipient')+'</button>'+(configured&&enabled?'<button type="button" class="btn btn-quiet" data-disable-recipient="'+n+'">Disable</button>':'')+'</div></div></article>';
- }).join('');
- var transport=fields.length?'<section class="setting-section"><div class="setting-section-head"><h2>Outgoing email</h2><span>Mail delivery settings</span></div>'+fields.map(function(f,i){return '<div class="setting-row"><div class="setting-copy"><strong>'+U.esc(U.mailFieldLabel(f))+'</strong><p>'+U.esc(U.mailFieldInfo(f))+'</p></div><div class="setting-actions"><span class="setting-current">'+U.esc(U.fieldValue(f))+'</span><button type="button" data-edit="'+i+'" class="btn btn-quiet">Edit '+U.ico('arrow')+'</button></div></div>'}).join('')+'</section>':'<div class="notice info">Email server settings were not advertised by this firmware.</div>';
- return head+alert+'<div class="notification-hero"><div class="notification-stat"><strong>'+active+' / '+slots.length+'</strong><span>Active email destinations</span></div><div><h2>Alerts delivered from the UPS</h2><p>Notifications continue to work when this management page is closed. All destinations use the card’s configured mail server.</p></div><button type="button" id="load-config" class="btn btn-quiet" '+(U.config.busy?'disabled':'')+'>'+U.ico('refresh')+' Refresh</button></div>'+
- '<div class="recipient-heading"><div><h2>Alert recipients</h2><p>Up to '+slots.length+' destinations supported by this card</p></div>'+(slots.some(function(s){return !U.recipientActive(s)})?'<button type="button" id="recipient-add" class="btn btn-primary">'+U.ico('mail')+' Add destination</button>':'<span class="recipient-limit">All recipient slots are active</span>')+'</div>'+
- (slots.length?'<div class="recipient-grid">'+cards+'</div>':'<div class="empty-state">This device did not advertise editable email recipient slots.</div>')+
- '<section class="integration-section"><h2>Connect other notification apps</h2><p>Use a compatible inbound email address to route UPS alerts to your notification service. Direct webhook delivery is not yet supported by this firmware.</p><div class="integration-grid">'+[
-  ['ntfy','Email receiver','Configure the email address accepted by your ntfy server.'],
-  ['Monita','Inbound email','Route UPS alerts into a Monita channel through its email integration.'],
-  ['Discord','SMTP-to-webhook bridge','Provide the email address of an existing bridge that forwards to your Discord webhook.']
- ].map(function(row){return '<div class="integration-card"><strong>'+row[0]+'</strong><span>'+row[1]+'</span><p>'+row[2]+'</p><button type="button" class="btn btn-quiet" data-integration="'+row[0]+'">Set up via email '+U.ico('arrow')+'</button></div>'}).join('')+'</div></section>'+transport;
+ var slots=U.recipientSlots(),bridge=U.bridge||{},remotes=bridge.destinations||[];
+ var configured=slots.filter(function(s){return U.recipientConfigured(s)});
+ var rows=configured.map(function(s){
+  var address=U.recipientValue(s,'Recipient'),active=U.recipientActive(s);
+  return '<tr><td><strong>'+U.esc(address)+'</strong><small>Native slot '+s.index+'</small></td><td>Email</td><td><span class="recipient-status '+(active?'enabled':'')+'">'+(active?'Enabled':'Disabled')+'</span></td><td><div class="destination-actions"><button class="btn btn-quiet" type="button" data-recipient="'+s.index+'">Edit</button>'+(active?'<button class="btn btn-quiet" type="button" data-disable-recipient="'+s.index+'">Disable</button>':'')+'</div></td></tr>';
+ });
+ remotes.forEach(function(d){rows.push('<tr><td><strong>'+U.esc(d.name)+'</strong><small>'+U.esc(d.type==='discord'?'Webhook configured':d.type==='ntfy'?(d.topic||'ntfy topic'):(d.url||'Monita server'))+'</small></td><td>'+U.esc(d.type==='monita'?'Monita':d.type==='discord'?'Discord':'ntfy')+'</td><td><span class="recipient-status '+(d.enabled?'enabled':'')+'">'+(d.enabled?'Enabled':'Disabled')+'</span></td><td><div class="destination-actions"><button class="btn btn-quiet" type="button" data-bridge-edit="'+U.esc(d.id)+'">Edit</button><button class="btn btn-quiet" type="button" data-bridge-test="'+U.esc(d.id)+'" '+(bridge.busy?'disabled':'')+'>Test</button><button class="btn btn-quiet" type="button" data-bridge-delete="'+U.esc(d.id)+'" '+(bridge.busy?'disabled':'')+'>Delete</button></div></td></tr>')});
+ var problem=bridge.error||U.config.error,success=bridge.message||U.config.message;
+ var notice=problem?'<div role="alert" class="notice error">'+U.ico('alert')+U.esc(problem)+'</div>':success?'<div role="status" class="notice info">'+U.ico('check')+U.esc(success)+'</div>':'';
+ var emailCount=configured.length,free=slots.some(function(s){return !U.recipientConfigured(s)});
+ return U.heading('NOTIFICATIONS','Notification manager','Manage your UPS notification destinations from one place.')+U.warning()+notice+
+ '<div class="recipient-heading"><div><h2>Destinations</h2><p>'+emailCount+' of 4 email slots configured · '+remotes.length+' external destinations</p></div><div class="destination-toolbar"><button type="button" class="btn btn-quiet" id="smtp-settings" '+(!U.config.valuesLive||U.config.saving?'disabled':'')+'>'+U.ico('sliders')+' SMTP settings</button><button type="button" id="recipient-add" class="btn btn-primary" '+(!free&&!bridge.ready?'disabled':'')+'>'+U.ico('check')+' Add Destination</button></div></div>'+
+ (U.config.warning?'<p class="editor-help">'+U.esc(U.config.warning)+'</p>':'')+
+ '<section class="setting-section"><div class="destination-table-scroll"><table class="destination-table"><thead><tr><th scope="col">Destination</th><th scope="col">Type</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody>'+(rows.join('')||'<tr><td colspan="4" class="destination-empty">No destinations configured. Select Add Destination to create one.</td></tr>')+'</tbody></table></div></section>'+
+ (!bridge.ready?'<section class="setting-section"><div class="setting-section-head"><h2>Webhook delivery connection</h2><span>Monita · Discord · ntfy</span></div><p class="editor-help">External destinations are delivered by the notification relay. Email is sent by the UPS itself.</p><form id="bridge-connect-form" class="destination-connect"><label for="bridge-url">Relay HTTPS URL</label><input id="bridge-url" type="url" placeholder="https://notifications.example.net" required value="'+U.esc(bridge.url||'')+'"><label for="bridge-token">Relay access token</label><input id="bridge-token" type="password" autocomplete="off" required><button class="btn btn-primary" type="submit" '+(bridge.busy?'disabled':'')+'>Connect</button></form></section>':'<button type="button" class="btn btn-quiet" id="bridge-refresh" '+(bridge.busy?'disabled':'')+'>Refresh destinations</button>');
 };
+U.openSMTP=function(){
+ var dialog=document.getElementById('setting-dialog'),fields=U.mailFields();if(!dialog||U.config.saving)return;
+ if(!U.config.valuesLive){U.config.error='SMTP settings require live device values.';U.render(false);return}
+ if(!fields.length){U.config.error='The card did not expose SMTP settings.';U.render(false);return}
+ U.smtpDraft=fields;
+ dialog.innerHTML='<div class="editor-top">'+U.ico('mail')+'<div><h2 id="editor-title">Outgoing email server</h2></div></div><p class="editor-help">These settings apply to all four native email destinations.</p><form id="smtp-form">'+fields.map(function(f,i){var secret=U.fieldMasked(f),kind=f.type.split(':')[0],val=String(U.config.values[f.name]||'');var options=kind==='Boolean'?'<select id="smtp-field-'+i+'" data-smtp="'+i+'"><option value="1" '+(val==='1'?'selected':'')+'>Enabled</option><option value="0" '+(val==='0'?'selected':'')+'>Disabled</option></select>':'<input data-smtp="'+i+'" id="smtp-field-'+i+'" type="'+(secret?'password':'text')+'" '+(secret?'autocomplete="new-password" placeholder="Leave blank to keep existing secret"':'value="'+U.esc(val)+'" autocomplete="off"')+'>';return '<div class="smtp-field"><label for="smtp-field-'+i+'">'+U.esc(U.mailFieldLabel(f))+'</label>'+options+'</div>'}).join('')+'<p id="smtp-error" class="editor-error" role="alert" hidden></p><div class="editor-footer"><button type="button" class="btn btn-quiet" id="smtp-cancel">Cancel</button><button type="submit" class="btn btn-primary">Review changes</button></div></form>';
+ dialog.showModal();dialog.querySelector('input,select').focus();
+};
+U.reviewSMTP=function(){
+ var changes=[],fields=U.smtpDraft||[],error=document.getElementById('smtp-error');
+ try{fields.forEach(function(f,i){var value=document.getElementById('smtp-field-'+i).value,secret=U.fieldMasked(f);if(secret&&!value)return;if(!secret&&value===String(U.config.values[f.name]||''))return;U.configValidate(f,value);changes.push({field:f,value:value})})}catch(e){error.textContent=e.message;error.hidden=false;return}
+ if(!changes.length){error.textContent='No changes to save.';error.hidden=false;return}
+ U.smtpChanges=changes;var dialog=document.getElementById('setting-dialog');
+ dialog.innerHTML='<div class="editor-top">'+U.ico('shield')+'<div><h2 id="editor-title">Confirm SMTP settings</h2></div></div><p class="editor-help">Changes will be submitted to the NMC individually and read back when possible. Credentials cannot be verified by readback.</p>'+changes.map(function(x){return '<div class="review-line"><span>'+U.esc(U.mailFieldLabel(x.field))+'</span><strong>'+U.esc(U.fieldMasked(x.field)?'Hidden credential':x.value)+'</strong></div>'}).join('')+'<p id="smtp-error" class="editor-error" role="alert" hidden></p><div class="editor-footer"><button type="button" class="btn btn-quiet" id="smtp-cancel">Cancel</button><button type="button" class="btn btn-primary" id="smtp-apply">Apply to NMC</button></div>';
+};
+U.commitSMTP=function(){
+ if(U.config.saving||!U.smtpChanges||!U.smtpChanges.length)return;
+ var changes=U.smtpChanges,done=0,masked=0,button=document.getElementById('smtp-apply');if(button)button.disabled=true;
+ U.config.saving='smtp';U.config.message='';U.config.error='';
+ function next(i){if(i===changes.length)return Promise.resolve();var x=changes[i],xml='<?xml version="1.0"?><SET_OBJECT><OBJECT name="'+U.esc(x.field.name)+'">'+U.esc(x.value)+'</OBJECT></SET_OBJECT>',form=new FormData();form.append('objectList',new File([xml],'Configuration.xml',{type:'application/xml'}));
+ return U.request('/Forms/set_obj_2',{method:'POST',body:form},15000).then(function(){return U.request('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName='+encodeURIComponent(x.field.name)},10000)}).then(function(body){var actual=U.xml(body)[x.field.name];if(U.fieldMasked(x.field)){masked++}else{if(String(actual)!==x.value)throw Error('Readback mismatch for '+U.mailFieldLabel(x.field));U.config.values[x.field.name]=actual}done++;return next(i+1)})}
+ next(0).then(function(){U.config.message='SMTP settings saved: '+done+' submitted'+(masked?' ('+masked+' credentials require a delivery test).':'.')}).catch(function(e){U.config.error='SMTP update incomplete: '+done+' of '+changes.length+' submitted. '+e.message}).finally(function(){U.config.saving='';U.smtpDraft=null;U.smtpChanges=null;var dialog=document.getElementById('setting-dialog');if(dialog&&dialog.open)dialog.close();U.render(false)})
+};
+
 U.findRecipient=function(index){return U.recipientSlots().find(function(s){return s.index===index})};
 U.emailEventChoices=[['EventList.Discharging','Running on battery'],['EventList.ACPresent','Utility power restored'],['EventList.RunTimeToShutdown','Shutdown approaching'],['EventList.BelowRemainingCapacityLimit','Low battery capacity'],['EventList.InternalFailure.1','Internal UPS failure'],['EventList.CommunicationLost.1','Communication lost'],['EventList.FirmwareUpgrade','Firmware update']];
 U.openRecipient=function(index,source){
@@ -90,25 +112,18 @@ U.disableRecipient=function(index){var slot=U.findRecipient(index);if(!slot||!U.
  if(!confirm('Disable alerts for '+U.recipientValue(slot,'Recipient')+'? You can enable this destination again later.'))return;
  U.recipientDraft={index:index,changes:[{name:U.recipientField(slot,'Selected').name,value:'0',spec:U.recipientField(slot,'Selected')}]};U.commitRecipient();
 };
-U.integrationGuide=function(service){var info={
- ntfy:'Configure the SMTP receiving address supplied by your ntfy server. You will need inbound email enabled on that server.',
- Monita:'Configure Monita inbound email on your server, then use its receiving address as an UPS alert recipient.',
- Discord:'Discord requires a separate SMTP-to-webhook gateway. Configure that gateway first, then enter its receiving email address here.'
- }[service];if(!info)return;
- var available=U.recipientSlots().find(function(s){return !U.recipientActive(s)});
- if(!available){U.config.error='All available recipient slots are active. Edit an existing destination to change it.';U.render(false);return}
- U.openRecipient(available.index,service);
-};
 var originalConsoleClick=U.onConsoleClick;
 U.onConsoleClick=function(e){
  var button=e.target.closest('[data-recipient]');if(button){U.openRecipient(Number(button.dataset.recipient));return true}
- if(e.target.closest('#recipient-add')){var free=U.recipientSlots().find(function(s){return !U.recipientActive(s)});if(free)U.openRecipient(free.index);return true}
+ if(e.target.closest('#recipient-add')){U.openDestinationPicker();return true}
+ if(e.target.closest('#smtp-settings')){U.openSMTP();return true}
+ if(e.target.closest('#smtp-cancel')){document.getElementById('setting-dialog').close();U.smtpDraft=null;U.smtpChanges=null;return true}
+ if(e.target.closest('#smtp-apply')){U.commitSMTP();return true}
  var dis=e.target.closest('[data-disable-recipient]');if(dis){U.disableRecipient(Number(dis.dataset.disableRecipient));return true}
- var service=e.target.closest('[data-integration]');if(service){U.integrationGuide(service.dataset.integration);return true}
  if(e.target.closest('#recipient-cancel')){document.getElementById('setting-dialog').close();U.recipientDraft=null;return true}
  if(e.target.closest('#recipient-back')){var d=U.recipientDraft;U.openRecipient(d.index,d.source);return true}
  if(e.target.closest('#recipient-apply')){U.commitRecipient();return true}
  return originalConsoleClick(e);
 };
 var originalConsoleSubmit=U.onConsoleSubmit;
-U.onConsoleSubmit=function(e){if(e.target.id==='recipient-form'){e.preventDefault();U.reviewRecipient();return}originalConsoleSubmit(e)};
+U.onConsoleSubmit=function(e){if(e.target.id==='recipient-form'){e.preventDefault();U.reviewRecipient();return}if(e.target.id==='smtp-form'){e.preventDefault();U.reviewSMTP();return}originalConsoleSubmit(e)};

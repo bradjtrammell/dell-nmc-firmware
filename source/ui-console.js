@@ -1,7 +1,7 @@
 /* H910P v0.5: local, desktop-first management surfaces; OEM XML is transport, never UI.
  * No network fetches except explicit same-origin NMC endpoints. No CDN.
  */
-U.uiVersion='0.5.3';
+U.uiVersion='0.5.10';
 U.config.loaded=false;
 U.config.search='';
 U.eventSearch='';
@@ -9,7 +9,7 @@ U.eventLevel='all';
 U.editor=null;
 U.consoleMeta={
  network:['Network configuration','Addressing, interfaces and name resolution','network','Current address, DNS, gateways and DHCP are provided by the NMC. Saving a network change may end this session.'],
- notification:['Notification delivery','Email relay and event recipients','mail','The original event engine delivers email even while this browser is closed. Other destinations require a supported relay or a future native transport.'],
+ notification:['Notification delivery','Email relay and event recipients','mail','Manage email recipients and notification destinations.'],
  schedule:['Weekly schedule','Scheduled UPS operations','calendar','Schedule controls are displayed only when the firmware advertises editable schedule objects.'],
  shutdown:['Shutdown parameters','Grace periods and shutdown coordination','sliders','Changes here can affect the power-down sequence. Review each setting before applying.'],
  clients:['Shutdown clients','Network shutdown coordination','users','Client settings depend on the configured shutdown agents and the card’s firmware capabilities.'],
@@ -62,12 +62,11 @@ U.configView=function(page){if(page==='notification')return U.notificationView()
  var content='';
  if(U.config.busy&&!U.config.loaded)content='<div class="loading-lines" role="status">'+U.ico('refresh')+'<strong>Reading configuration from the NMC…</strong><p>Discovering the controls supported by this firmware.</p></div>';
  else if(!U.config.loaded)content='<div class="empty-state">'+U.ico('network')+'<strong>Waiting for device settings</strong><p>Select Refresh settings to try again.</p></div>';
- else if(!groups.length)content='<div class="empty-state">'+U.ico('info')+'<strong>No settings available for this section</strong><p>The device has not provided editable settings for this section. You may be able to find them in the advanced device pages.</p></div>';
+ else if(!groups.length)content='<div class="empty-state">'+U.ico('info')+'<strong>No settings available for this section</strong><p>The device has not provided editable settings for this section. Try refreshing the device configuration.</p></div>';
  else content=groups.map(function(g){return '<section class="setting-section" aria-label="'+U.esc(U.pretty(g.name))+'"><div class="setting-section-head"><h2>'+U.esc(U.pretty(g.name))+'</h2><span>'+g.fields.length+' settings</span></div>'+g.fields.map(function(f){var id=count++;U.configFieldMap[id]=f;var label=U.pretty(f.name);return '<div class="setting-row" data-search="'+U.esc((label+' '+g.name+' '+U.fieldValue(f)).toLowerCase())+'"><div class="setting-copy"><strong>'+U.esc(label)+'</strong><p>'+U.esc(U.fieldHelp(f))+'</p></div><div class="setting-actions"><span class="setting-current" title="Current NMC value">'+U.esc(U.fieldValue(f))+'</span><button type="button" class="btn btn-quiet" data-edit="'+id+'" '+(U.config.saving?'disabled':'')+' aria-label="Edit '+U.esc(label)+'">Edit '+U.ico('arrow')+'</button></div></div>'}).join('')+'</section>'}).join('');
  var desc='<div class="inline-summary"><strong>'+count+'</strong><span>editable settings discovered</span><i></i><span>Changes require review and confirmation from the device</span></div>';
- return head+info+notice+(page==='notification'?U.notificationDestinations():'')+U.configToolbar()+desc+content+U.nativeContext(page);
+ return head+info+notice+U.configToolbar()+desc+content;
 };
-U.nativeContext=function(page){var info=U.pageInfo(page);return info[5]?'<div class="device-reference"><span>'+U.ico('info')+' Some advanced settings are still available in the original device pages.</span><a href="'+U.esc(info[5])+'">Open advanced '+U.esc(info[1])+U.ico('external')+'</a></div>':''};
 U.editorBody=function(f,index){return '<div class="editor-top">'+U.ico('sliders')+'<div><span>MANAGEMENT SETTING</span><h2 id="editor-title">'+U.esc(U.pretty(f.name))+'</h2></div></div><p class="editor-help">'+U.esc(U.fieldHelp(f))+'</p><div class="editor-current"><span>Current value</span><strong>'+U.esc(U.fieldValue(f))+'</strong></div><form id="editor-form"><label for="editor-value">New value</label>'+U.fieldInput(f,U.fieldMasked(f)?'':U.config.values[f.name])+'<small>'+U.esc(f.type)+(f.restart?' · Card restart may be required':'')+'</small><p class="editor-error" role="alert" id="editor-error" hidden></p><div class="editor-footer"><button type="button" class="btn btn-quiet" id="editor-cancel">Cancel</button><button type="submit" class="btn btn-primary" id="editor-next">Review change '+U.ico('arrow')+'</button></div></form>'};
 U.editSetting=function(index){var f=U.configFieldMap[index],dialog=document.getElementById('setting-dialog');if(!f||!dialog||U.config.saving)return;if(!U.config.valuesLive){U.config.error='Editing is disabled until the card supplies live configuration values. No changes were submitted.';U.render(false);return}
  U.editor={field:f,index:index,step:'edit',value:''};dialog.innerHTML=U.editorBody(f,index);dialog.showModal();document.getElementById('editor-value').focus();};
