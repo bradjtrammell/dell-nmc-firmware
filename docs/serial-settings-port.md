@@ -14,9 +14,26 @@ The H910P has an Ethernet jack and a separate RJ45 **Settings** jack. Dell's Net
 
 The factory menu offers **Reset**, **Network configuration**, **Set Login Password to Default**, **Return to Default Configuration**, and **Exit**. These are service options; several are destructive or change connectivity. Do not select them during a passive investigation. Within Network configuration, Dell documents an option to **Read Network settings** (a non-destructive way to verify serial communications).
 
+## Confirmed Settings cable wiring
+
+Dell's H910P Network Management Card guide identifies the supplied DB9-to-RJ45 cable connections:
+
+| NMC RJ45 pin | Computer DB9 pin | Signal |
+| --- | --- | --- |
+| 3 | 2 | NMC transmit → computer receive |
+| 6 | 3 | NMC receive ← computer transmit |
+| 4 | 5 | Ground |
+| Shield | Shield | Cable shield |
+
+Those three connections agree with the standard Cisco rolled-console wiring to a PC-side terminal adapter. This makes a Cisco USB-to-RJ45 lead plausible, but the exact adapter model and voltage levels must still be verified before transmitting. A silent terminal is not evidence that the Settings port is disabled.
+
+The documented serial menu includes reading network settings and recovering access; it does not establish an interactive OS shell, bootloader console, or serial firmware flashing interface.
+
+References: [Dell NMC guide, pp. 79–81](https://usermanual.wiki/Dell/1508079828delllineinteractiverackups1920rusersguide14enus.2134937042.pdf) and [Cisco RJ45 console pinouts](https://www.cisco.com/c/en/us/support/docs/routers/7000-series-routers/12223-14.html).
+
 ## Cisco USB-to-RJ45 console cable compatibility
 
-A Cisco-compatible USB-to-RJ45 cable presents a USB serial device on Linux, but the **physical RJ45 pinout and signal levels must still be compatible with the Dell card**. Dell's setup guide describes its **supplied serial cable**; it does not certify Cisco console cables as interchangeable. Do not assume that an apparently silent serial connection means there is no Settings console.
+A Cisco-compatible USB-to-RJ45 cable presents a USB serial device on Linux, but the **physical RJ45 pinout and signal levels must still be compatible with the Dell card**. The common Cisco wiring agrees on TX, RX and ground, but each USB cable model must still be checked before use. Do not assume that an apparently silent serial connection means there is no Settings console.
 
 Before transmitting data, establish the USB adapter manufacturer/model, its UART/driver, and the Cisco versus Dell cable wiring. A USB serial device under `/dev/ttyUSB*` or `/dev/serial/by-id/*` proves only that Linux sees the USB adapter, not that the far end's wiring matches.
 
