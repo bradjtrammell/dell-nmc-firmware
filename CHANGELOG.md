@@ -24,3 +24,10 @@
 
 - Unified notification destinations in a table, with up to four native email recipients and unlimited additional supported relay destinations.
 - Added separate SMTP configuration modal and destination-level actions.
+
+## 0.5.11-beta.1 — Release channel selection (dev)
+
+- Added a Release (main) / Beta (dev) selector to the Firmware page.
+- Beta discovery now filters for published prereleases targeting `dev` and requires an H910P BIN asset before offering a download.
+- Preserved manual FLASH-write confirmation and the stable v0.5.10 baseline on `main`.
+- Expanded browser tests for channel switching and correct beta asset selection.

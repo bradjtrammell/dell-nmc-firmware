@@ -131,9 +131,10 @@ def main():
   report['event_severity_filter_and_search']='PASS'
   page.screenshot(path=str(ROOT/'build'/'events-desktop.png'),full_page=True)
   page.locator('[data-page="firmware"]').click()
-  assert page.get_by_text('v0.5.10').count()>=1
+  assert page.get_by_text('v0.5.11-beta.1').count()>=1
   assert page.locator('#github-check').count()==1
   assert page.locator('#firmware-file').count()==1
+  assert page.locator('#firmware-channel').count()==1
   page.screenshot(path=str(ROOT/'build'/'firmware-updater-desktop.png'),full_page=True)
   report['github_release_check_and_local_firmware_upload_controls']='PASS'
   page.locator('[data-page="controls"]').click()
@@ -179,6 +180,23 @@ def main():
   page.get_by_text('Test release').wait_for(timeout=10000)
   assert page.locator('a[href*="H910P_test.bin"]').count()==1
   report['github_release_discovery_shows_compatible_bin']='PASS'
+  page.locator('#firmware-channel').select_option('dev')
+  assert page.locator('#firmware-channel').input_value()=='dev'
+  page.evaluate("""() => {
+   const old=window.fetch;
+   window.fetch=(url,options)=>String(url).includes('releases?per_page=30') ?
+     Promise.resolve({ok:true,status:200,json:async()=>[
+      {name:'Main release',tag_name:'v0.5.10',prerelease:false,target_commitish:'main',assets:[]},
+      {name:'Dev candidate',tag_name:'v0.5.11-beta.1',prerelease:true,draft:false,target_commitish:'dev',assets:[{name:'H910P_Custom_UI_v0.5.11-beta.1.bin',browser_download_url:'https://github.com/bradjtrammell/dell-nmc-firmware/releases/download/v0.5.11-beta.1/H910P_Custom_UI_v0.5.11-beta.1.bin'}]}
+     ]}) : old(url,options);
+  }""")
+  page.locator('#github-check').click()
+  page.get_by_text('Dev candidate').wait_for(timeout=10000)
+  assert page.locator('a[href*="v0.5.11-beta.1.bin"]').count()==1
+  page.locator('#firmware-channel').select_option('main')
+  assert page.locator('#firmware-channel').input_value()=='main'
+  assert page.get_by_text('Dev candidate').count()==0
+  report['release_main_beta_dev_channel_switch_and_asset_filter']='PASS'
   page.evaluate("""() => {
     const old=window.fetch;
     window.fetch=(url,options)=>url==='/Forms/app_upload_1' ?
@@ -187,7 +205,7 @@ def main():
   page.on('dialog',lambda dialog:dialog.accept())
   page.locator('#firmware-file').set_input_files(str(ROOT/'build'/'H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin'))
   page.locator('#firmware-install').click()
-  page.get_by_text('Uploader returned a redirect',exact=False).wait_for(timeout=15000)
+  page.get_by_text('Upload redirected',exact=False).wait_for(timeout=15000)
   assert not page.get_by_text('Firmware successfully installed').count()
   assert page.evaluate('window.__firmwarePost') is True
   report['real_bin_header_crc_browser_validation_and_no_false_flash_success']='PASS'
