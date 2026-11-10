@@ -1,83 +1,191 @@
-# Dell H910P NMC — Instrument Panel
+# Dell H910P NMC — Modern Firmware Interface
 
-A desktop-first embedded UI experiment targeting Dell H910P Network Management Card firmware **01.18.0005**. The interface is hosted **on the NMC**, not a separate server or container, and provides monitoring via Dell's documented XML protocol.
+**A modern, local-first web management interface embedded directly into the Dell H910P UPS network management card.**
 
-> **NOT FLASH-APPROVED.** The experimental BIN has not been tested on hardware. It increases the vendor image size, and the original NMC Help pages used for asset storage are no longer available. Do not flash the production UPS card until a spare-card boot/recovery test succeeds and full functionality is proven.
+This project extends the useful life of Dell H910P network management cards by replacing their aging, frame-based web interface with a modern desktop-first UPS management console. The UI is packaged **inside the card's firmware**: it does not need Docker, a second computer, a cloud account, or an external runtime service.
 
-## Design identity
+> [!WARNING]
+> **Experimental — working on real hardware, not recommended for production-critical deployments.** Earlier custom builds have been installed and used on a physical H910P. However, the newer **v0.5.4 and v0.5.5 builds have a confirmed on-device UI startup regression**: the custom interface fails to load, and legacy web pages are not a reliable fallback. They are **not recommended for flashing**. A valid firmware checksum or a successful FLASH-write message does not establish a functioning UI or UPS management parity. Keep a verified recovery route and a known-working firmware image.
 
-- **Personality:** precise, assured, industrial; inspired by a professional power-distribution control-room console.
-- **Palette:** light content `#f2f6f7`, white `#ffffff`, Dell blue `#007db8`, functional green `#087a53`, charcoal sidebar `#18272f`, warning `#a86814`, danger `#b93e30`.
-- **Typography:** Segoe UI / Arial; numerical readouts use tabular numerals.
-- **Layout:** dense desktop console with persistent grouped navigation, operational status bar, power-flow schematic, and instrument gauges; 850px tablet collapse and 520px narrow viewport refinement.
-- **Navigation:** frame-free single-page interface with URL fragments; existing Dell management remains accessible.
-- **Geometry:** rectilinear precision, 4–5px corners, sharp dividers, minimal elevation.
-- **Iconography:** local inline stroke-based SVG icons; no external CDN or images.
-- **Motion:** 180–220ms navigation and gauge transitions, flowing electrical-path indicators; reduced-motion preference honored.
-- **Signature:** animated live power path, 2 radial load/battery instruments, and four primary power metrics.
+**Independent community project. Not affiliated with or endorsed by Dell.**
 
-## Implemented
+## Why this project exists
 
-- Modern dashboard, read-only measurements, output group status, and event CSV viewer.
-- 15 navigable management destinations based on the user's current Dell UI recording.
-- Browser-local trend samples, status indicators, recoverable polling failures, and explicit unreported values.
-- Fixed 15-second polling interval with in-flight request suppression, 8-second timeout, and pause when the browser tab is hidden.
-- Tailwind CSS v4.1.10 precompiled utility subset plus semantic CSS and vanilla JavaScript compressed into nine existing RomPager static resource slots; `DecompressionStream('gzip')` requires a current browser.
-- Original `/default.htm` UI and Dell firmware management/control handlers are not modified; management links open those native pages and still use the old frame-based UI.
-- Offline firmware safety invariants: intact compiled callback tables, unchanged ROM object pointers, original application memory length, valid image checksum, exact asset round trip.
+An H910P can still report essential UPS information and manage connected equipment, but its original interface relies on older frames and scattered configuration pages. Administrators should be able to see utility status, battery charge, electrical measurements, load, recent events, and configuration without hunting through disconnected screens.
 
-## Known blockers — **do not deploy to production**
+Rather than add another always-on service in front of the card, this project aims to modernize the software **on the hardware you already have**:
 
-1. The NMC has not been shown to accept, boot, or serve the modified firmware image. No hardware rollback or bootloader recovery has been verified.
-2. The rebuilt image is **12,213 bytes larger** than Dell's original; available flash headroom is unknown.
-3. The nine original Help URLs used for compressed UI assets are overwritten. Legacy Help navigation is therefore degraded.
-4. Modern UI is read-only for power and configuration actions. Full native control workflows are **not** yet implemented. The legacy interface remains necessary.
-5. Live XML response compatibility and authentication against the actual card are not yet verified; tests use simulated protocol data.
-6. Browser decompression must be tested in the expected host/browser environment and with the card's actual HTTP security headers.
+- **Direct management:** open the card's IP address in a browser.
+- **Operational visibility:** dashboard, power flow, load, battery, output groups, events, and trends.
+- **Usable controls:** consistent forms, validation, confirmation, and state readback for supported actions.
+- **Local-first behavior:** no internet dependency to operate the UPS management dashboard.
+- **Protocol preservation:** reuse Dell's existing on-card HTTP/XML management interfaces and firmware callbacks where practical.
+- **Responsible firmware maintenance:** check compatibility, confirm successful writes, and establish recovery before calling an update safe.
 
-## Local offline build and tests
+## Compatibility and architecture
 
-Python 3.11+, standard library, and the official Dell 01.18.0005 firmware ZIP are needed for the firmware build. **Do not commit Dell firmware or any device credentials.**
+| Property | Details |
+| --- | --- |
+| Hardware target | Dell H910P Network Management Card, rev A06 |
+| Base firmware | Dell 01.18.0005 |
+| Example UPS | Dell UPS Rack 1920W / 1500W LV |
+| Hosting | Embedded in the NMC firmware (no server or container) |
+| Client | Modern browser with JavaScript and gzip decompression support |
+| UI | HTML/CSS/JavaScript, locally embedded assets |
+| Data | Existing Dell HTTP/XML endpoints, including `/get_object.xml` |
+| Firmware format | Dell NET+OS-derived `.bin` image with embedded RomPager resources |
+| Development status | Hardware-functional in earlier revisions; incomplete and currently regression-affected |
 
-Copy the original Dell ZIP into `originals/NMC_Firmware_01_18_0005_X2JYN.zip`, then:
+The NMC controls and monitors physical power equipment. **Treat this repository as experimental firmware engineering, not a general-purpose web theme.**
+
+### What is covered
+
+The intended modern UI has 15 destinations:
+
+| Monitoring | UPS operations | Configuration |
+| --- | --- | --- |
+| Overview | UPS control | Email notifications |
+| Measurements | Weekly schedule | Network |
+| Output groups | Shutdown parameters | System |
+| Event history | | Shutdown clients |
+| | | Access control |
+| | | SNMP |
+| | | Time & NTP |
+| | | Firmware |
+
+The overview and telemetry have run against real H910P data in earlier builds. Configuring email recipients, live network settings, shutdown clients, power switching, and every firmware update/recovery path are **not yet comprehensively verified on hardware**. Showing a screen or passing a simulated browser test is not proof that a management command works.
+
+The automatic GitHub updater, secure activation, and rollback **are not yet complete**; the existing firmware uploader is a separate OEM mechanism.
+
+## Using a working installation
+
+On a card running a proven working custom firmware image, open:
+
+```text
+http://<nmc-ip-address>/index.htm
+```
+
+For example, for a lab card at `192.168.1.50`:
+
+```text
+http://192.168.1.50/index.htm
+```
+
+Authenticate with the NMC's configured credentials. When the custom interface is running, measurements are requested directly from the card rather than relayed through GitHub.
+
+**Network security:** on firmware exposing HTTP Basic authentication over plain HTTP, credentials and traffic are not encrypted. Restrict access to a trusted management network or VPN; do not publish the NMC to the internet.
+
+### Recovery considerations
+
+The retained OEM firmware-upload status page is typically:
+
+```text
+http://<nmc-ip-address>/app_upload.htm
+```
+
+A reachable upload page is **not** proof of bootloader-level recovery. Experimental builds may replace legacy HTML/help/graphics resources, and some original pages may show blank content. Do not assume `/default.htm` remains a working fallback, and do not attempt repeated blind flashes when the interface fails.
+
+## Building the source currently on GitHub
+
+> [!NOTE]
+> The checked-in `main` branch contains the **earlier experimental builder**, not a synchronized or qualified v0.5.5 source release. The following commands describe that checked-in builder. They **do not** produce a verified fix for the current on-device v0.5.5 failure.
+
+### 1. Clone the project
+
+```bash
+git clone https://github.com/bradjtrammell/dell-nmc-firmware.git
+cd dell-nmc-firmware
+mkdir -p originals
+```
+
+### 2. Supply the Dell factory firmware archive
+
+Obtain the official Dell 01.18.0005 H910P firmware archive yourself. For a downloaded file in `~/Downloads`:
+
+```bash
+cp "$HOME/Downloads/NMC_Firmware_01_18_0005_X2JYN.zip" \
+  originals/NMC_Firmware_01_18_0005_X2JYN.zip
+```
+
+The image is proprietary Dell software and is **not** included in this source repository. Never commit factory firmware, credentials, device logs containing secrets, or generated custom BIN images to source control.
+
+Official base firmware: [Dell driver X2JYN](https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=x2jyn).
+
+### 3. Build the embedded interface and firmware image
+
+For Python 3.11+ and the checked-in code:
 
 ```bash
 python3 build_native.py
 ```
 
-This generates `build/H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin` and `build/VALIDATION.json`. The build never contacts or flashes the NMC. The checked-in `source/tailwind-compiled.css` is produced with Tailwind CSS v4.1.10 using `source/tailwind-build.cjs` at design/build time; firmware builds do not require Node or external assets.
+This performs an **offline** rebuild and generates:
 
-For regression tests, also supply the unmodified Dell `01.16.0001` ZIP at `originals/NMC_Firmware_01_16_0001_YJ6JM.zip`:
+```text
+build/
+├── H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin
+├── VALIDATION.json
+└── served-native-ui/
+```
+
+The script packs compiled UI resources into existing firmware string slots, verifies the application and CRC, and checks that changes stay inside the expected resource ranges. It does **not** connect to or flash a physical NMC.
+
+Newer engineering-package builds use additional dependencies (such as a C++17 compiler and pinned `zopfli`) and may produce a different image. Use each release's own source and build instructions; do not assume this old builder matches the newest firmware.
+
+### 4. Run regression tests
+
+To run the firmware regression suite, also provide the separate unmodified Dell `01.16.0001` archive at `originals/NMC_Firmware_01_16_0001_YJ6JM.zip`:
 
 ```bash
 python3 -m unittest discover -s tools -p 'test_*.py' -v
 ```
 
-Browser QA needs Python Playwright plus an installed Chromium at `/usr/bin/chromium`:
+For browser tests, install Python Playwright and Chromium in the environment expected by `test_browser.py`, then run:
 
 ```bash
 python3 test_browser.py
 ```
 
-The test reconstructs **the bytes embedded in the modified firmware**, injects simulated Dell XML and CSV responses, verifies all 15 destinations, and checks the absence of power/configuration writes. It does **not** establish hardware compatibility.
+Those browser tests use simulated card responses, and **cannot establish actual NMC HTTP serving behavior**. The v0.5.4/v0.5.5 regressions demonstrate why firmware-embedded byte checks and browser mocks are necessary but insufficient.
+
+### 5. Inspect the build results
+
+```bash
+cat build/VALIDATION.json
+sha256sum build/H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin
+ls -lh build/H910P_01.18.0005_INSTRUMENT_PANEL_EXPERIMENTAL.bin
+```
+
+**Do not flash that output solely because offline validation passes.** Device-side HTTP MIME handling, authenticated sign-in, actual live UPS data, power controls, and recovery must also be validated on hardware.
+
+## Firmware updates
+
+The Dell firmware upload handler is `/Forms/app_upload_1`; the status page is `/app_upload.htm`. A manually initiated HTTP/1.0 multipart upload has worked on hardware, but the card's explicit flash-write success response must be checked. A redirect or a successful file transfer alone does not prove successful activation, and neither confirms the web UI loads correctly.
+
+There is **no general installation command for an unqualified image**. For a version that has been verified on the target hardware, use its release-specific checksums and deployment instructions. Do not use the failed v0.5.4 or v0.5.5 images as a recovery image.
 
 ## Repository layout
 
-- `source/` — human-readable custom UI modules and design styles.
-- `build_native.py` — offline resource packing, checksum/round-trip rebuilding, strict allowlist verification.
-- `tools/h910p_rebuild.py` — NET+OS image parser and LZSS2 encoder/decoder.
-- `tools/rompager_map.py` — embedded RomPager resource inspection.
-- `tools/test_validation.py` — firmware regression tests.
-- `tools/ui_patch_proof.py` — isolated one-byte CSS patch proof.
-- `test_browser.py` — embedded-resource browser tests using simulated UPS data.
-- `originals/` — **local only; excluded from Git**.
-- `build/` — generated BIN and QA outputs; excluded from Git.
+```text
+source/             Embedded UI modules and styles
+build_native.py     Offline firmware/resource packer
+tools/              Dell image parser, compressor, RomPager inspection, validation
+test_browser.py     Browser QA with simulated device responses
+docs/               Recorded hardware/UI baseline and engineering notes
+originals/          Local-only proprietary Dell firmware input (gitignored)
+build/              Locally generated firmware and validation outputs (gitignored)
+```
 
-## Hardware and source reference
+## What full replacement requires
 
-Target: Dell H910P rev A06, original firmware 01.18.0005, user-reported UPS Rack 1920W / 1500W LV. The web UI baseline was captured in the November 8, 2026 screencast. Dell M2M protocol documents `POST /get_object.xml` with `objectName=UPS.*`; the endpoint must still be validated against the user's live card.
+The project is aiming for complete functional parity, not a collection of navigable mock screens. It still needs validated real-card settings read/write/readback, robust event and outlet handling, reliable notification management, complete legacy feature coverage, a working on-device update workflow, and tested recovery after interrupted/failed updates.
 
-- Firmware: <https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=x2jyn>
-- M2M protocol: <https://dl.dell.com/manuals/all-products/esuprt_ser_stor_net/esuprt_rack_infrastructure/dell-line-interactive-rack-ups-1920r_user%27s%20guide13_en-us.pdf>
+**Most urgent current issue:** fix the actual H910P-served embedded loader/resources and stop erasing the legacy UI until the replacement interface can be independently verified on hardware.
 
-The device remains on factory firmware unless the operator explicitly performs a hardware flash. This repository includes no automatic device update mechanism.
+## Documentation and references
+
+- [Current UI and parity baseline](docs/current-ui-baseline.md)
+- [Dell firmware 01.18.0005](https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=x2jyn)
+- [Dell UPS protocol and management documentation](https://dl.dell.com/manuals/all-products/esuprt_ser_stor_net/esuprt_rack_infrastructure/dell-line-interactive-rack-ups-1920r_user%27s%20guide13_en-us.pdf)
+
+Dell, H910P, and related marks belong to their respective owners. The project is independently developed and neither endorsed nor supported by Dell.
