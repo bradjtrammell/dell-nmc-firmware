@@ -3,6 +3,7 @@
 Browser networking is not used: captured local JSON is supplied by a fetch shim,
 so restricted browser environments can still test layout and client behavior.
 """
+import base64
 import json
 from pathlib import Path
 import subprocess
@@ -48,6 +49,9 @@ class VisualTests(unittest.TestCase):
             url = f"http://127.0.0.1:{port}/api/v1/{path}"
             with urlopen(url, timeout=2) as response:
                 cls.fixtures[f"/api/v1/{path}"] = json.loads(response.read())
+        for path in ["configuration/fields"] + [f"configuration/fields/{p}" for p in range(19)]:
+            with urlopen(f"http://127.0.0.1:{port}/api/v1/{path}", timeout=2) as response:
+                cls.fixtures[f"/api/v1/{path}"] = json.loads(response.read())
         cls.playwright = sync_playwright().start()
         cls.browser = cls.playwright.chromium.launch(
             headless=True, executable_path="/usr/bin/chromium", args=["--no-sandbox"]
@@ -64,6 +68,8 @@ class VisualTests(unittest.TestCase):
         html = (ROOT / "web/index.html").read_text()
         html = html.replace('<link rel="stylesheet" href="/style.css">', "")
         html = html.replace('<script src="/app.js" defer></script>', "")
+        icon = base64.b64encode((ROOT / "web/favicon.svg").read_bytes()).decode("ascii")
+        html = html.replace('src="/favicon.svg"', f'src="data:image/svg+xml;base64,{icon}"')
         stylesheet = (ROOT / "web/style.css").read_text()
         source = (ROOT / "web/app.js").read_text()
         for width in (1440, 768, 390, 360):
@@ -91,6 +97,12 @@ class VisualTests(unittest.TestCase):
                 self.assertLessEqual(result["scrollWidth"], result["windowWidth"])
                 self.assertEqual(result["connected"], "Local simulator connected")
                 self.assertEqual(result["controls"], [True, True, True])
+                page.wait_for_function("document.getElementById('schema-count').textContent.includes('302 total')", timeout=3000)
+                self.assertEqual(page.locator("#schema-body tr").count(), 40)
+                page.locator("#schema-search").fill("FirmwareUpgrade")
+                self.assertGreater(page.locator("#schema-body tr").count(), 0)
+                self.assertIn("matching definitions", page.locator("#schema-count").inner_text())
+                page.locator("#schema-search").fill("")
                 self.assertEqual(result["input"], "119.0")
                 self.assertIn("OpenH910P", result["title"])
                 if width == 1440 or width == 390:

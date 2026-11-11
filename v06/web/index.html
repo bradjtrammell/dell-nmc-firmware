@@ -24,8 +24,9 @@
         <a class="current" href="#overview"><span class="nav-index">01</span>System overview</a>
         <a href="#power"><span class="nav-index">02</span>Power &amp; outputs</a>
         <a href="#hardware"><span class="nav-index">03</span>Hardware &amp; API</a>
-        <a href="#activity"><span class="nav-index">04</span>Activity log</a>
-        <a href="#engineering"><span class="nav-index">05</span>Engineering status</a>
+        <a href="#schema"><span class="nav-index">04</span>Configuration catalog</a>
+        <a href="#activity"><span class="nav-index">05</span>Activity log</a>
+        <a href="#engineering"><span class="nav-index">06</span>Engineering status</a>
       </nav>
       <div class="rail-footer">
         <span class="rail-rule"></span>
@@ -86,13 +87,24 @@
         <div class="api-strip"><strong>Endpoints online</strong><code>/api/v1/health</code><code>/api/v1/device</code><code>/api/v1/capabilities</code><code>/api/v1/ups/status</code><code>/api/v1/ups/measurements</code><code>/api/v1/ups/outlets</code><code>/api/v1/events</code></div>
       </section>
 
+      <section class="major-section" id="schema" aria-labelledby="schema-heading">
+        <div class="section-title"><div><span class="section-number">04 / Migration catalog</span><h2 id="schema-heading">302 definitions. Zero XML.</h2></div><p>Search every field in the original management specification, now served as metadata-only JSON by our native C engine. These are definitions—not editable settings or values from your UPS.</p></div>
+        <div class="schema-tools" role="search" aria-label="Search the configuration catalog">
+          <label for="schema-search">Find a configuration definition</label>
+          <input id="schema-search" type="search" autocomplete="off" spellcheck="false" placeholder="Try: battery, SMTP, SNMP, shutdown" disabled>
+          <button id="schema-retry" type="button" disabled>Reload catalog</button>
+        </div>
+        <p id="schema-count" class="schema-count" role="status" aria-live="polite">Loading native JSON schema metadata</p>
+        <div class="schema-table-wrap"><table class="schema-table"><thead><tr><th scope="col">OEM field identifier</th><th scope="col">Type</th><th scope="col">Access</th></tr></thead><tbody id="schema-body"><tr><td colspan="3">Loading configuration definitions</td></tr></tbody></table></div>
+      </section>
+
       <section class="major-section" id="activity" aria-labelledby="activity-heading">
-        <div class="section-title"><div><span class="section-number">04 / Diagnostics</span><h2 id="activity-heading">Activity log</h2></div><p>Structured events from the native development API. No historical logs from the installed NMC are accessed here.</p></div>
+        <div class="section-title"><div><span class="section-number">05 / Diagnostics</span><h2 id="activity-heading">Activity log</h2></div><p>Structured events from the native development API. No historical logs from the installed NMC are accessed here.</p></div>
         <ol class="event-list" id="event-list" aria-live="polite"><li>Loading simulator events</li></ol>
       </section>
 
       <section class="major-section engineering-section" id="engineering" aria-labelledby="engineering-heading">
-        <div class="section-title"><div><span class="section-number">05 / The build</span><h2 id="engineering-heading">What is real today</h2></div><p>Clear separation between proven implementation and hardware work that remains. This console must never imply that a real UPS is connected.</p></div>
+        <div class="section-title"><div><span class="section-number">06 / The build</span><h2 id="engineering-heading">What is real today</h2></div><p>Clear separation between proven implementation and hardware work that remains. This console must never imply that a real UPS is connected.</p></div>
         <div class="ledger"><div><span>Native C JSON response engine</span><strong class="stage-done">Implemented</strong></div><div><span>ARM7 big-endian object compilation</span><strong class="stage-done">Verified offline</strong></div><div><span>Host HTTP server and browser client</span><strong class="stage-done">Implemented</strong></div><div><span>Dell XML dependency at runtime</span><strong class="stage-done">None</strong></div><div><span>Board bootloader and flash recovery</span><strong class="stage-open">Unverified</strong></div><div><span>Native UPS serial protocol and drivers</span><strong class="stage-open">Not implemented</strong></div><div><span>Safe independent firmware installation</span><strong class="stage-open">Not enabled</strong></div></div>
         <div class="inventory"><div><span class="measurement-label">OEM feature migration reference</span><strong>302 <small>configuration fields</small></strong><strong>420 <small>object names</small></strong></div><p>Verified against the original OEM schema. This inventory is a planning reference and is not returned as live hardware data.</p></div>
       </section>

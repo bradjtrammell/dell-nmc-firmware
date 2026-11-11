@@ -1,4 +1,5 @@
 #include "openh910p.h"
+#include "ou_schema.h"
 
 typedef struct {
     char *data;
@@ -97,6 +98,26 @@ static void one_outlet(json_writer *w, uint32_t id,
     put_char(w, '}');
 }
 
+/* Returns 1 for a valid schema page, -1 for a malformed page, or 0 for
+ * unrelated paths. Keep pagination independent of POSIX/HTTP implementations. */
+static int parse_schema_page(const char *path, uint32_t *page) {
+    const char prefix[] = "/api/v1/configuration/fields/";
+    const char *cursor = path;
+    const char *start = prefix;
+    uint32_t value = 0;
+    while (*start && *cursor == *start) { cursor++; start++; }
+    if (*start) return 0;
+    if (*cursor < '0' || *cursor > '9') return -1;
+    if (*cursor == '0' && cursor[1] != '\0') return -1;
+    for (; *cursor; cursor++) {
+        if (*cursor < '0' || *cursor > '9' || value > 100000U) return -1;
+        value = value * 10U + (uint32_t)(*cursor - '0');
+    }
+    if (value >= (uint32_t)((ou_schema_field_count + 15U) / 16U)) return -1;
+    *page = value;
+    return 1;
+}
+
 ou_snapshot ou_simulated_snapshot(void) {
     ou_snapshot state;
     state.sequence = 1U;
@@ -117,8 +138,11 @@ int ou_dispatch(const char *method, const char *path,
                 const ou_snapshot *snapshot, char *body,
                 size_t capacity, ou_reply *reply) {
     json_writer w;
+    uint32_t field_page = 0;
+    int page_status;
     if (!method || !path || !snapshot || !body || !reply || capacity < 2U)
         return -1;
+    page_status = parse_schema_page(path, &field_page);
     w.data = body;
     w.capacity = capacity;
     w.length = 0U;
@@ -154,6 +178,13 @@ int ou_dispatch(const char *method, const char *path,
         property_bool(&w, "smtpDelivery", 0, 1);
         property_string(&w, "transport", "native-json-c", 1);
         put_str(&w, ",\"legacyOemInventory\":{\"configurationGroups\":24,\"configurationItems\":302,\"objectNames\":420}");
+    } else if (same(path, "/api/v1/configuration/fields")) {
+        common(&w, "configuration.fields", snapshot->sequence);
+        property_uint(&w, "total", (uint32_t)ou_schema_field_count, 1);
+        property_uint(&w, "pageSize", 16U, 1);
+        property_uint(&w, "pages", (uint32_t)((ou_schema_field_count + 15U) / 16U), 1);
+        property_bool(&w, "configurationWritable", 0, 1);
+        property_string(&w, "dataClassification", "metadata-only", 1);
     } else if (same(path, "/api/v1/ups/status")) {
         common(&w, "ups.status", snapshot->sequence);
         property_string(&w, "powerSource", snapshot->ac_present ? "utility" : "battery", 1);
@@ -182,6 +213,36 @@ int ou_dispatch(const char *method, const char *path,
         put_str(&w, ",\"events\":[");
         put_str(&w, "{\"id\":1,\"severity\":\"info\",\"message\":\"Simulator started; no UPS commands are enabled\"},");
         put_str(&w, "{\"id\":2,\"severity\":\"info\",\"message\":\"Native JSON API available in development mode\"}]");
+    } else if (page_status != 0) {
+        if (page_status < 0) {
+            reply->status = 404;
+            common(&w, "error", snapshot->sequence);
+            property_string(&w, "code", "PAGE_NOT_FOUND", 1);
+        } else {
+            common(&w, "configuration.fields", snapshot->sequence);
+            property_uint(&w, "total", (uint32_t)ou_schema_field_count, 1);
+            property_uint(&w, "page", field_page, 1);
+            property_uint(&w, "pageSize", 16U, 1);
+            property_bool(&w, "configurationWritable", 0, 1);
+            put_str(&w, ",\"items\":[");
+            size_t start = (size_t)field_page * 16U;
+            size_t end = start + 16U;
+            if (end > ou_schema_field_count) end = ou_schema_field_count;
+            for (size_t i = start; i < end; i++) {
+                const ou_schema_field *field = &ou_schema_fields[i];
+                if (i != start) put_char(&w, ',');
+                put_char(&w, '{');
+                property_string(&w, "group", field->group, 0);
+                property_string(&w, "name", field->name, 1);
+                property_string(&w, "type", field->type_expression, 1);
+                property_string(&w, "access", field->access, 1);
+                property_string(&w, "unit", field->unit, 1);
+                property_bool(&w, "requiresRestart", field->requires_restart, 1);
+                property_bool(&w, "hiddenInOEM", field->hidden_in_oem, 1);
+                put_char(&w, '}');
+            }
+            put_char(&w, ']');
+        }
     } else {
         reply->status = 404;
         common(&w, "error", snapshot->sequence);

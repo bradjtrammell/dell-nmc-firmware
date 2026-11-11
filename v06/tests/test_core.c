@@ -28,6 +28,10 @@ int main(void) {
     check("GET", "/api/v1/ups/measurements", 200, "\"valueDecivolts\":1190");
     check("GET", "/api/v1/ups/outlets", 200, "\"controlEnabled\":false");
     check("GET", "/api/v1/events", 200, "Simulator started");
+    check("GET", "/api/v1/configuration/fields", 200, "\"total\":302");
+    check("GET", "/api/v1/configuration/fields/0", 200, "System.Network.HostName");
+    check("GET", "/api/v1/configuration/fields/18", 200, "\"page\":18");
+    check("GET", "/api/v1/configuration/fields/19", 404, "PAGE_NOT_FOUND");
     check("HEAD", "/api/v1/device", 200, "\"name\":\"OpenH910P\"");
     check("GET", "/get_object.xml", 404, "NOT_FOUND");
     check("GET", "/api/v1/nonexistent", 404, "NOT_FOUND");
@@ -39,6 +43,6 @@ int main(void) {
     state.output_load_percent = 62;
     assert(ou_dispatch("GET", "/api/v1/ups/status", &state, json, sizeof(json), &reply) == 0);
     assert(strstr(json, "\"loadPercent\":62"));
-    puts("PASS: 16 native core and API safety checks");
+    puts("PASS: 20 native core and API safety checks");
     return 0;
 }

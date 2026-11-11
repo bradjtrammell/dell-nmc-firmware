@@ -163,6 +163,87 @@ async function refresh() {
   }
 }
 
+/* Read-only catalog is loaded once from the real C metadata engine. It has
+ * 302 field definitions and deliberately no password/configuration VALUES. */
+let catalog = [];
+let catalogBusy = false;
+
+function paintCatalog() {
+  const search = $("schema-search").value.trim().toLowerCase();
+  const matches = catalog.filter(field =>
+    [field.name, field.group, field.type, field.access].some(value =>
+      typeof value === "string" && value.toLowerCase().includes(search)));
+  const body = $("schema-body");
+  body.replaceChildren();
+  for (const field of matches.slice(0, 40)) {
+    const row = document.createElement("tr");
+    const identifier = document.createElement("td");
+    const group = document.createElement("span");
+    group.className = "schema-group";
+    group.textContent = field.group;
+    identifier.append(group, document.createTextNode(field.name));
+    const type = document.createElement("td");
+    type.textContent = field.type + (field.unit ? ` (${field.unit})` : "");
+    const access = document.createElement("td");
+    access.textContent = field.access;
+    row.append(identifier, type, access);
+    body.append(row);
+  }
+  if (matches.length === 0) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 3;
+    cell.textContent = "No matching fields. Try a different search.";
+    row.append(cell);
+    body.append(row);
+  }
+  show("schema-count", `Showing ${Math.min(40, matches.length)} of ${matches.length} matching definitions · ${catalog.length} total · metadata only`);
+}
+
+async function loadCatalog() {
+  if (catalogBusy) return;
+  catalogBusy = true;
+  $("schema-retry").disabled = true;
+  show("schema-count", "Loading native JSON metadata");
+  const abort = new AbortController();
+  const timeout = setTimeout(() => abort.abort(), 7000);
+  try {
+    const info = await getJson("/api/v1/configuration/fields", abort.signal);
+    if (info.total !== 302 || info.pageSize !== 16 || info.pages !== 19 || info.configurationWritable !== false) {
+      throw new Error("Unexpected native configuration metadata contract");
+    }
+    const pages = [];
+    for (let page = 0; page < info.pages; page++) {
+      const data = await getJson(`/api/v1/configuration/fields/${page}`, abort.signal);
+      if (data.page !== page || data.total !== 302 || data.configurationWritable !== false ||
+          !Array.isArray(data.items) || data.items.length < 1 || data.items.length > 16) {
+        throw new Error("Invalid configuration metadata page");
+      }
+      pages.push(...data.items);
+    }
+    if (pages.length !== 302 || new Set(pages.map(field => field.name)).size !== 302 ||
+        pages.some(field => Object.hasOwn(field, "value") || Object.hasOwn(field, "default"))) {
+      throw new Error("Configuration metadata is incomplete or contains live values");
+    }
+    catalog = pages;
+    $("schema-search").disabled = false;
+    paintCatalog();
+  } catch (error) {
+    catalog = [];
+    $("schema-search").disabled = true;
+    show("schema-count", "Configuration catalog unavailable; native API may be offline");
+    $("schema-body").replaceChildren();
+    console.error("Unable to load native field catalog:", error);
+  } finally {
+    clearTimeout(timeout);
+    $("schema-retry").disabled = false;
+    catalogBusy = false;
+  }
+}
+$("schema-search").addEventListener("input", paintCatalog);
+$("schema-retry").addEventListener("click", loadCatalog);
+loadCatalog();
+
 $("refresh").addEventListener("click", refresh);
 for (const link of document.querySelectorAll(".navigation a")) {
   link.addEventListener("click", () => {

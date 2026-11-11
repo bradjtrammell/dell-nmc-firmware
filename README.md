@@ -181,3 +181,5 @@ make arm-check
 ```
 
 Visit `http://127.0.0.1:8760/` **from the same machine**. The simulator binds only the loopback interface, never the UPS card or the LAN. See [v0.6 development README](v06/README.md) for code boundaries, safety and limitations.
+
+The simulator now also publishes **all 302 validated configuration field definitions through the native C JSON engine**, in 19 metadata-only pages. The UI includes a searchable field catalog; the device does not expose live settings or allow writes. The generator is `v06/tools/generate_schema.py`; the offline ARM7 target compiles both JSON routing and field metadata into big-endian object files. See [the API contract](v06/docs/api-v1.md) and [native source](v06/).

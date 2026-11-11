@@ -9,11 +9,11 @@ all: $(BUILD)/openh910p-sim
 $(BUILD):
 	mkdir -p $(BUILD)
 
-$(BUILD)/openh910p-sim: src/core.c host/server.c include/openh910p.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c host/server.c -o $@
+$(BUILD)/openh910p-sim: src/core.c src/schema.c host/server.c include/openh910p.h include/ou_schema.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c host/server.c -o $@
 
-$(BUILD)/test_core: src/core.c tests/test_core.c include/openh910p.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c tests/test_core.c -o $@
+$(BUILD)/test_core: src/core.c src/schema.c tests/test_core.c include/openh910p.h include/ou_schema.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c tests/test_core.c -o $@
 
 test: all $(BUILD)/test_core
 	./$(BUILD)/test_core
@@ -21,7 +21,9 @@ test: all $(BUILD)/test_core
 
 arm-check: | $(BUILD)
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/core.c -o $(BUILD)/core-armeb-arm7tdmi.o
+	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/schema.c -o $(BUILD)/schema-armeb-arm7tdmi.o
 	python3 tools/verify_arm.py $(BUILD)/core-armeb-arm7tdmi.o
+	python3 tools/verify_arm.py $(BUILD)/schema-armeb-arm7tdmi.o
 
 clean:
 	rm -rf $(BUILD)

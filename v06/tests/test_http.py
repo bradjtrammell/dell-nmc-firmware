@@ -75,6 +75,31 @@ class SimulatorHttpTests(unittest.TestCase):
         for outlet in json.loads(data)["outlets"]:
             self.assertIs(outlet["controlEnabled"], False)
 
+    def test_complete_native_json_configuration_catalog(self):
+        code, _, data = self.request("GET", "/api/v1/configuration/fields")
+        self.assertEqual(code, 200)
+        info = json.loads(data)
+        self.assertEqual((info["total"], info["pageSize"], info["pages"]), (302, 16, 19))
+        self.assertIs(info["configurationWritable"], False)
+        catalog = []
+        for index in range(19):
+            code, _, data = self.request("GET", f"/api/v1/configuration/fields/{index}")
+            self.assertEqual(code, 200)
+            page = json.loads(data)
+            self.assertEqual(page["page"], index)
+            self.assertIs(page["configurationWritable"], False)
+            catalog += page["items"]
+        self.assertEqual(len(catalog), 302)
+        self.assertEqual(len({item["name"] for item in catalog}), 302)
+        self.assertEqual({a: sum(item["access"] == a for item in catalog) for a in ("RW", "RO", "WO")},
+                         {"RW": 290, "RO": 8, "WO": 4})
+        self.assertNotIn("value", catalog[0])
+        self.assertNotIn("default", catalog[0])
+        self.assertTrue(all("type" in item and "group" in item for item in catalog))
+        for path in ("/api/v1/configuration/fields/19", "/api/v1/configuration/fields/01"):
+            code, _, _ = self.request("GET", path)
+            self.assertEqual(code, 404)
+
     def test_no_mutations_can_be_sent(self):
         for method in ("POST", "PUT", "PATCH", "DELETE"):
             with self.subTest(method=method):
