@@ -29,6 +29,10 @@ Original Dell release-note findings:
 
 The image also embeds bootloader failure messages (`DOWNLOAD_FAILED`, `INVALID_IMAGE`, `FLASH_ERROR`, `OUT_OF_MEMORY`) and TFTP-thread strings. These **do not** prove that any remote recovery interface is accessible on the installed card. In particular, the rescue prompt's presence **inside the application** does not establish that a corrupted application can still be recovered independently.
 
+## Vendor image cross-check (01.16.0001)
+
+The older original Dell `Release_01_16_0001.bin` was independently decoded: SHA-256 `df6471c61126fb95b393f6c91006d136d0e63612f19ae2f5d43f33fbaef932ba`, **1,416,830 bytes**, LZSS2 application **2,533,980 bytes** decompressed. Its image header retains the same flash offset `0x00010000` and RAM load address `0x08004000`. It also contains the `ns7520_a_esp` identifier, rescue-menu prompt and embedded bootloader-2.0 string. This independently corroborates the same BSP/boot-vector lineage across the two vendor versions, **not** actual installed bootloader or flash-chip capacity.
+
 ## NS7520 documentation and memory map
 
 Digi's [NET+OS Programmer's Guide](https://hub.digi.com/dp/path%3D/support/asset/net-plus-os-programmers-guide/) documents these **reference BSP address windows**, which must not be interpreted as physical RAM/flash part sizes:
