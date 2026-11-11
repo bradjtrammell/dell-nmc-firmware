@@ -1,18 +1,18 @@
 # Firmware release channels
 
-The repository uses exactly two active development branches:
+The repository has exactly two long-lived branches. Do not create additional development/release branches.
 
-| Channel | Git branch | Artifact classification | Purpose |
-| --- | --- | --- | --- |
-| Release | `main` | Published non-prerelease GitHub Release with an H910P BIN | Approved experimental release baseline |
-| Beta | `dev` | Published prerelease targeting `dev` with an H910P BIN | Preproduction device tests and engineering validation |
+| Channel | Git branch | Purpose |
+| --- | --- | --- |
+| **Release** | `main` | Locked stable baseline **v0.5.10**, Dell-derived firmware with the integrated custom UI |
+| **Beta** | `dev` | **v0.6.x** independent firmware replacement development and testing |
 
-**Baseline:** v0.5.10 on `main`. Further changes start on `dev`; promotion to `main` requires offline tests, final BIN validation and hardware acceptance appropriate to the release.
+The v0.5.10 release is retained without changes until a separately built, tested and hardware-qualified v0.6 release is explicitly promoted. The earlier v0.5.11 beta work remains a source of historical/UI compatibility code on `dev`; it must not be represented as independent firmware.
 
-The firmware page provides an **Update channel** selector. `Release (main)` queries GitHub's latest published non-prerelease. `Beta (dev)` queries published releases, selecting the first non-draft prerelease explicitly targeting `dev`. The chosen release is displayed only when it contains a compatible H910P `.bin` asset and a GitHub download URL.
+The v0.6 target is defined in [ADR-0002](adr-0002-v06-independent-firmware.md). It replaces Dell's NMC application and XML CGI management transport with an independently built native firmware, typed JSON API, native management UI, security, notification transport and a proven firmware update/recovery path. Boot ROM or bootloader replacement depends on verified board capabilities and is not assumed.
 
-This is **release discovery, not automatic installation**. Selecting `dev` never downloads raw source code or offers an arbitrary branch commit as flashable firmware. File transfer still uses the OEM firmware upload workflow, and only the NMC's final FLASH-write status confirms a successful write. No transactional rollback is available.
+Published firmware uses actual BIN release assets, integrity checks and explicit hardware-compatibility declarations. Main is the stable channel; dev prereleases are betas. Existing firmware's release/beta selector provides GitHub **discovery**, not an on-device automatic installer or rollback. Do not advertise v0.6 update installation until it is implemented and validated.
 
-When publishing a beta with GitHub CLI, set `--target dev --prerelease`. A stable release should use `--target main` without `--prerelease`. Publish the standalone BIN and its SHA-256 digest, and confirm the asset exists in GitHub Releases. The ROM browser is not itself required to access GitHub for normal UPS monitoring.
+No v0.6 BIN should be distributed as flashable before the board CPU/flash map, independent boot process and recovery method are proven. Always distinguish host-only simulation, offline image validation and live H910P acceptance.
 
-**Security:** release API and download URLs are trusted for *discovery*, not for firmware authenticity. Manual operators must verify the release's pinned checksum and hardware compatibility before flashing. An asset filename alone is not sufficient proof. Work toward a signed firmware manifest and recovery mechanism continues separately.
+**Security:** Checksum alone does not establish authenticity; use a signed manifest and image signatures for the native updater. Never embed GitHub credentials or webhook secrets in firmware releases.

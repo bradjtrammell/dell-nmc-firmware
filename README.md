@@ -2,7 +2,9 @@
 
 A modern, locally hosted management interface for the Dell H910P Network Management Card. This project modernizes the interface **inside the NMC firmware**, preserving the card's hardware and Dell's underlying UPS communications. The goal is a complete replacement for the original browser interface—not a separate dashboard or an always-on management server.
 
-**Current release baseline: v0.5.10** · Based on Dell NMC firmware 01.18.0005 · **Experimental / not recommended for production use**
+**Stable release: v0.5.10** · Dell-derived embedded UI firmware · **Next generation: v0.6.x native firmware replacement (in development)**
+
+v0.6.x is a complete firmware architecture rework, not another HTML patch. It targets an independently built NMC application, native JSON API, hardware UPS interface, authentication, notifications and update/recovery system. The current source tree's v0.5 patcher and its existing beta UI do **not** yet implement that firmware. [Read the v0.6 architecture decision](docs/adr-0002-v06-independent-firmware.md).
 
 The custom interface runs on real H910P hardware, but development and device-level qualification are ongoing. Critical UPS power-control, recovery, and update operations must be validated before this firmware is used in a production environment.
 
@@ -43,7 +45,7 @@ The dashboard reads live UPS telemetry and presents battery, load, power flow an
 | **Release** | `main` | Approved firmware baseline. Currently **v0.5.10**. |
 | **Beta** | `dev` | Continuing development, fixes and hardware qualification. |
 
-`main` is not a rolling preview branch. All ongoing UI and firmware work belongs in `dev` until reviewed and promoted. The firmware-update interface is being developed to offer a **Release / Beta** selector. Release checks must use published GitHub firmware assets and verify their integrity; choosing `dev` must not treat an arbitrary source commit as a flashable image. The optional update mechanism is not a transactional on-device installer with rollback yet.
+`main` remains the v0.5.10 stable baseline. Work on the independent v0.6.x firmware belongs on `dev` until its native image is hardware-qualified, reviewed and explicitly promoted. Existing dev v0.5.11 beta patcher code remains historical/compatibility work and does not become v0.6 firmware by changing its version text. The firmware-update interface is being developed to offer a **Release / Beta** selector. Release checks must use published GitHub firmware assets and verify their integrity; choosing `dev` must not treat an arbitrary source commit as a flashable image. The optional update mechanism is not a transactional on-device installer with rollback yet.
 
 ## Getting started
 
