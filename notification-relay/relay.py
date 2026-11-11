@@ -28,7 +28,8 @@ from xml.etree import ElementTree
 
 LOG=logging.getLogger('h910p-relay')
 MAX_BODY=16384
-MAX_DESTINATIONS=1000  # protective storage bound, not the NMC's four-email hardware limit
+MAX_DESTINATIONS=1000  # storage safety bound, independent of the four NMC email slots
+EVENT_TYPES=('power_lost','power_restored','battery_low','battery_recovered','connection_lost','connection_restored')
 class ValidationError(ValueError): pass
 
 class NoRedirect(HTTPRedirectHandler):
@@ -53,7 +54,10 @@ def destination_spec(payload, allow_http=False):
     if kind not in ('monita','discord','ntfy'): raise ValidationError('Unknown destination type')
     name=payload.get('name')
     if not isinstance(name,str) or not 1<=len(name.strip())<=80: raise ValidationError('Name must be 1-80 characters')
-    value={'type':kind,'name':name.strip(),'enabled':payload.get('enabled',True) is True}
+    events=payload.get('events',list(EVENT_TYPES))
+    if not isinstance(events,list) or len(events)>len(EVENT_TYPES) or len(events)!=len(set(map(str,events))) or any(e not in EVENT_TYPES for e in events):
+        raise ValidationError('Invalid event subscriptions')
+    value={'type':kind,'name':name.strip(),'enabled':payload.get('enabled',True) is True,'events':events}
     if kind=='monita':
         value['url']=expect_url(payload.get('url'),allow_http=allow_http)
         token=payload.get('token')
@@ -81,6 +85,7 @@ def public_destination(d):
         out['url']=d.get('url','')
         if d['type']=='ntfy':out['topic']=d.get('topic','')
     out['has_token']=bool(d.get('token')) or d['type']=='discord'
+    out['events']=d.get('events',list(EVENT_TYPES))
     return out
 
 class Store:
@@ -173,33 +178,44 @@ class Monitor(threading.Thread):
         self.store=store;self.base=base_url;self.auth=auth_header;self.interval=interval;self.allow_http=allow_http
         self.state=None;self.failures=0;self.online=True;self.stop_event=threading.Event()
         self.last_success=0;self.last_error=''
-    def emit(self,title,message):
+    def emit(self,event,title,message):
         for d in self.store.snapshot():
-            if not d.get('enabled'):continue
+            if not d.get('enabled') or event not in d.get('events',EVENT_TYPES):continue
             try:send(d,title,message,self.allow_http)
             except Exception as exc:LOG.error('Delivery to %s (%s) failed: %s',d.get('name'),d.get('type'),type(exc).__name__)
     def update(self,values):
         power=values.get('UPS.PowerSummary.PresentStatus.ACPresent')
-        battery=values.get('UPS.PowerSummary.RemainingCapacity')
-        status={'power':power,'battery_low':bool(battery and battery.isdecimal() and int(battery)<=20)}
-        old=self.state;self.state=status
+        if power not in ('0','1'):
+            raise ValueError('Invalid NMC utility-power state')
+        charge=values.get('UPS.PowerSummary.RemainingCapacity','')
+        old=self.state
+        # Require a valid charge percentage. Missing sensors are not low-battery alarms.
+        valid=charge.isdecimal() and 0<=int(charge)<=100
+        low=old['battery_low'] if old is not None else False
+        if valid:
+            if int(charge)<=20:low=True
+            elif int(charge)>=25:low=False
+        status={'power':power,'battery_low':low}
+        self.state=status
         if old is None:return
-        if status['power']!=old['power']:
-            title='UPS utility power restored' if status['power']=='1' else 'UPS running on battery'
-            self.emit(title,'H910P reported a utility power state change.')
-        if status['battery_low'] and not old['battery_low']:
-            self.emit('UPS low battery','H910P battery charge fell to '+battery+'%.')
+        if power!=old['power']:
+            event='power_restored' if power=='1' else 'power_lost'
+            self.emit(event,'UPS utility power restored' if power=='1' else 'UPS running on battery','H910P reported a utility power state change.')
+        if low and not old['battery_low']:
+            self.emit('battery_low','UPS low battery','H910P battery charge fell to '+charge+'%.')
+        if not low and old['battery_low']:
+            self.emit('battery_recovered','UPS battery recovered','H910P battery charge rose to '+charge+'%.')
     def run(self):
         while not self.stop_event.is_set():
             try:
                 values=read_nmc(self.base,self.auth)
-                if not self.online:self.emit('UPS connection restored','H910P is responding again.')
+                if not self.online:self.emit('connection_restored','UPS connection restored','H910P is responding again.')
                 self.online=True;self.failures=0;self.last_error='';self.last_success=time.time()
                 self.update(values)
             except Exception as exc:
                 self.failures+=1;self.last_error=type(exc).__name__
                 if self.failures==3 and self.online:
-                    self.online=False;self.emit('UPS connection lost','H910P did not respond to three consecutive polls.')
+                    self.online=False;self.emit('connection_lost','UPS connection lost','H910P did not respond to three consecutive polls.')
                 LOG.warning('NMC poll failed: %s',type(exc).__name__)
             self.stop_event.wait(self.interval)
 
