@@ -44,6 +44,12 @@ Digi's [NET+OS Programmer's Guide](https://hub.digi.com/dp/path%3D/support/asset
 
 The [NS7520 Hardware Reference](https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/) documents the ARM7TDMI processor, memory controller, serial peripherals, watchdog, memory aliasing, GEN System Control at `0xFFB00000`, and System Status at `0xFFB00004`. These are **CPU physical-register addresses, not commands to run through the card's serial Settings port or an SSH session**.
 
+### RAM mapping and bootloader recovery caveats
+
+Digi's standard ARM7 BSP reference RAM aperture is `0x00000000–0x01FFFFFF`, whereas the Dell header specifies `RamAddress=0x08004000`. **These are not the same address window**, and the Dell value is not a simple `0x40000000`/`0x80000000` reference alias. Do not use the generic memory map as the H910P linker script without reconstructing the OEM board's address decode and memory-controller configuration. The `FlashOffset` boot-header field is an offset within flash, not an absolute mapped CPU address, according to Digi's NET+OS header specification.
+
+Digi's NET+OS Programmer's Guide, Chapter 5, describes a generic staged bootloader with application CRC, backup-image, DHCP/BOOTP/TFTP and serial-download recovery options. The Dell firmware's embedded `DOWNLOAD_FAILED`, `INVALID_IMAGE` and rescue-prompt strings are **consistent with** this design, but are not proof the installed Dell bootloader supports all those paths. **No** recovery key presses, TFTP transfers, serial image uploads or deliberate flash failures are authorized by this research.
+
 ## PCB photographic evidence
 
 The [original eBay listing](https://www.ebay.com/itm/203124239830) includes a [component-side photograph](https://i.ebayimg.com/images/g/LIgAAOSw1LpghkQw/s-l1600.webp) with an unpopulated `JTAG`-labeled footprint. The [reverse side](https://i.ebayimg.com/images/g/eSsAAOSwjUNghkQs/s-l1600.webp) shows board routing. These are photos of the **listed** card; no installed-board pinout, voltage or revision identity is yet certified.
