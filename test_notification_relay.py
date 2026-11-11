@@ -103,6 +103,26 @@ class RelayIntegrationTests(unittest.TestCase):
         status,result,_=self.request('GET','/api/v1/destinations')
         self.assertEqual(result['destinations'],[])
 
+    def test_failed_delivery_retries_and_deleted_destinations_are_cancelled(self):
+        payload={'type':'monita','name':'Alert','url':'https://monita.example','token':'secret','enabled':True,'events':['power_lost']}
+        status,d,_=self.request('POST','/api/v1/destinations',payload)
+        self.assertEqual(status,201)
+        monitor=relay.Monitor(self.store,'http://127.0.0.1','',15,False)
+        with patch.object(relay,'send',side_effect=RuntimeError('offline')):
+            monitor.emit('power_lost','Power lost','UPS on battery')
+        self.assertEqual(len(monitor.pending),1)
+        with patch.object(relay,'send',return_value=202) as send:
+            monitor.retry_pending(now=monitor.pending[0][5]+1)
+            self.assertEqual(send.call_count,1)
+        self.assertEqual(len(monitor.pending),0)
+        with patch.object(relay,'send',side_effect=RuntimeError('offline')):
+            monitor.emit('power_lost','Power lost','UPS on battery')
+        self.request('DELETE','/api/v1/destinations/'+d['id'])
+        with patch.object(relay,'send') as send:
+            monitor.retry_pending(now=monitor.pending[0][5]+1)
+            send.assert_not_called()
+        self.assertFalse(monitor.pending)
+
     def test_no_plaintext_destination_urls_by_default(self):
         for kind,payload in [
           ('monita',{'type':'monita','name':'M','url':'http://example.com','token':'t'}),

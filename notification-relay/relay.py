@@ -175,12 +175,29 @@ class Monitor(threading.Thread):
         super().__init__(name='UPS status monitor')
         self.store=store;self.base=base_url;self.auth=auth_header;self.interval=interval;self.allow_http=allow_http
         self.state=None;self.failures=0;self.online=True;self.stop_event=threading.Event()
-        self.last_success=0;self.last_error=''
+        self.last_success=0;self.last_error='';self.pending=[]
     def emit(self,event,title,message):
         for d in self.store.snapshot():
             if not d.get('enabled') or event not in d.get('events',EVENT_TYPES):continue
             try:send(d,title,message,self.allow_http)
-            except Exception as exc:LOG.error('Delivery to %s (%s) failed: %s',d.get('name'),d.get('type'),type(exc).__name__)
+            except Exception as exc:
+                LOG.warning('Delivery to %s failed: %s',d.get('type'),type(exc).__name__)
+                if len(self.pending)<256:self.pending.append((d['id'],event,title,message,1,time.monotonic()+15))
+                else:LOG.error('Delivery retry queue full; event could not be queued')
+    def retry_pending(self,now=None):
+        if now is None:now=time.monotonic()
+        remaining=[]
+        for identifier,event,title,message,attempt,ready in self.pending:
+            if ready>now:
+                remaining.append((identifier,event,title,message,attempt,ready));continue
+            d=self.store.get(identifier)
+            if not d or not d.get('enabled') or event not in d.get('events',EVENT_TYPES):continue
+            try:send(d,title,message,self.allow_http)
+            except Exception as exc:
+                LOG.warning('Retry attempt %d failed for %s: %s',attempt,d.get('type'),type(exc).__name__)
+                if attempt<5:remaining.append((identifier,event,title,message,attempt+1,now+min(300,15*2**attempt)))
+                else:LOG.error('Notification retries exhausted for %s',d.get('type'))
+        self.pending=remaining
     def update(self,values):
         power=values.get('UPS.PowerSummary.PresentStatus.ACPresent')
         if power not in ('0','1'):
@@ -215,6 +232,7 @@ class Monitor(threading.Thread):
                 if self.failures==3 and self.online:
                     self.online=False;self.emit('connection_lost','UPS connection lost','H910P did not respond to three consecutive polls.')
                 LOG.warning('NMC poll failed: %s',type(exc).__name__)
+            self.retry_pending()
             self.stop_event.wait(self.interval)
 
 class Server(ThreadingHTTPServer):
@@ -262,7 +280,7 @@ class Handler(BaseHTTPRequestHandler):
         parts=path[len(base):].strip('/').split('/') if path.startswith(base) else []
         try:
             if self.command=='GET' and path=='/api/v1/status':
-                return self.send_json(200,{'connected':True,'last_success':self.server.monitor.last_success,'nmc_online':self.server.monitor.online})
+                return self.send_json(200,{'connected':True,'last_success':self.server.monitor.last_success,'nmc_online':self.server.monitor.online,'pending_deliveries':len(self.server.monitor.pending)})
             if path==base:
                 if self.command=='GET':return self.send_json(200,{'destinations':[public_destination(x) for x in self.server.store.snapshot()]})
                 if self.command=='POST':
