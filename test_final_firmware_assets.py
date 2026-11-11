@@ -46,7 +46,7 @@ class FirmwareEmbeddedAssetTests(unittest.TestCase):
         self.assertEqual(len(encoded),self.meta['encoded_ui_bytes'])
         self.assertEqual(self.meta['embedded_encoding'],'base85')
         app=gzip.decompress(base64.b85decode(encoded)[:self.meta['compressed_ui_bytes']])
-        self.assertIn(b"U.uiVersion='0.5.11-beta.2'",app)
+        self.assertIn(b"U.uiVersion='0.5.11-beta.3'",app)
         self.assertIn(b'U.startApp',app)
         self.assertIn(b'</svg>',app)
         self.assertTrue(app.lstrip().startswith(b'.sr-only{'))

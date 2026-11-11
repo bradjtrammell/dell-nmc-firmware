@@ -28,7 +28,6 @@ from xml.etree import ElementTree
 
 LOG=logging.getLogger('h910p-relay')
 MAX_BODY=16384
-MAX_DESTINATIONS=1000  # storage safety bound, independent of the four NMC email slots
 EVENT_TYPES=('power_lost','power_restored','battery_low','battery_recovered','connection_lost','connection_restored')
 class ValidationError(ValueError): pass
 
@@ -93,7 +92,7 @@ class Store:
         self.path=path;self.lock=threading.RLock();self.destinations=[]
         if path.exists():
             loaded=json.loads(path.read_text(encoding='utf-8'))
-            if not isinstance(loaded,list) or len(loaded)>MAX_DESTINATIONS:raise RuntimeError('Invalid destination store')
+            if not isinstance(loaded,list):raise RuntimeError('Invalid destination store')
             self.destinations=loaded
     def snapshot(self):
         with self.lock:return [x.copy() for x in self.destinations]
@@ -110,7 +109,6 @@ class Store:
             if os.path.exists(temp):os.unlink(temp)
     def create(self,spec):
         with self.lock:
-            if len(self.destinations)>=MAX_DESTINATIONS:raise ValidationError('Storage limit reached')
             record={'id':secrets.token_hex(12),**spec}
             self.destinations.append(record);self.write()
             return public_destination(record)

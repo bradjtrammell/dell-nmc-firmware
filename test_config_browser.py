@@ -86,7 +86,7 @@ def main():
   page.locator('.destination-table').wait_for(timeout=15000)
   assert page.locator('.destination-table thead th').all_text_contents()==['Destination','Type','Status','Actions']
   assert page.locator('.destination-table tbody tr').count()==1
-  assert page.get_by_text('No destinations configured.',exact=False).count()==1
+  assert page.get_by_text('No destinations yet.',exact=False).count()==1
   assert page.get_by_text('0 of 4 email slots configured',exact=False).count()==1
   assert page.locator('#bridge-connect-form').count()==1
   page.get_by_role('button',name='SMTP settings').click()
@@ -131,7 +131,7 @@ def main():
   report['event_severity_filter_and_search']='PASS'
   page.screenshot(path=str(ROOT/'build'/'events-desktop.png'),full_page=True)
   page.locator('[data-page="firmware"]').click()
-  assert page.get_by_text('v0.5.11-beta.2').count()>=1
+  assert page.get_by_text('v0.5.11-beta.3').count()>=1
   assert page.locator('#github-check').count()==1
   assert page.locator('#firmware-file').count()==1
   assert page.locator('#firmware-channel').count()==1

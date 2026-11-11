@@ -58,6 +58,8 @@ def main():
             page.locator('#destination-type').select_option(kind)
             page.locator('#destination-picker button[type=submit]').click()
             page.locator('#bridge-target-name').fill(kind+' recipient')
+            assert page.locator('[data-bridge-event]').count()==6
+            page.locator('[data-bridge-event="power_restored"]').uncheck()
             if kind=='monita':
                 page.locator('#bridge-target-url').fill('https://monita.example.net')
                 page.locator('#bridge-target-token').fill('app-token')
@@ -69,6 +71,7 @@ def main():
             page.locator('#bridge-destination-form button[type=submit]').click()
             page.wait_for_timeout(120)
         page.wait_for_function('window.__destinations.length===6',timeout=10000)
+        assert all('power_restored' not in d['events'] for d in page.evaluate('window.__destinations'))
         page.locator('[data-bridge-test]').first.click()
         page.wait_for_function('window.__deliveryTests===1',timeout=10000)
         assert page.locator('.destination-table tbody tr').count()==10
