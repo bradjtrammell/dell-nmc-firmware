@@ -82,6 +82,49 @@ Use HTTP/1.0 and HTTP Basic with a password prompt, 5-second connection and 25�
 
 The original EEPROM/flash capacities, exact flash sector map, actual bootloader revision/recovery behavior, memory-chip markings, and UPS electrical/protocol implementation remain **unverified**. The evidence is adequate to begin **offline** ARM7 startup, linker, memory-controller and firmware-driver reverse engineering; it is **not adequate to flash** native v0.6 firmware.
 
+## Full schema-only inventory — live capture
+
+A subsequent **offline** inspection of the owner's saved responses confirmed the OEM interface advertised by `PRODUCT_INFO`, with **24 configuration groups, 302 configuration items, and 420 UPS/system objects**. No further network requests or configuration writes were performed.
+
+### `PRODUCT_INFO` capabilities (tag names only)
+
+`SUMMARY`, `HTML_PROPERTIES_PAGE`, `XML_SUMMARY_PAGE`, `CENTRAL_CFG`, `CSV_LOGS`, `ALARMS`, `SUBSCRIPTION`, `BROADCAST`, `MANAGEMENT`, `XML_MANAGEMENT_PAGE`, `MANAGEMENT_PAGE`, `UPS_DATA`, `GET_CONFIG`, `SET_CONFIG`, `GET_OBJECT`, `SET_OBJECT` and `TGW`.
+
+This is primarily a **device capability and protocol discovery document**, not a physical chipset/memory inventory. It describes how the OEM application can access configuration, management, alarms, logs and UPS objects. It does not reveal installed RAM/flash chips.
+
+### Actual config-group distribution
+
+| Group | Items | RW | RO | Other |
+| --- | ---: | ---: | ---: | ---: |
+| Network | 18 | 16 | 0 | 2 |
+| System | 5 | 5 | 0 | 0 |
+| Shutdown.Outlet[1] | 8 | 8 | 0 | 0 |
+| Shutdown.Outlet[2] | 5 | 5 | 0 | 0 |
+| Shutdown.Outlet[3] | 5 | 5 | 0 | 0 |
+| Control.Outlet[1–3] (3 groups) | 9 | 9 | 0 | 0 |
+| Access | 26 | 18 | 8 | 0 |
+| Five privacy-redacted groups | 150 | 150 | 0 | 0 |
+| Schedule | 14 | 14 | 0 | 0 |
+| NetworkManagementSystem[0–2] (3 groups) | 21 | 21 | 0 | 0 |
+| ClientCfg | 5 | 5 | 0 | 0 |
+| Environment.Temperature | 10 | 9 | 0 | 1 |
+| Environment.Humidity | 8 | 7 | 0 | 1 |
+| Environment.Input[1–2] (2 groups) | 14 | 14 | 0 | 0 |
+| Time | 4 | 4 | 0 | 0 |
+| **Total** | **302** | **290** | **8** | **4** |
+
+**Five redacted groups** have sizes 6, 36, 36, 36, and 36; the filter hid their group names because it matched the term `email` among other privacy patterns. Their observed structure is consistent with the OEM notification groups, but raw names were not published.
+
+### Telemetry domains observed
+
+The 420 objects include `BatterySystem` (11), `PowerSummary` (43), `PowerConverter` (35), `OutletSystem` (14), individual outlet instances (4, 8, 8), four `Email[0..3]` instances (36 each), `Network` (38), three network-management-system instances (7 each), seven schedule entries (2 each), environment sensors, time/NTP, and login/security state. These are **schema/object counts, not proof that every optional sensor or control exists electrically**.
+
+### Practical implication for independent v0.6
+
+The native JSON schema must cover the full existing management domain, but should use semantically typed resources and explicit capability flags rather than replicate 420 opaque OEM key/value strings. Power-changing operations must be implemented and tested independently with guarded state transitions. The existing XML snapshots are useful offline compatibility fixtures; they are not the intended runtime transport.
+
+The captured schema does **not** identify actual flash chip, RAM chip size, installed bootloader revision, or complete board memory decode. Those still require independent OEM image/boot-driver analysis or planned boot diagnostics; the existing Settings menu does not expose a memory read/debug shell.
+
 ## References and guardrails
 
 - Original vendor package: `NMC_Firmware_01_18_0005_X2JYN.zip`, containing `ReleaseNote_DELL_NMC_01_18_0005.txt`, the OEM BIN and the public `MibUpsDell.mib`.
