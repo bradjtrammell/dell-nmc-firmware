@@ -2,13 +2,13 @@
 
 **Status:** Accepted architectural target (November 11, 2026)
 **Decision owner:** Project maintainer
-**Scope:** All v0.6.x development on \`dev\`. v0.5.10 on \`main\` is the locked stable release.
+**Scope:** All v0.6.x development on `dev`. v0.5.10 on `main` is the locked stable release.
 
 ## Decision
 
 v0.6.x is **not** another web-interface overlay onto Dell 01.18.0005. It is the next major engineering generation of this project: a standalone, maintainable H910P firmware application and management stack owned by this project, replacing Dell's application firmware, original RomPager UI and XML CGI management services.
 
-No new functionality is to depend on OEM \`/get_object.xml\`, \`/configuration_descriptor.xml\`, \`/product.xml\`, \`/Forms/set_obj_2\`, or Dell UI asset slots after the native implementation reaches parity. These can exist only in a clearly separated legacy compatibility/test harness while transitioning. v0.5.10 is retained unchanged as the current stable rollback/recovery reference.
+No new functionality is to depend on OEM `/get_object.xml`, `/configuration_descriptor.xml`, `/product.xml`, `/Forms/set_obj_2`, or Dell UI asset slots after the native implementation reaches parity. These can exist only in a clearly separated legacy compatibility/test harness while transitioning. v0.5.10 is retained unchanged as the current stable rollback/recovery reference.
 
 “Independent firmware” does **not** imply an independently replaceable mask-ROM boot stage or that the exact H910P bootloader can be rewritten. The required deliverable is a complete independent NMC application image and native services; any immutable SoC ROM or necessary retained bootloader component must be identified and documented. If the card's boot architecture cannot safely support this, the project must say so rather than call an OEM patch fully custom firmware.
 
@@ -16,12 +16,12 @@ No new functionality is to depend on OEM \`/get_object.xml\`, \`/configuration_d
 
 | Branch | Version | Product |
 | --- | --- | --- |
-| \`main\` | v0.5.10 | Stable Dell-derived embedded UI firmware, no feature changes until promotion |
-| \`dev\` | v0.6.x development | Independent firmware implementation and beta qualification |
+| `main` | v0.5.10 | Stable Dell-derived embedded UI firmware, no feature changes until promotion |
+| `dev` | v0.6.x development | Independent firmware implementation and beta qualification |
 
-A newly compiled v0.6 binary is required before assigning a v0.6 runtime version. Existing \`source/\` and \`build_native.py\` remain historical v0.5 compatibility assets until explicit retirement; changing the displayed version does not constitute a new firmware.
+A newly compiled v0.6 binary is required before assigning a v0.6 runtime version. Existing `source/` and `build_native.py` remain historical v0.5 compatibility assets until explicit retirement; changing the displayed version does not constitute a new firmware.
 
-No additional active Git branches. Work is contained on \`dev\`, with \`main\` promoted only after independently reviewed release qualification.
+No additional active Git branches. Work is contained on `dev`, with `main` promoted only after independently reviewed release qualification.
 
 ## Native stack boundaries
 
@@ -41,22 +41,22 @@ JSON is an HTTP response format, not a periodically rewritten disk file. Live me
 
 Required endpoint groups and representative methods, to implement only after the underlying native handlers exist:
 
-- \`GET /api/v1/capabilities\`, \`GET /api/v1/device\`, \`GET /api/v1/health\`
-- \`GET /api/v1/ups/status\`, \`GET /api/v1/ups/measurements\`, \`GET /api/v1/ups/outlets\`
-- \`POST /api/v1/ups/outlets/{id}/actions\`, \`GET/PUT /api/v1/ups/schedules\`, \`GET/PUT /api/v1/ups/shutdown\`
-- \`GET /api/v1/events\`, \`GET /api/v1/events/export\`, \`POST /api/v1/events/clear\`
-- \`GET/POST/PATCH/DELETE /api/v1/notifications/destinations\`, \`POST /api/v1/notifications/destinations/{id}/test\`, \`GET/PUT /api/v1/notifications/smtp\`
-- \`GET/PUT /api/v1/network\`, \`GET/PUT /api/v1/system\`, \`GET/PUT /api/v1/snmp\`, \`GET/PUT /api/v1/time\`
-- \`GET/PUT /api/v1/shutdown-clients\`, \`GET/PUT /api/v1/access\`, \`POST /api/v1/session\`, \`DELETE /api/v1/session\`
-- \`GET /api/v1/updates\`, \`POST /api/v1/updates/verify\`, \`POST /api/v1/updates/install\`, \`GET /api/v1/updates/jobs/{id}\`
+- `GET /api/v1/capabilities`, `GET /api/v1/device`, `GET /api/v1/health`
+- `GET /api/v1/ups/status`, `GET /api/v1/ups/measurements`, `GET /api/v1/ups/outlets`
+- `POST /api/v1/ups/outlets/{id}/actions`, `GET/PUT /api/v1/ups/schedules`, `GET/PUT /api/v1/ups/shutdown`
+- `GET /api/v1/events`, `GET /api/v1/events/export`, `POST /api/v1/events/clear`
+- `GET/POST/PATCH/DELETE /api/v1/notifications/destinations`, `POST /api/v1/notifications/destinations/{id}/test`, `GET/PUT /api/v1/notifications/smtp`
+- `GET/PUT /api/v1/network`, `GET/PUT /api/v1/system`, `GET/PUT /api/v1/snmp`, `GET/PUT /api/v1/time`
+- `GET/PUT /api/v1/shutdown-clients`, `GET/PUT /api/v1/access`, `POST /api/v1/session`, `DELETE /api/v1/session`
+- `GET /api/v1/updates`, `POST /api/v1/updates/verify`, `POST /api/v1/updates/install`, `GET /api/v1/updates/jobs/{id}`
 
 These names are a **target API contract, not implemented H910P endpoints**. Never refer to them as live until executable hardware tests pass.
 
-Expected response properties: finite payloads, schemaVersion, UTC timestamps and monotonic sequence numbers where relevant, explicit unit labels, null for unavailable readings, enum states rather than magic XML strings; consistent \`application/json\` errors. No power-changing action auto-retries. Idempotency protection for any deliberately retryable operations.
+Expected response properties: finite payloads, schemaVersion, UTC timestamps and monotonic sequence numbers where relevant, explicit unit labels, null for unavailable readings, enum states rather than magic XML strings; consistent `application/json` errors. No power-changing action auto-retries. Idempotency protection for any deliberately retryable operations.
 
 ## Hardware research gates — before any flash
 
-**Gate H0, read-only hardware identity.** Identify processor ISA and flash using verified markings, photographs or trusted datasheets and the known OEM firmware in offline analysis. Record voltage, flash type, chip select, reset and boot modes. The confirmed Settings port on \`dockeradm\` runs 9600 8N1 through an FTDI FT232R at \`/dev/ttyUSB0\`; it provides a maintenance menu, **not an established shell or bootloader console**. Use only passive serial observation and non-destructive menu options. Do not write settings during discovery.
+**Gate H0, read-only hardware identity.** Identify processor ISA and flash using verified markings, photographs or trusted datasheets and the known OEM firmware in offline analysis. Record voltage, flash type, chip select, reset and boot modes. The confirmed Settings port on `dockeradm` runs 9600 8N1 through an FTDI FT232R at `/dev/ttyUSB0`; it provides a maintenance menu, **not an established shell or bootloader console**. Use only passive serial observation and non-destructive menu options. Do not write settings during discovery.
 
 **Gate H1, independent boot feasibility.** Recover reset vectors, relocation, memory map, original image validation rules and firmware uploader safety conditions. Establish an off-device emulator/simulator or development board where feasible; never assume a legacy NET+OS image packer can build a new firmware.
 
@@ -83,7 +83,7 @@ The first true flashable release name is determined by test evidence, not the ro
 - No force-flashing an over-size image or bypassing OEM integrity checks.
 - No speculative serial boot commands or destructive reset attempts on the connected UPS.
 - No treating source commits, release discovery or a successful HTTP redirect as firmware installation.
-- No automatic \`main\` promotion while hardware acceptance is incomplete.
+- No automatic `main` promotion while hardware acceptance is incomplete.
 
 ## Decision rationale
 
