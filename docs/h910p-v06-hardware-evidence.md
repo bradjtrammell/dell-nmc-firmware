@@ -54,6 +54,20 @@ Digi's NET+OS Programmer's Guide, Chapter 5, describes a generic staged bootload
 
 The [original eBay listing](https://www.ebay.com/itm/203124239830) includes a [component-side photograph](https://i.ebayimg.com/images/g/LIgAAOSw1LpghkQw/s-l1600.webp) with an unpopulated `JTAG`-labeled footprint. The [reverse side](https://i.ebayimg.com/images/g/eSsAAOSwjUNghkQs/s-l1600.webp) shows board routing. These are photos of the **listed** card; no installed-board pinout, voltage or revision identity is yet certified.
 
+## Live hardware read-only collection — November 11, 2026
+
+The owner executed three sequential authenticated, HTTP/1.0 **read-only** requests from `dockeradm` to the live H910P at `192.168.0.174`. All responses were HTTP **200** (the card responded with HTTP/1.1 headers), and all XML parsed successfully:
+
+| Endpoint | Size | Root | Parsed inventory | SHA-256 |
+| --- | ---: | --- | --- | --- |
+| `GET /product.xml` | 1,112 bytes | `PRODUCT_INFO` | Device identity schema (field names pending sanitization) | `00a7fc3abebfbee0a691f5f460d9f356015a61f8ad78ad1b72269d93acf1aa01` |
+| `GET /configuration_descriptor.xml` | 35,146 bytes | `SYSTEM_CONFIG` | 24 `GROUP` and 302 `ITEM` nodes | `8a1995f1e479b239b70ddb09a7437e25d9d82e41983ed30c72d986945702bbe0` |
+| `POST /get_object.xml`, `objectName=UPS.*` | 27,716 bytes | `GET_OBJECT` | 420 `OBJECT` nodes | `7d9b78d8e8a1429ebc88c35b3d60bdc91783fe9756f96250207fb4e5233c8311` |
+
+This corroborates the 24-group/302-item OEM configuration descriptor already found offline and establishes that the card can return the full reported schema and telemetry on successful requests. **A single successful sample does not rule out intermittent malformed responses or prove reliable write operations.** HTTP/1.0 in curl controls the client request; an HTTP/1.1 server response is not a mismatch or error.
+
+The owner retained raw response files privately on `dockeradm`, not in this public repository. Their contents may include host/device identifiers or sensitive configuration values. Until a sanitized field inventory is received, do not infer installed RAM size, flash-chip geometry, bootloader version or board revision from these XML counts.
+
 ## Safe live collection on dockeradm
 
 The confirmed FTDI FT232R serial Settings interface is `/dev/ttyUSB0`, 9600 8N1, no flow control. It has already displayed a valid maintenance menu and read-only DHCP configuration. It does not expose a known OS/debug shell.
