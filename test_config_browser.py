@@ -22,7 +22,7 @@ window.fetch=async function(url,opt){
  var response='';
  if(url==='/app_upload.htm'){return opt&&opt.credentials==='omit'&&opt.headers&&opt.headers.Authorization==='Basic YWRtaW46YWRtaW4='?{ok:true,status:200,text:async function(){return 'OK'}}:{ok:false,status:401,text:async function(){return 'Denied'}}}
  if(url==='/get_object.xml'){
-  if(b==='objectName=UPS.*')response='<GET_OBJECT><OBJECT name="UPS.PowerSummary.PercentLoad">53</OBJECT><OBJECT name="UPS.PowerSummary.RemainingCapacity">100</OBJECT></GET_OBJECT>';
+  if(b==='objectName=UPS.*')response='<GET_OBJECT><OBJECT name="UPS.PowerSummary.PercentLoad">53</OBJECT><OBJECT name="UPS.PowerSummary.RemainingCapacity">100</OBJECT><OBJECT name="UPS.OutletSystem.Outlet[1].PresentStatus.SwitchOnOff">1</OBJECT></GET_OBJECT>';
   else if(b==='objectName=System.*')response='<GET_OBJECT>'+Object.keys(window.__current).map(function(k){return '<OBJECT name="'+k+'">'+window.__current[k]+'</OBJECT>'}).join('')+'</GET_OBJECT>';
   else {var name=decodeURIComponent(String(b).slice(11));response='<GET_OBJECT><OBJECT name="'+name+'">'+(window.__current[name]||'')+'</OBJECT></GET_OBJECT>'}
  }else if(url==='/configuration_descriptor.xml')response="<SYSTEM_CONFIG><GROUP id=\"Network\"><ITEM object=\"System.Network.IPMask\" type=\"IPv4\" access=\"RW\"/><ITEM object=\"System.Network.DHCP\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Network.SmtpServer.HostName\" type=\"String:49\" access=\"RW\"/></GROUP><GROUP id=\"Email.Common\"><ITEM object=\"System.Email.Sender\" type=\"Email:59\" access=\"RW\"/><ITEM object=\"System.Email.Subject\" type=\"String:40\" access=\"RW\"/></GROUP><GROUP id=\"Email.Email[0]\"><ITEM object=\"System.Email[0].Recipient\" type=\"Email:99\" access=\"RW\"/><ITEM object=\"System.Email[0].Selected\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[0].EventList.Discharging\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[0].EventList.RunTimeToShutdown\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[0].EventList.InternalFailure.1\" type=\"Boolean\" access=\"RW\"/></GROUP>\n<GROUP id=\"Email.Email[1]\"><ITEM object=\"System.Email[1].Recipient\" type=\"Email:99\" access=\"RW\"/><ITEM object=\"System.Email[1].Selected\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[1].EventList.Discharging\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[1].EventList.RunTimeToShutdown\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[1].EventList.InternalFailure.1\" type=\"Boolean\" access=\"RW\"/></GROUP>\n<GROUP id=\"Email.Email[2]\"><ITEM object=\"System.Email[2].Recipient\" type=\"Email:99\" access=\"RW\"/><ITEM object=\"System.Email[2].Selected\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[2].EventList.Discharging\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[2].EventList.RunTimeToShutdown\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[2].EventList.InternalFailure.1\" type=\"Boolean\" access=\"RW\"/></GROUP>\n<GROUP id=\"Email.Email[3]\"><ITEM object=\"System.Email[3].Recipient\" type=\"Email:99\" access=\"RW\"/><ITEM object=\"System.Email[3].Selected\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[3].EventList.Discharging\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[3].EventList.RunTimeToShutdown\" type=\"Boolean\" access=\"RW\"/><ITEM object=\"System.Email[3].EventList.InternalFailure.1\" type=\"Boolean\" access=\"RW\"/></GROUP><GROUP id=\"Security\"><ITEM object=\"System.Security.Password\" type=\"Password:30\" access=\"RW\"/></GROUP><GROUP id=\"Time\"><ITEM object=\"System.Time.NTPServer\" type=\"String:49\" access=\"RW\"/></GROUP><GROUP id=\"Control.Outlet[1]\" hidden=\"TRUE\"><ITEM object=\"System.Outlet[1].OffDelay\" type=\"Time:0..99999\" access=\"RW\"/></GROUP></SYSTEM_CONFIG>";
@@ -131,7 +131,7 @@ def main():
   report['event_severity_filter_and_search']='PASS'
   page.screenshot(path=str(ROOT/'build'/'events-desktop.png'),full_page=True)
   page.locator('[data-page="firmware"]').click()
-  assert page.get_by_text('v0.5.11-beta.1').count()>=1
+  assert page.get_by_text('v0.5.11-beta.2').count()>=1
   assert page.locator('#github-check').count()==1
   assert page.locator('#firmware-file').count()==1
   assert page.locator('#firmware-channel').count()==1
@@ -157,7 +157,7 @@ def main():
   }""")
   page.locator('[data-page="network"]').click()
   page.evaluate('U.loadConfig()')
-  page.get_by_text('Showing the original firmware field catalog',exact=False).wait_for(timeout=12000)
+  page.get_by_text('OEM field catalog.',exact=False).wait_for(timeout=12000)
   assert page.locator('.setting-row').count()>=1
   page.locator('[data-page="notification"]').click()
   assert page.locator('.destination-table tbody tr').count()>=1

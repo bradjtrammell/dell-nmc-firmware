@@ -1,7 +1,7 @@
 /* H910P v0.5: local, desktop-first management surfaces; OEM XML is transport, never UI.
  * No network fetches except explicit same-origin NMC endpoints. No CDN.
  */
-U.uiVersion='0.5.11-beta.1';
+U.uiVersion='0.5.11-beta.2';
 U.config.loaded=false;
 U.config.search='';
 U.eventSearch='';

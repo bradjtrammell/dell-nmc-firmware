@@ -22,7 +22,7 @@ U.updaterView=function(){var r=U.updater.release,assets=r?r.assets:[];
   (U.updater.error?'<p role="alert" class="notice error">'+U.esc(U.updater.error)+'</p>':'')+
   (r?'<p><strong>'+U.esc(r.name)+'</strong> · '+U.esc(r.tag)+'</p>'+assets.map(function(a){return '<p><a class="btn btn-quiet" target="_blank" rel="noopener noreferrer" href="'+U.esc(a.browser_download_url)+'">'+U.ico('upload')+' Download '+U.esc(a.name)+'</a></p>'}).join(''):'')+
  '</div></section><section class="setting-section"><div class="setting-section-head"><h2>Install firmware</h2><span>Dell upload service</span></div><div class="maintenance-text">'+
- '<p>Select a verified firmware BIN. Confirm the NMC reports a successful FLASH write. Older cards may require an HTTP/1.0 upload outside the browser.</p>'+
+ '<p>Use a verified BIN. Installation is complete only after the card confirms the FLASH write. Some cards require an external HTTP/1.0 uploader.</p>'+
  '<form id="firmware-local-form"><label for="firmware-file">Firmware BIN</label><input required id="firmware-file" type="file" accept=".bin,application/octet-stream">'+
  '<button class="btn btn-primary" id="firmware-install" type="submit" '+(U.updater.busy?'disabled':'')+'>'+U.ico('upload')+(U.updater.busy?' Uploading…':' Send BIN to NMC')+'</button></form>'+
  (U.updater.result?'<p role="status">'+U.esc(U.updater.result)+'</p>':'')+
@@ -64,3 +64,5 @@ var oldUpdateClick=U.onConsoleClick;
 U.onConsoleClick=function(e){if(e.target.closest('#github-check')){U.checkGitHub();return true}return oldUpdateClick(e)};
 var oldUpdateChange=U.onConsoleChange;U.onConsoleChange=function(e){if(e.target.id==='firmware-channel'){U.updater.channel=e.target.value==='dev'?'dev':'main';U.updater.release=null;U.updater.error='';U.render(false);return}if(oldUpdateChange)oldUpdateChange(e)};var oldUpdateSubmit=U.onConsoleSubmit;
 U.onConsoleSubmit=function(e){if(e.target.id==='firmware-local-form'){U.sendLocalFirmware(e);return}oldUpdateSubmit(e)};
+
+var priorChannelChange=U.onConsoleChange;U.onConsoleChange=function(e){if(e.target.id==='firmware-channel'){U.updater.channel=e.target.value==='dev'?'dev':'main';U.updater.release=null;U.updater.error='';U.render(false)}else if(priorChannelChange)priorChannelChange(e)};
