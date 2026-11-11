@@ -95,7 +95,17 @@ U.eventsView=function(){var has=U.events.length;
  return U.heading('EVENTS / HISTORY','Event history','Search and review events recorded by the card—not merely events observed in this browser.')+U.warning()+
  '<div class="event-summary"><div>'+U.ico('activity')+'<span><strong>'+has+'</strong> recent events</span></div><span>'+U.esc(U.eventsBusy?'Loading from card…':U.eventsError||'Sourced from the NMC event log')+'</span></div><section class="panel wide"><div class="section-title"><div><h2>Recorded activity</h2><p>Event severity is inferred from recorded message text</p></div><button type="button" class="btn btn-quiet" id="load-events" '+(U.eventsBusy?'disabled':'')+'>'+U.ico('refresh')+'Refresh log</button></div>'+
  '<div class="event-tools"><label class="search-field">'+U.ico('chart')+'<span class="sr-only">Search event messages</span><input id="event-search" type="search" placeholder="Search event messages" value="'+U.esc(U.eventSearch)+'"></label><label class="sr-only" for="event-level">Severity filter</label><select id="event-level"><option value="all">All severity</option><option value="critical" '+(U.eventLevel==='critical'?'selected':'')+'>Critical</option><option value="warning" '+(U.eventLevel==='warning'?'selected':'')+'>Warning</option><option value="information" '+(U.eventLevel==='information'?'selected':'')+'>Information</option></select></div>'+
- (has?'<div class="table-scroll"><table class="events-table"><thead><tr><th>Level</th><th>Event</th><th>Recorded</th><th>#</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty-state">'+U.ico('calendar')+'<strong>'+U.esc(U.eventsBusy?'Reading event history…':U.eventsError?'Unable to read event history':'No events returned')+'</strong><p>'+U.esc(U.eventsError||'Use Refresh log to query the device again.')+'</p></div>')+'</section><div class="section-actions"><a class="btn btn-quiet" href="/logevent.csv" download>'+U.ico('upload')+'Download event CSV</a></div>';
+ (has?'<div class="table-scroll"><table class="events-table"><thead><tr><th>Level</th><th>Event</th><th>Recorded</th><th>#</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'<div class="empty-state">'+U.ico('calendar')+'<strong>'+U.esc(U.eventsBusy?'Reading event history…':U.eventsError?'Unable to read event history':'No events returned')+'</strong><p>'+U.esc(U.eventsError||'Use Refresh log to query the device again.')+'</p></div>')+'</section><div class="section-actions"><button type="button" class="btn btn-quiet" id="export-events">'+U.ico('upload')+'Download event CSV</button></div>';
+};
+U.exportEvents=function(){
+ if(U.eventsExportBusy)return;
+ U.eventsExportBusy=true;U.eventsError='';U.render(false);
+ U.request('/logevent.csv',{},12000).then(function(body){
+  if(!body||body.length>1048576||/^\s*</.test(body))throw Error('The NMC did not return an event CSV');
+  var objectUrl=URL.createObjectURL(new Blob([body],{type:'text/csv;charset=utf-8'}));
+  var link=document.createElement('a');link.href=objectUrl;link.download='H910P-events-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(link);link.click();link.remove();setTimeout(function(){URL.revokeObjectURL(objectUrl)},30000);
+ }).catch(function(err){U.eventsError='Event export failed: '+err.message}).finally(function(){U.eventsExportBusy=false;U.render(false)});
 };
 U.filterEvents=function(){var q=U.eventSearch.toLowerCase().trim(),l=U.eventLevel;Array.from(document.querySelectorAll('.event-table-row')).forEach(function(r){r.hidden=!!q&&!r.dataset.event.includes(q)||l!=='all'&&r.dataset.level!==l})};
 /* Keep branded logo inside the self-hosted UI package. Caller owns the image. */
@@ -112,7 +122,7 @@ U.embedLogo=function(uri){
  };
 };
 U.management=function(){return U.page==='firmware'?U.firmwareView():U.configView(U.page)};
-U.onConsoleClick=function(e){if(e.target.closest('#lock-interface')){U.lockInterface();return true}var edit=e.target.closest('[data-edit]');if(edit){U.editSetting(Number(edit.dataset.edit));return true}
+U.onConsoleClick=function(e){if(e.target.closest('#export-events')){U.exportEvents();return true}if(e.target.closest('#lock-interface')){U.lockInterface();return true}var edit=e.target.closest('[data-edit]');if(edit){U.editSetting(Number(edit.dataset.edit));return true}
  if(e.target.closest('#editor-cancel')){document.getElementById('setting-dialog').close();U.editor=null;return true}
  if(e.target.closest('#editor-back')){U.editSetting(U.editor.index);return true}
  if(e.target.closest('#editor-apply')){U.commitEdit();return true}

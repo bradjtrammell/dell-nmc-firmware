@@ -28,13 +28,13 @@ U.request=function(url,opt,ms){
  var result=U.ioQueue.then(run,run);U.ioQueue=result.catch(function(){});return result;
 };
 U.readXML=function(url,opt,ms){
- function parse(body){var xml=body.replace(/^\uFEFF/,'').replace(/\u0000+$/,'').trim(),doc=new DOMParser().parseFromString(xml,'application/xml');if(!xml||doc.querySelector('parsererror')||!doc.documentElement||doc.documentElement.tagName.toLowerCase()==='html')throw Error('Invalid XML returned by NMC');return xml}
+ function parse(body){var xml=body.replace(/^\uFEFF/,'').replace(/\u0000+$/,'').trim(),doc=new DOMParser().parseFromString(xml,'application/xml');if(!xml||xml.length>1048576||doc.querySelector('parsererror')||!doc.documentElement||doc.documentElement.tagName.toLowerCase()==='html')throw Error('Invalid XML returned by NMC');return xml}
  function attempt(){return U.request(url,opt,ms).then(parse)}
  var safe=url==='/product.xml'||url==='/configuration_descriptor.xml'||url==='/get_object.xml';
  return attempt().catch(function(e){if(!safe||(e.message!=='Invalid XML returned by NMC'&&e.name!=='AbortError'))throw e;return new Promise(function(r){setTimeout(r,350)}).then(attempt)});
 };
 U.poll=function(){if(U.busy)return Promise.resolve();U.busy=true;U.updateActivity();return U.readXML('/get_object.xml',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'objectName=UPS.*'},8000).then(function(t){U.data=U.xml(t);U.updated=Date.now();U.error='';U.pollFailures=0;U.history.push({l:U.val('load'),b:U.val('battery'),at:U.updated});if(U.history.length>72)U.history.shift()}).catch(function(e){U.pollFailures++;if(!U.updated||U.pollFailures>=2||e.message.indexOf('Access denied')===0)U.error=e.name==='AbortError'?'NMC did not respond within 8 seconds.':e.message}).finally(function(){U.busy=false;U.render(false)})};
-U.loadEvents=function(){if(U.eventsBusy)return;U.eventsBusy=true;U.eventsError='';U.request('/logevent.csv',{},8000).then(function(t){U.events=t.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).slice(-75).reverse()}).catch(function(e){U.eventsError=e.message}).finally(function(){U.eventsBusy=false;U.render(false)})};
+U.loadEvents=function(){if(U.eventsBusy)return;U.eventsBusy=true;U.eventsError='';U.request('/logevent.csv',{},8000).then(function(t){U.events=t.replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean).slice(-435).reverse()}).catch(function(e){U.eventsError=e.message}).finally(function(){U.eventsBusy=false;U.render(false)})};
 U.updateActivity=function(){var refresh=document.getElementById('refresh');if(refresh){refresh.disabled=U.busy;refresh.classList.toggle('spinning',U.busy)}};
 /* Authenticated, same-origin read of the NMC's device identification XML. */
 U.identity={};U.identityBusy=false;U.identityError='';

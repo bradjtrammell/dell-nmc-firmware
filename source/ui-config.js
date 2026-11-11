@@ -51,14 +51,14 @@ U.configValidate=function(f,value){
  var type=f.type,kind=type.split(':')[0],suffix=type.indexOf(':')>=0?type.slice(type.indexOf(':')+1):'';
  if(/[\x00-\x1f\x7f]/.test(value))throw Error('Control characters are not allowed');
  if(kind==='Boolean'&&value!=='0'&&value!=='1')throw Error('Choose Enabled or Disabled');
- if(kind==='IPv4'&&(!/^(\d{1,3}\.){3}\d{1,3}$/.test(value)||value.split('.').some(function(n){return Number(n)>255})))throw Error('Enter a valid IPv4 address');
+ if(kind==='IPv4'&&(!/^(\d{1,3}\.){3}\d{1,3}$/.test(value)||value.split('.').some(function(n){return Number(n)>255||(n.length>1&&n.charAt(0)==='0')})))throw Error('Enter a valid IPv4 address');
  if(kind==='List'&&suffix.split(',').indexOf(value)<0)throw Error('Choose an available option');
  if(['String','Email','Password'].indexOf(kind)>=0){
   if(value.length>Number(suffix||49))throw Error('Value exceeds the card length limit');
   if(kind==='Email'&&value&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))throw Error('Enter a valid email address');
  }
  if(kind==='Integer'||kind==='Time'){
-  if(!/^\d+$/.test(value))throw Error('Enter a nonnegative whole number');
+  if(!/^\d+$/.test(value)||!Number.isSafeInteger(Number(value)))throw Error('Enter a valid nonnegative whole number');
   var match=suffix.match(/^(\d+)\.\.(\d+)/);
   if(match&&(Number(value)<Number(match[1])||Number(value)>Number(match[2])))throw Error('Value is outside the allowed range');
  }
