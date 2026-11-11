@@ -155,3 +155,7 @@ For changes, see [CHANGELOG](CHANGELOG.md). For console research, see [Serial Se
 ## Release integrity gate
 
 Before publishing a firmware BIN, run the [offline release preflight and publication commands](docs/release-quality-gate.md). The checks establish exact BIN identity, header and CRC correctness, size compatibility, and native asset structure. Stable releases additionally require hardware acceptance. Neither release discovery nor offline checks are automatic on-card installation or rollback.
+
+## v0.6 hardware evidence
+
+The original Dell image and vendor release notes have been analyzed for NS7520/ThreadX identity, ARM startup and flash storage. See [confirmed hardware evidence and recovery limits](docs/h910p-v06-hardware-evidence.md). These findings are offline and do not establish the installed flash/RAM capacity or safe native firmware recovery.
