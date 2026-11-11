@@ -159,3 +159,7 @@ Before publishing a firmware BIN, run the [offline release preflight and publica
 ## v0.6 hardware evidence
 
 The original Dell image and vendor release notes have been analyzed for NS7520/ThreadX identity, ARM startup and flash storage. See [confirmed hardware evidence and recovery limits](docs/h910p-v06-hardware-evidence.md). These findings are offline and do not establish the installed flash/RAM capacity or safe native firmware recovery.
+
+## Native v0.6 independent firmware feasibility
+
+The v0.6 native ARM7 application path is now **proven at the offline code-generation and image-format level**. The original Dell 01.16 and 01.18 images contain the same separately packaged boot/recovery executable, and an independent ARM7 program successfully passed OEM-style compression, header and CRC round-trip validation. Actual on-card boot, recovery, memory geometry and UPS bus implementation are still open safety gates. See [v0.6 feasibility decision](docs/v06-independent-firmware-feasibility.md). Stable v0.5.10 remains unchanged.
