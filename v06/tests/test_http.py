@@ -112,19 +112,13 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
-    def test_static_website_and_security(self):
-        for path, expected in (
-            ("/", b"OpenH910P"),
-            ("/style.css", b"--ink:"),
-            ("/app.js", b"AbortController"),
-            ("/favicon.svg", b"<svg"),
-        ):
+    def test_no_alternative_user_interface(self):
+        for path in ("/", "/index.html", "/style.css", "/app.js", "/favicon.svg"):
             with self.subTest(path=path):
                 code, headers, body = self.request("GET", path)
-                self.assertEqual(code, 200)
-                self.assertIn(expected, body)
-                self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
-                self.assertNotIn(b"dell-white", body.lower())
+                self.assertEqual(code, 404)
+                self.assertEqual(json.loads(body)["error"], "NOT_FOUND")
+                self.assertNotIn("Access-Control-Allow-Origin", headers)
 
     def test_head_and_bad_routes(self):
         code, headers, body = self.request("HEAD", "/api/v1/device")

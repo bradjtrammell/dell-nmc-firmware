@@ -24,7 +24,7 @@ Every response uses `Content-Type: application/json; charset=utf-8`, with schema
 
 The **exact 302 read/write/read-only/write-only field definitions** derive from the owner's sanitized legacy OEM contract. The generated `src/schema.c` contains only validated metadata: no defaults, hostnames, serial numbers, addresses, passwords, communities, or actual live configuration. This is an intentional migration inventory; it is **not** a configuration store and cannot be used to write settings.
 
-The C engine exports **all 302 records** in 19 fixed-size JSON pages. An HTML search interface loads the metadata once and filters client-side without making any NMC requests. No XML parser or external network service participates in the simulator.
+The C engine exports **all 302 records** in 19 fixed-size JSON pages. The API metadata is independent of any UI; no alternative interface is developed in this firmware-only work. No XML parser or external network service participates in the simulator.
 
 Regenerate from the repository root after validating an updated sanitized contract:
 
@@ -36,7 +36,7 @@ Then run `make test` and `make arm-check` from `v06`. Do not generate schema fro
 
 ## Security boundaries
 
-The host-only server binds `127.0.0.1` with no route to the live H910P. It serves only exact whitelisted static files, excludes CORS credentials, adds CSP/no-store/nosniff security headers, rejects oversized request headers, rejects ambiguous body framing, and drains bounded write bodies before responding. **No authentication or TLS is present**, therefore this simulator is limited to a local development machine.
+The host-only server binds `127.0.0.1` with no route to the live H910P. It serves JSON only, excludes CORS credentials, adds CSP/no-store/nosniff security headers, rejects oversized request headers, rejects ambiguous body framing, and drains bounded write bodies before responding. **No authentication or TLS is present**, therefore this simulator is limited to a local development machine.
 
 The eventual native device firmware must introduce secure sessions, CSRF controls for allowed writes, TLS and cryptographically signed releases before connecting any real UPS actions. Treat this API implementation as a proven serializer/contract, not a finished security subsystem.
 

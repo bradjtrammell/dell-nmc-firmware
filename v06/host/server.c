@@ -3,7 +3,6 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
@@ -11,13 +10,11 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/socket.h>
-#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 #define HTTP_MAX_REQUEST 8192U
-#define HTTP_MAX_ASSET (1024U * 1024U)
 #define HTTP_BACKLOG 16
 
 static volatile sig_atomic_t shutting_down = 0;
@@ -87,43 +84,6 @@ static int parse_line(char *request, char *method, size_t method_size,
     if (strlen(method) >= method_size || strlen(path) >= path_size) return -1;
     if (strcmp(version, "HTTP/1.1") && strcmp(version, "HTTP/1.0")) return -1;
     if (path[0] != '/' || strchr(path, '#') || strchr(path, '?') || strchr(path, '%')) return -1;
-    return 0;
-}
-
-static int serve_asset(int fd, const char *relative, const char *mime, int head) {
-    char name[256];
-    struct stat info;
-    unsigned char chunk[8192];
-    int n = snprintf(name, sizeof(name), "web/%s", relative);
-    if (n <= 0 || (size_t)n >= sizeof(name)) return -1;
-    int file = open(name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-    if (file < 0) return -1;
-    if (fstat(file, &info) != 0 || !S_ISREG(info.st_mode) ||
-        info.st_size < 0 || (uint64_t)info.st_size > HTTP_MAX_ASSET) {
-        close(file); return -1;
-    }
-    char header[1152];
-    int length = snprintf(header, sizeof(header),
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: %s\r\n"
-        "Content-Length: %lld\r\n"
-        "Connection: close\r\n"
-        "Cache-Control: no-store\r\n"
-        "X-Content-Type-Options: nosniff\r\n"
-        "Referrer-Policy: no-referrer\r\n"
-        "X-Frame-Options: DENY\r\n"
-        "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'\r\n"
-        "X-OpenH910P-Mode: simulator\r\n\r\n",
-        mime, (long long)info.st_size);
-    if (length <= 0 || (size_t)length >= sizeof(header)) { close(file); return -1; }
-    if (send_full(fd, header, (size_t)length) != 0) { close(file); return -1; }
-    if (!head) {
-        ssize_t read_count;
-        while ((read_count = read(file, chunk, sizeof(chunk))) > 0) {
-            if (send_full(fd, chunk, (size_t)read_count) != 0) break;
-        }
-    }
-    close(file);
     return 0;
 }
 
@@ -210,21 +170,6 @@ static void serve_client(int fd) {
         respond(fd, reply.status, reply.content_type, body, reply.body_length, head);
         return;
     }
-    struct { const char *path, *file, *mime; } routes[] = {
-        { "/", "index.html", "text/html; charset=utf-8" },
-        { "/index.html", "index.html", "text/html; charset=utf-8" },
-        { "/app.js", "app.js", "text/javascript; charset=utf-8" },
-        { "/style.css", "style.css", "text/css; charset=utf-8" },
-        { "/favicon.svg", "favicon.svg", "image/svg+xml" }
-    };
-    size_t count = sizeof(routes) / sizeof(routes[0]);
-    for (size_t index = 0; index < count; index++) {
-        if (strcmp(path, routes[index].path) == 0) {
-            if (serve_asset(fd, routes[index].file, routes[index].mime, head) != 0)
-                error_reply(fd, 500, "ASSET_UNAVAILABLE", head);
-            return;
-        }
-    }
     error_reply(fd, 404, "NOT_FOUND", head);
 }
 
@@ -263,7 +208,7 @@ int main(int argc, char **argv) {
         perror("bind/listen"); close(listener); return 1;
     }
     printf("OpenH910P v0.6 native C development simulator\n");
-    printf("http://127.0.0.1:%lu/ — loopback only, simulated data, read-only\n", port);
+    printf("http://127.0.0.1:%lu/api/v1/health — JSON only, simulated, read-only\n", port);
     fflush(stdout);
     while (!shutting_down) {
         int client = accept(listener, NULL, NULL);

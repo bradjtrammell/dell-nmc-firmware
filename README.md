@@ -166,7 +166,7 @@ The v0.6 native ARM7 application path is now **proven at the offline code-genera
 
 ## v0.6 independent native C development environment
 
-The [`v06/`](v06/) directory now contains the **first actual independent-firmware code**, not another patch of Dell firmware: a freestanding C99 JSON API core compiling for big-endian ARM7TDMI, a loopback-only POSIX HTTP simulator using that same core, an independently branded management UI, capability-gated outputs, end-to-end tests, and offline ARM object verification.
+The [`v06/`](v06/) directory now contains the **first actual independent-firmware code**, not another patch of Dell firmware: a freestanding C99 JSON API core compiling for big-endian ARM7TDMI, a loopback-only POSIX HTTP simulator using that same core, capability-gated outputs, end-to-end tests, and offline ARM object verification.
 
 **Not yet a flashable image.** No live UPS drivers, flash startup/bootloader integration, secure credential store, or hardware-control commands are present. The simulator reports every reading as simulated and denies all write methods. The existing `build_native.py` remains exclusively the old Dell-image patcher for v0.5.x; never use it to label a new v0.6 firmware.
 
@@ -180,6 +180,6 @@ make arm-check
 ./build/openh910p-sim --port 8760
 ```
 
-Visit `http://127.0.0.1:8760/` **from the same machine**. The simulator binds only the loopback interface, never the UPS card or the LAN. See [v0.6 development README](v06/README.md) for code boundaries, safety and limitations.
+Query `http://127.0.0.1:8760/api/v1/health` **from the same machine**. The simulator binds only the loopback interface, never the UPS card or the LAN. See [v0.6 development README](v06/README.md) for code boundaries, safety and limitations.
 
-The simulator now also publishes **all 302 validated configuration field definitions through the native C JSON engine**, in 19 metadata-only pages. The UI includes a searchable field catalog; the device does not expose live settings or allow writes. The generator is `v06/tools/generate_schema.py`; the offline ARM7 target compiles both JSON routing and field metadata into big-endian object files. See [the API contract](v06/docs/api-v1.md) and [native source](v06/).
+The simulator now also publishes **all 302 validated configuration field definitions through the native C JSON engine**, in 19 metadata-only pages. The API includes a metadata-only field catalog; the device does not expose live settings or allow writes. The existing UI is unchanged. The generator is `v06/tools/generate_schema.py`; the offline ARM7 target compiles both JSON routing and field metadata into big-endian object files. See [the API contract](v06/docs/api-v1.md) and [native source](v06/).
