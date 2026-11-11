@@ -77,13 +77,14 @@ static void property_string(json_writer *writer, const char *key,
     put_quoted(writer, key); put_char(writer, ':'); put_quoted(writer, value);
 }
 
-static void common(json_writer *w, const char *resource, uint32_t seq) {
+static void common(json_writer *w, const char *resource, const ou_snapshot *snapshot) {
     put_char(w, '{');
     property_uint(w, "schemaVersion", OU_API_VERSION, 0);
     property_string(w, "resource", resource, 1);
-    property_string(w, "source", "simulator", 1);
-    property_bool(w, "simulated", 1, 1);
-    property_uint(w, "sequence", seq, 1);
+    property_string(w, "source", snapshot->origin == OU_ORIGIN_SIMULATOR ? "simulator" :
+        snapshot->origin == OU_ORIGIN_NATIVE ? "native" : "unavailable", 1);
+    property_bool(w, "simulated", snapshot->origin == OU_ORIGIN_SIMULATOR, 1);
+    property_uint(w, "sequence", snapshot->sequence, 1);
 }
 
 static void one_outlet(json_writer *w, uint32_t id,
@@ -131,6 +132,15 @@ ou_snapshot ou_simulated_snapshot(void) {
     state.battery_present = 1U;
     state.segment_1_on = 1U;
     state.segment_2_on = 1U;
+    state.origin = OU_ORIGIN_SIMULATOR;
+    state.sample_ready = 1U;
+    return state;
+}
+
+ou_snapshot ou_unavailable_snapshot(void) {
+    ou_snapshot state = {0};
+    state.origin = OU_ORIGIN_UNAVAILABLE;
+    state.sample_ready = 0U;
     return state;
 }
 
@@ -141,6 +151,9 @@ int ou_dispatch(const char *method, const char *path,
     uint32_t field_page = 0;
     int page_status;
     if (!method || !path || !snapshot || !body || !reply || capacity < 2U)
+        return -1;
+    if (snapshot->origin > OU_ORIGIN_NATIVE || snapshot->sample_ready > 1U ||
+        (snapshot->origin == OU_ORIGIN_UNAVAILABLE && snapshot->sample_ready))
         return -1;
     page_status = parse_schema_page(path, &field_page);
     w.data = body;
@@ -153,25 +166,26 @@ int ou_dispatch(const char *method, const char *path,
 
     if (!same(method, "GET") && !same(method, "HEAD")) {
         reply->status = 405;
-        common(&w, "error", snapshot->sequence);
+        common(&w, "error", snapshot);
         property_string(&w, "code", "READ_ONLY", 1);
         property_string(&w, "message", "Firmware development simulator refuses all mutations", 1);
     } else if (same(path, "/api/v1/health")) {
-        common(&w, "health", snapshot->sequence);
+        common(&w, "health", snapshot);
         property_string(&w, "status", "ok", 1);
-        property_string(&w, "hardware", "not-connected", 1);
+        property_string(&w, "hardware", snapshot->origin == OU_ORIGIN_NATIVE && snapshot->sample_ready ? "connected" : "not-connected", 1);
+        property_bool(&w, "upsDataAvailable", snapshot->sample_ready, 1);
         property_uint(&w, "uptimeSeconds", snapshot->uptime_seconds, 1);
     } else if (same(path, "/api/v1/device")) {
-        common(&w, "device", snapshot->sequence);
+        common(&w, "device", snapshot);
         property_string(&w, "name", "OpenH910P", 1);
         property_string(&w, "firmwareVersion", OU_FIRMWARE_VERSION, 1);
         property_string(&w, "platform", "H910P ARM7TDMI target", 1);
         property_string(&w, "hardwareConnection", "none", 1);
         property_string(&w, "manufacturer", "Independent development project", 1);
     } else if (same(path, "/api/v1/capabilities")) {
-        common(&w, "capabilities", snapshot->sequence);
-        property_bool(&w, "upsTelemetry", 1, 1);
-        property_bool(&w, "physicalTelemetry", 0, 1);
+        common(&w, "capabilities", snapshot);
+        property_bool(&w, "upsTelemetry", snapshot->sample_ready, 1);
+        property_bool(&w, "physicalTelemetry", snapshot->origin == OU_ORIGIN_NATIVE && snapshot->sample_ready, 1);
         property_bool(&w, "configurationWritable", 0, 1);
         property_bool(&w, "outletControl", 0, 1);
         property_bool(&w, "firmwareInstall", 0, 1);
@@ -179,21 +193,29 @@ int ou_dispatch(const char *method, const char *path,
         property_string(&w, "transport", "native-json-c", 1);
         put_str(&w, ",\"legacyOemInventory\":{\"configurationGroups\":24,\"configurationItems\":302,\"objectNames\":420}");
     } else if (same(path, "/api/v1/configuration/fields")) {
-        common(&w, "configuration.fields", snapshot->sequence);
+        common(&w, "configuration.fields", snapshot);
         property_uint(&w, "total", (uint32_t)ou_schema_field_count, 1);
         property_uint(&w, "pageSize", 16U, 1);
         property_uint(&w, "pages", (uint32_t)((ou_schema_field_count + 15U) / 16U), 1);
         property_bool(&w, "configurationWritable", 0, 1);
         property_string(&w, "dataClassification", "metadata-only", 1);
+    } else if ((same(path, "/api/v1/ups/status") ||
+                same(path, "/api/v1/ups/measurements") ||
+                same(path, "/api/v1/ups/outlets") ||
+                same(path, "/api/v1/events")) && !snapshot->sample_ready) {
+        reply->status = 503;
+        common(&w, "error", snapshot);
+        property_string(&w, "code", "TELEMETRY_UNAVAILABLE", 1);
+        property_string(&w, "message", "No verified UPS driver sample available", 1);
     } else if (same(path, "/api/v1/ups/status")) {
-        common(&w, "ups.status", snapshot->sequence);
+        common(&w, "ups.status", snapshot);
         property_string(&w, "powerSource", snapshot->ac_present ? "utility" : "battery", 1);
         property_bool(&w, "batteryPresent", snapshot->battery_present, 1);
         property_uint(&w, "batteryPercent", snapshot->battery_percent, 1);
         property_uint(&w, "estimatedRuntimeSeconds", snapshot->estimated_runtime_seconds, 1);
         property_uint(&w, "loadPercent", snapshot->output_load_percent, 1);
     } else if (same(path, "/api/v1/ups/measurements")) {
-        common(&w, "ups.measurements", snapshot->sequence);
+        common(&w, "ups.measurements", snapshot);
         put_str(&w, ",\"inputVoltage\":{");
         property_uint(&w, "valueDecivolts", snapshot->input_voltage_decivolts, 0);
         property_string(&w, "unit", "dV", 1);
@@ -202,24 +224,29 @@ int ou_dispatch(const char *method, const char *path,
         property_string(&w, "unit", "dV", 1);
         put_char(&w, '}');
     } else if (same(path, "/api/v1/ups/outlets")) {
-        common(&w, "ups.outlets", snapshot->sequence);
+        common(&w, "ups.outlets", snapshot);
         put_str(&w, ",\"outlets\":[");
         one_outlet(&w, 1U, "UPS output", 1U, 0);
         one_outlet(&w, 2U, "Load segment 1", snapshot->segment_1_on, 1);
         one_outlet(&w, 3U, "Load segment 2", snapshot->segment_2_on, 1);
         put_char(&w, ']');
+    } else if (same(path, "/api/v1/events") && snapshot->origin == OU_ORIGIN_NATIVE) {
+        reply->status = 503;
+        common(&w, "error", snapshot);
+        property_string(&w, "code", "EVENT_DRIVER_UNAVAILABLE", 1);
+        property_string(&w, "message", "No native UPS event driver attached", 1);
     } else if (same(path, "/api/v1/events")) {
-        common(&w, "events", snapshot->sequence);
+        common(&w, "events", snapshot);
         put_str(&w, ",\"events\":[");
         put_str(&w, "{\"id\":1,\"severity\":\"info\",\"message\":\"Simulator started; no UPS commands are enabled\"},");
         put_str(&w, "{\"id\":2,\"severity\":\"info\",\"message\":\"Native JSON API available in development mode\"}]");
     } else if (page_status != 0) {
         if (page_status < 0) {
             reply->status = 404;
-            common(&w, "error", snapshot->sequence);
+            common(&w, "error", snapshot);
             property_string(&w, "code", "PAGE_NOT_FOUND", 1);
         } else {
-            common(&w, "configuration.fields", snapshot->sequence);
+            common(&w, "configuration.fields", snapshot);
             property_uint(&w, "total", (uint32_t)ou_schema_field_count, 1);
             property_uint(&w, "page", field_page, 1);
             property_uint(&w, "pageSize", 16U, 1);
@@ -245,7 +272,7 @@ int ou_dispatch(const char *method, const char *path,
         }
     } else {
         reply->status = 404;
-        common(&w, "error", snapshot->sequence);
+        common(&w, "error", snapshot);
         property_string(&w, "code", "NOT_FOUND", 1);
         property_string(&w, "message", "Unknown API resource", 1);
     }

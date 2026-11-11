@@ -5,8 +5,14 @@
 #include <stdint.h>
 
 #define OU_API_VERSION 1U
-#define OU_FIRMWARE_VERSION "0.6.0-dev.1"
+#define OU_FIRMWARE_VERSION "0.6.0-dev.2"
 #define OU_JSON_CAPACITY 4096U
+
+enum ou_origin {
+    OU_ORIGIN_UNAVAILABLE = 0,
+    OU_ORIGIN_SIMULATOR = 1,
+    OU_ORIGIN_NATIVE = 2
+};
 
 typedef struct {
     uint32_t sequence;
@@ -20,6 +26,8 @@ typedef struct {
     uint8_t battery_present;
     uint8_t segment_1_on;
     uint8_t segment_2_on;
+    uint8_t origin;       /* validated source, never inferred by browser */
+    uint8_t sample_ready; /* false => no telemetry until driver exists */
 } ou_snapshot;
 
 typedef struct {
@@ -38,5 +46,7 @@ int ou_dispatch(const char *method, const char *path,
 
 /* Explicitly simulated, never derived from attached UPS hardware. */
 ou_snapshot ou_simulated_snapshot(void);
+/* Zero-value / unavailable snapshot: never substitute sample readings. */
+ou_snapshot ou_unavailable_snapshot(void);
 
 #endif

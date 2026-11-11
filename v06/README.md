@@ -1,66 +1,48 @@
-# H910P v0.6 — independent firmware foundation
+# H910P v0.6 — native firmware engineering (no UI redesign)
 
-**Status: native ARM7 core compiling; host-only HTTP/JSON simulator functional; NOT flashable firmware.**
+**Status:** Offline native firmware development. **NOT boot-tested and NOT flashable.**
 
-This directory is deliberately separate from the stable Dell-derived v0.5.10 firmware. No Dell proprietary application code, Dell UI assets, RomPager resource table or XML management transport is linked into this project. This is a new codebase with a clean native JSON transport model. The native board support package, flash driver, UPS serial protocol, watchdog setup, secure sessions, persistent configuration and recovery boot validation are **not implemented**.
+Stable **v0.5.10 on `main`** and the existing custom management UI under top-level `source/` remain unchanged. This directory contains the ARM7 C firmware core, the native JSON API, validated 302-field configuration metadata, a read-only device-data provider interface, a loopback-only host server for test, and a standalone research-only ARM ELF linker target. No user interface files are part of this directory.
 
-## Design
+The v0.6 application replaces Dell's application/management stack *only when* verified native board drivers, safe startup and recovery are complete. Retaining the original bootloader is permitted if the installed H910P bootloader is proven compatible.
 
-The API response engine in `src/core.c` is **freestanding C99**: it contains no Linux, TCP/IP, heap allocator, clock or filesystem dependencies. It can be compiled directly for big-endian ARM7TDMI, subject to eventual hardware BSP integration. The `host/server.c` adapter is a host-only POSIX HTTP server that binds exclusively to `127.0.0.1`. Both hosted API and ARM compiler use the *same* C core. All JSON responses are marked `"simulated": true`; there is no physical UPS connectivity.
+## What can be tested now
 
-Routes implemented: `/api/v1/health`, `/api/v1/device`, `/api/v1/capabilities`, `/api/v1/ups/status`, `/api/v1/ups/measurements`, `/api/v1/ups/outlets`, `/api/v1/events` and a metadata-only `/api/v1/configuration/fields` endpoint with pages `/api/v1/configuration/fields/0` through `/18`. GET and HEAD are supported. Any mutation returns **405 READ_ONLY** and **cannot** reach the card. There are no XML endpoints. No parallel management UI is included; existing UI source and design remain unchanged.
+Run from the repository root:
 
-The legacy **302-field** schema is now compiled into the freestanding ARM7-ready C core and exported through a paginated, metadata-only JSON API. The browser's configuration catalog supports searching all 302 definitions without reading any configured values. The 420-object inventory is separately documented at `../docs/v06-oem-capability-inventory.json`, but is not exposed as live device values. Regenerate `src/schema.c` from that sanitized contract with `python3 v06/tools/generate_schema.py docs/v06-oem-capability-inventory.json --output v06/src/schema.c` from the repository root. The generated file is checked into Git so the standalone source package builds without a copy of the original Dell XML. New v0.6 JSON endpoints have typed units and a defined schema version.
-
-## Build and test (Ubuntu/Debian/Linux x86_64)
-
-Requirements: C99 compiler, GNU Make, Python 3.10+. Optional ARM check: LLVM clang 17 or compatible `armeb-none-eabi` target support.
-
-```sh
+```bash
 cd v06
-make clean all
-make test
-make arm-check
+make clean all test arm-link-check
 ./build/openh910p-sim --port 8760
 ```
 
-Query `http://127.0.0.1:8760/api/v1/health` on the same machine. Ctrl+C stops the simulator. It listens only on loopback and serves JSON only. To choose another port use `--port 8761`.
+`make test` executes native C API tests, native provider stale-data and sanity checks, JSON endpoint integration tests, schema-generation tests and offline OEM-reference tests. `make arm-link-check` compiles and links a **full standalone big-endian ARM7 ELF** with the observed Dell entry vector and verified reset literal. It is not a BIN and has no board drivers.
 
-`make arm-check` emits only `build/core-armeb-arm7tdmi.o` and `build/schema-armeb-arm7tdmi.o`, checks ELF32 big-endian ARM relocatable format and does **not** produce a device-installable BIN. It is a core target compatibility test, not a claim of full BSP or boot support.
+From another terminal **on the same machine**:
 
-## Security and operational limitations
-
-- Development server only: single-process, sequential accept loop with a 3-second socket timeout and 8 KiB header limit; no TLS, sessions, remote connections or role-based authentication. It is not appropriate for deployment on a public or production network.
-- Loopback-only binding; no CORS; restrictive CSP, no-store caching, nosniff, deny framing; no static-asset routes or arbitrary file reads. No credentials or secrets are accepted or persisted.
-- No hardware side effects: no device discovery, serial port usage, firmware uploads, UPS commands, scheduled tests, network settings or flash writes.
-- Numerical values come from deterministic **test fixtures**, never the attached H910P.
-- Physical telemetry, configuration writes, outlet control and firmware installation explicitly advertise `false` capabilities.
-- The source is authored for future open-source publication, but no project-wide license has yet been selected; do not assume the existing repository is already open-source licensed.
-- The eventual device firmware will require a proven bootloader recovery path and validated memory map before even an experimental flash is allowed.
-
-## Tree
-
-```text
-v06/
-  Makefile
-  README.md
-  include/openh910p.h       Native API contract and simulated snapshot
-  include/ou_schema.h       Native metadata field shape
-  src/core.c                Freestanding C99 JSON serializer + router
-  src/schema.c              Generated native 302-field schema, metadata only
-  host/server.c             Loopback-only POSIX JSON API adapter
-  tools/verify_arm.py       Inspects ARM7 big-endian ELF object
-  tools/generate_schema.py  Deterministic sanitized contract -> C generator
-  tests/test_core.c         Native C routing/serialization/safety tests
-  tests/test_http.py        JSON API and security integration tests
-  tests/test_schema_gen.py  Generator integrity and field safety tests
-  docs/api-v1.md           Read-only JSON schema and safety policy
+```bash
+curl --fail http://127.0.0.1:8760/api/v1/health
+curl --fail http://127.0.0.1:8760/api/v1/ups/status
+curl -i -X POST http://127.0.0.1:8760/api/v1/ups/outlets
 ```
 
-## Next gates
+**All values in the HTTP host adapter are simulated.** That adapter binds only `127.0.0.1`. It cannot connect to or control the live NMC.
 
-1. Reconstruct the actual flash erase geometry, chip selects, clock and RAM controller settings from the two OEM images.
-2. Verify bootloader rescue access during an approved maintenance window or on a spare, recoverable card.
-3. Identify physical NMC↔UPS transport, implement native **read-only** driver and compare device measurements against the existing card without any mutating commands.
-4. Add hardened credentials, local HTTPS, safe configuration persistence, Monita/ntfy/Discord/SMTP transport and model-specific control operations only after underlying hardware interfaces are verified.
-5. Add signed firmware release validation, hardware compatibility and proven recovery before producing a flashable `.bin`.
+## Architecture
+
+- `include/openh910p.h`, `src/core.c`: bounded freestanding C99 JSON API; typed health/device/capabilities/status/measurements/outlets/events and paged schema metadata. All mutating routes reject with 405.
+- `include/ou_schema.h`, `src/schema.c`: all 302 validated field names, types, units and read/write classifications, no configured values or secrets.
+- `include/ou_provider.h`, `src/provider.c`: pure read-only provider contract; accepts a verified driver's freshly received measurement frame, enforces physical ranges and freshness and rejects unverified/stale data with an **unavailable** snapshot, never a stale sample.
+- `host/server.c`: POSIX development-only JSON HTTP adapter, bound to loopback, no TLS, no credentials, no browser assets.
+- `target/reset.S`, `target/linker.ld`, `target/runtime.c`, `target/compiler_rt.c`: independent ARM7 application startup and linker research. No MMIO, flash, UART, network or physical power operations.
+- `tools/verify_native_image.py`: independent ELF32 big-endian ARM entry/vector shape check. Produces no installable BIN.
+- `tools/verify_oem_parity.py`: **offline development-only** parser for nine numeric fields from saved OEM XML snapshots. No NMC network access; XML is not used by the target firmware.
+- `tests/`: pure C tests and Python HTTP/schema/parity regression tests.
+
+Native provider states are `unavailable`, `simulator`, and `native`. API responses distinguish `"source"` and `"simulated"`. Physical telemetry and event routing fail closed if not available; simulator values must never appear in a native-hardware context. A driver cannot claim operational support without a validated sample.
+
+## What is still blocking on-device testing
+
+No confirmed H910P memory controller/flash geometry, bootloader recovery, native UPS protocol driver, NMC Ethernet stack, device-side authentication/TLS, management writes, signed OTA or rollback. **Do not attempt to flash the linked ELF or raw `.dat`**. These omissions are substantial; `make arm-link-check` is a code generation and linker test only.
+
+See [`docs/native-test-gates.md`](docs/native-test-gates.md) and [`docs/api-v1.md`](docs/api-v1.md).
