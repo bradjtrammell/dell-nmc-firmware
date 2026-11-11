@@ -149,3 +149,7 @@ This is usable experimental firmware, not a completed production replacement. Fu
 For changes, see [CHANGELOG](CHANGELOG.md). For console research, see [Serial Settings port](docs/serial-settings-port.md).
 
 **Maintained independently.** Dell and H910P are trademarks of their respective owners. This project is not affiliated with Dell.
+
+## Release integrity gate
+
+Before publishing a firmware BIN, run the [offline release preflight and publication commands](docs/release-quality-gate.md). The checks establish exact BIN identity, header and CRC correctness, size compatibility, and native asset structure. Stable releases additionally require hardware acceptance. Neither release discovery nor offline checks are automatic on-card installation or rollback.
