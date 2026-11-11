@@ -1,0 +1,2740 @@
+{
+  "schemaVersion": 1,
+  "source": "H910P OEM read-only schema capture",
+  "purpose": "Offline v0.6 migration inventory; NOT a native v0.6 firmware API",
+  "classification": "metadata only; no live values",
+  "counts": {
+    "groups": 24,
+    "configurationItems": 302,
+    "telemetryObjects": 420,
+    "access": {
+      "RO": 8,
+      "RW": 290,
+      "WO": 4
+    },
+    "typeFamilies": {
+      "Boolean": 158,
+      "Email": 4,
+      "Float": 2,
+      "IPv4": 3,
+      "IPv6": 4,
+      "Integer": 19,
+      "List": 24,
+      "Password": 5,
+      "String": 37,
+      "Time": 46
+    },
+    "coverage": {
+      "descriptorItemsObserved": 302,
+      "descriptorItemsMissing": 0,
+      "additionalObservedObjects": 118,
+      "observedNamePrefixes": {
+        "Environment": 32,
+        "System": 270,
+        "UPS": 118
+      }
+    }
+  },
+  "capabilityTags": [
+    "ALARMS",
+    "BROADCAST",
+    "CENTRAL_CFG",
+    "CSV_LOGS",
+    "GET_CONFIG",
+    "GET_OBJECT",
+    "HTML_PROPERTIES_PAGE",
+    "MANAGEMENT",
+    "MANAGEMENT_PAGE",
+    "PRODUCT_INFO",
+    "SET_CONFIG",
+    "SET_OBJECT",
+    "SUBSCRIPTION",
+    "SUMMARY",
+    "TGW",
+    "UPS_DATA",
+    "XML_MANAGEMENT_PAGE",
+    "XML_SUMMARY_PAGE"
+  ],
+  "configurationGroups": [
+    {
+      "id": "Network",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Network.HostName",
+          "access": "WO",
+          "type": "String:49",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPAddress",
+          "access": "WO",
+          "type": "IPv4",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPMask",
+          "access": "RW",
+          "type": "IPv4",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPGateway",
+          "access": "RW",
+          "type": "IPv4",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.DomainName",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.DHCP",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.PrimaryDNS",
+          "access": "RW",
+          "type": "IPv6",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SecondaryDNS",
+          "access": "RW",
+          "type": "IPv6",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPv6Enable",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPv6AutoConfig",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPv6Address1",
+          "access": "RW",
+          "type": "IPv6",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.PrefixLength",
+          "access": "RW",
+          "type": "Integer:1..128",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.IPv6DefaultGateway",
+          "access": "RW",
+          "type": "IPv6",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SmtpServer.HostName",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SmtpServer.SmtpPort",
+          "access": "RW",
+          "type": "Integer:1..65535",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SmtpServer.Authentication",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SmtpServer.Login",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SmtpServer.Password",
+          "access": "RW",
+          "type": "Password:49",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "System",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Contact",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Location",
+          "access": "RW",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Language",
+          "access": "RW",
+          "type": "List:AUTO,FRE,ENG,SPA,GER,ITA",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.History.Log.Interval",
+          "access": "RW",
+          "type": "Time:10..2147483647",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Environment.Log.Interval",
+          "access": "RW",
+          "type": "Time:10..2147483647",
+          "requiresRestart": false,
+          "unit": "s"
+        }
+      ]
+    },
+    {
+      "id": "Shutdown.Outlet[1]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Outlet[1].iName",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.ShutdownDuration",
+          "access": "RW",
+          "type": "Time:120..9999",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.ShutdownTimerSelected",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.ShutdownTimer",
+          "access": "RW",
+          "type": "Time:0..5999940/60",
+          "requiresRestart": false,
+          "unit": "m"
+        },
+        {
+          "name": "System.RunTimeToEmptyLimit",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.RemainingCapacityLimit",
+          "access": "RW",
+          "type": "Integer:0..100",
+          "requiresRestart": false,
+          "unit": "%"
+        },
+        {
+          "name": "System.RestartLevel",
+          "access": "RW",
+          "type": "Integer:0..100",
+          "requiresRestart": false,
+          "unit": "%"
+        },
+        {
+          "name": "System.ShutdownForcedReboot",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Shutdown.Outlet[2]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Outlet[2].iName",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[2].ShutdownDuration",
+          "access": "RW",
+          "type": "Time:120..9999",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Outlet[2].ShutdownTimer",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Outlet[2].StartupTimer",
+          "access": "RW",
+          "type": "Time:0..65535",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Outlet[2].RemainingCapacityLimit",
+          "access": "RW",
+          "type": "Integer:0..100",
+          "requiresRestart": false,
+          "unit": "%"
+        }
+      ]
+    },
+    {
+      "id": "Shutdown.Outlet[3]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Outlet[3].iName",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[3].ShutdownDuration",
+          "access": "RW",
+          "type": "Time:120..9999",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Outlet[3].ShutdownTimer",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Outlet[3].StartupTimer",
+          "access": "RW",
+          "type": "Time:0..65535",
+          "requiresRestart": false,
+          "unit": "s"
+        },
+        {
+          "name": "System.Outlet[3].RemainingCapacityLimit",
+          "access": "RW",
+          "type": "Integer:0..100",
+          "requiresRestart": false,
+          "unit": "%"
+        }
+      ]
+    },
+    {
+      "id": "Control.Outlet[1]",
+      "hiddenInOEM": true,
+      "items": [
+        {
+          "name": "System.Outlet[1].OffDelay",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[1].Toggle",
+          "access": "RW",
+          "type": "Time:10..99999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[1].OnDelay",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Control.Outlet[2]",
+      "hiddenInOEM": true,
+      "items": [
+        {
+          "name": "System.Outlet[2].OffDelay",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[2].Toggle",
+          "access": "RW",
+          "type": "Time:10..99999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[2].OnDelay",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Control.Outlet[3]",
+      "hiddenInOEM": true,
+      "items": [
+        {
+          "name": "System.Outlet[3].OffDelay",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[3].Toggle",
+          "access": "RW",
+          "type": "Time:10..99999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Outlet[3].OnDelay",
+          "access": "RW",
+          "type": "Time:0..99999",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Access",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Login",
+          "access": "RW",
+          "type": "String:10",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Password",
+          "access": "RW",
+          "type": "Password:10",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Security",
+          "access": "RW",
+          "type": "List:1,2,3",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.certificateMode",
+          "access": "RW",
+          "type": "List:1,2",
+          "requiresRestart": true,
+          "unit": ""
+        },
+        {
+          "name": "System.certificatePassPhrase",
+          "access": "RW",
+          "type": "Password:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.FirmwareUpgrade",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.ReadCommunity",
+          "access": "RW",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.ReadCommunityName",
+          "access": "RO",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.ReadCommunitySecurityLevel",
+          "access": "RO",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.ReadCommunitySecurityRight",
+          "access": "RO",
+          "type": "List:0,1,2",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.WriteCommunity",
+          "access": "RW",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.WriteCommunityName",
+          "access": "RO",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.WriteCommunitySecurityLevel",
+          "access": "RO",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.WriteCommunitySecurityRight",
+          "access": "RW",
+          "type": "List:0,2",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.Admin",
+          "access": "RW",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.AdminPassword",
+          "access": "RW",
+          "type": "Password:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.AdminSecurityLevel",
+          "access": "RW",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.AdminSecurityRight",
+          "access": "RO",
+          "type": "List:0,1,2",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.User",
+          "access": "RW",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.UserPassword",
+          "access": "RW",
+          "type": "Password:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.UserSecurityLevel",
+          "access": "RW",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.UserSecurityRight",
+          "access": "RO",
+          "type": "List:0,1,2",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.NotificationUserName",
+          "access": "RW",
+          "type": "String:31",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.snmpVersion",
+          "access": "RW",
+          "type": "List:Disabled,V1,V3,V1V3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.snmpPort",
+          "access": "RW",
+          "type": "Integer:1..65535",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Network.SNMP.engineBoots",
+          "access": "RO",
+          "type": "Integer:0..4294967296",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Email.Common",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Email.Sender",
+          "access": "RW",
+          "type": "String:59",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email.Subject",
+          "access": "RW",
+          "type": "String:40",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email.UPSName",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email.Message",
+          "access": "RW",
+          "type": "String:255",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email.Localization",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email.EventName",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Email.Email[0]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Email[0].Recipient",
+          "access": "RW",
+          "type": "Email:99",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].Selected",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].Enotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].Measures.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].Events.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].SystemEvents.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].Environment.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].Report.Periodicity",
+          "access": "RW",
+          "type": "Time:0..8553600/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[0].Report.Hour",
+          "access": "RW",
+          "type": "Time:0..86399/3600",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Email[0].Report.Next",
+          "access": "RW",
+          "type": "Time:0..2678400/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[0].EventList.Discharging",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.ACPresent",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.RunTimeToShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.BelowRemainingCapacityLimit",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.NeedReplacement.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.NeedReplacement.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Overload[1].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Overload[1].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Overload[2].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Overload[2].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Overload.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Overload.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.InternalFailure.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.InternalFailure.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.CommunicationLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.CommunicationLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Charger.InternalFailure",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Input[2].Used.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Input[2].Used.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.PowerModule.RedundancyLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.PowerModule.RedundancyLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.PowerModule.ProtectionLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.PowerModule.ProtectionLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.FirmwareUpgrade",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Environment.CommunicationLost",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[0].EventList.Environment.Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Email.Email[1]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Email[1].Recipient",
+          "access": "RW",
+          "type": "Email:99",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].Selected",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].Enotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].Measures.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].Events.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].SystemEvents.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].Environment.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].Report.Periodicity",
+          "access": "RW",
+          "type": "Time:0..8553600/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[1].Report.Hour",
+          "access": "RW",
+          "type": "Time:0..86399/3600",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Email[1].Report.Next",
+          "access": "RW",
+          "type": "Time:0..2678400/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[1].EventList.Discharging",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.ACPresent",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.RunTimeToShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.BelowRemainingCapacityLimit",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.NeedReplacement.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.NeedReplacement.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Overload[1].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Overload[1].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Overload[2].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Overload[2].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Overload.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Overload.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.InternalFailure.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.InternalFailure.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.CommunicationLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.CommunicationLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Charger.InternalFailure",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Input[2].Used.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Input[2].Used.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.PowerModule.RedundancyLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.PowerModule.RedundancyLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.PowerModule.ProtectionLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.PowerModule.ProtectionLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.FirmwareUpgrade",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Environment.CommunicationLost",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[1].EventList.Environment.Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Email.Email[2]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Email[2].Recipient",
+          "access": "RW",
+          "type": "Email:99",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].Selected",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].Enotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].Measures.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].Events.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].SystemEvents.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].Environment.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].Report.Periodicity",
+          "access": "RW",
+          "type": "Time:0..8553600/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[2].Report.Hour",
+          "access": "RW",
+          "type": "Time:0..86399/3600",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Email[2].Report.Next",
+          "access": "RW",
+          "type": "Time:0..2678400/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[2].EventList.Discharging",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.ACPresent",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.RunTimeToShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.BelowRemainingCapacityLimit",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.NeedReplacement.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.NeedReplacement.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Overload[1].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Overload[1].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Overload[2].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Overload[2].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Overload.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Overload.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.InternalFailure.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.InternalFailure.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.CommunicationLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.CommunicationLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Charger.InternalFailure",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Input[2].Used.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Input[2].Used.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.PowerModule.RedundancyLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.PowerModule.RedundancyLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.PowerModule.ProtectionLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.PowerModule.ProtectionLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.FirmwareUpgrade",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Environment.CommunicationLost",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[2].EventList.Environment.Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Email.Email[3]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Email[3].Recipient",
+          "access": "RW",
+          "type": "Email:99",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].Selected",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].Enotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].Measures.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].Events.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].SystemEvents.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].Environment.Log",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].Report.Periodicity",
+          "access": "RW",
+          "type": "Time:0..8553600/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[3].Report.Hour",
+          "access": "RW",
+          "type": "Time:0..86399/3600",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Email[3].Report.Next",
+          "access": "RW",
+          "type": "Time:0..2678400/86400",
+          "requiresRestart": false,
+          "unit": "d"
+        },
+        {
+          "name": "System.Email[3].EventList.Discharging",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.ACPresent",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.RunTimeToShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.BelowRemainingCapacityLimit",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.NeedReplacement.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.NeedReplacement.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Overload[1].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Overload[1].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Overload[2].OverThreshold.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Overload[2].OverThreshold.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Overload.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Overload.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.InternalFailure.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.InternalFailure.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.CommunicationLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.CommunicationLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Charger.InternalFailure",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Input[2].Used.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Input[2].Used.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.PowerModule.RedundancyLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.PowerModule.RedundancyLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.PowerModule.ProtectionLost.1",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.PowerModule.ProtectionLost.0",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.FirmwareUpgrade",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Environment.CommunicationLost",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.Email[3].EventList.Environment.Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Schedule",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.Schedule[0].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[0].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[1].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[1].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[2].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[2].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[3].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[3].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[4].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[4].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[5].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[5].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[6].Off",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        },
+        {
+          "name": "System.Schedule[6].On",
+          "access": "RW",
+          "type": "Time:-1..86399/1800",
+          "requiresRestart": false,
+          "unit": "h"
+        }
+      ]
+    },
+    {
+      "id": "NetworkManagementSystem[0]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.NetworkManagementSystem[0].Name",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[0].HostName",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[0].TrapCommunity",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[0].TrapSeverity",
+          "access": "RW",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[0].TrapSnmpVersion",
+          "access": "RW",
+          "type": "List:Disabled,V1,V3,V1V3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[0].TrapSelectedMibs",
+          "access": "RW",
+          "type": "List:0",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[0].TrapPort",
+          "access": "RW",
+          "type": "Integer:1..65535",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "NetworkManagementSystem[1]",
+      "hiddenInOEM": true,
+      "items": [
+        {
+          "name": "System.NetworkManagementSystem[1].Name",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[1].HostName",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[1].TrapCommunity",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[1].TrapSeverity",
+          "access": "RW",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[1].TrapSnmpVersion",
+          "access": "RW",
+          "type": "List:Disabled,V1,V3,V1V3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[1].TrapSelectedMibs",
+          "access": "RW",
+          "type": "List:0",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[1].TrapPort",
+          "access": "RW",
+          "type": "Integer:1..65535",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "NetworkManagementSystem[2]",
+      "hiddenInOEM": true,
+      "items": [
+        {
+          "name": "System.NetworkManagementSystem[2].Name",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[2].HostName",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[2].TrapCommunity",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[2].TrapSeverity",
+          "access": "RW",
+          "type": "List:1,2,3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[2].TrapSnmpVersion",
+          "access": "RW",
+          "type": "List:Disabled,V1,V3,V1V3",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[2].TrapSelectedMibs",
+          "access": "RW",
+          "type": "List:0",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.NetworkManagementSystem[2].TrapPort",
+          "access": "RW",
+          "type": "Integer:1..65535",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "ClientCfg",
+      "hiddenInOEM": true,
+      "items": [
+        {
+          "name": "System.ClientCfg.ShutdownTimer.Select",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.ClientCfg.ShutdownTimer",
+          "access": "RW",
+          "type": "Integer:0..599940",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.ClientCfg.ShutdownDuration",
+          "access": "RW",
+          "type": "Integer:0..9999",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.ClientCfg.BroadcastAdmins",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.ClientCfg.BroadcastUsers",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Environment.Temperature",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "Environment.iName",
+          "access": "RW",
+          "type": "String:30",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Temperature.Unit",
+          "access": "RW",
+          "type": "List:C,F:$TUnit",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Temperature.HighThreshold",
+          "access": "RW",
+          "type": "Integer:$TLow..70:$THigh",
+          "requiresRestart": false,
+          "unit": "$TUnit"
+        },
+        {
+          "name": "Environment.Temperature.LowThreshold",
+          "access": "RW",
+          "type": "Integer:0..$THigh:$TLow",
+          "requiresRestart": false,
+          "unit": "$TUnit"
+        },
+        {
+          "name": "Environment.Temperature.Hysteresis",
+          "access": "RW",
+          "type": "Integer:0..5",
+          "requiresRestart": false,
+          "unit": "$TUnit"
+        },
+        {
+          "name": "Environment.Temperature.Offset",
+          "access": "WO",
+          "type": "Float:-5..5",
+          "requiresRestart": false,
+          "unit": "$TUnit"
+        },
+        {
+          "name": "Environment.Temperature.HighNotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Temperature.LowNotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Temperature.HighShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Temperature.LowShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Environment.Humidity",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "Environment.Humidity.HighThreshold",
+          "access": "RW",
+          "type": "Integer:$HLow..100:$HHigh",
+          "requiresRestart": false,
+          "unit": "%"
+        },
+        {
+          "name": "Environment.Humidity.LowThreshold",
+          "access": "RW",
+          "type": "Integer:0..$HHigh:$HLow",
+          "requiresRestart": false,
+          "unit": "%"
+        },
+        {
+          "name": "Environment.Humidity.Hysteresis",
+          "access": "RW",
+          "type": "Integer:0..10",
+          "requiresRestart": false,
+          "unit": "%"
+        },
+        {
+          "name": "Environment.Humidity.Offset",
+          "access": "WO",
+          "type": "Float:-10..10",
+          "requiresRestart": false,
+          "unit": "%"
+        },
+        {
+          "name": "Environment.Humidity.HighNotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Humidity.LowNotify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Humidity.HighShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Humidity.LowShutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Environment.Input[1]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "Environment.Input[1].iName",
+          "access": "RW",
+          "type": "String:28",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[1].State[0].Description",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[1].State[0].Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[1].State[0].Shutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[1].State[1].Description",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[1].State[1].Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[1].State[1].Shutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Environment.Input[2]",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "Environment.Input[2].iName",
+          "access": "RW",
+          "type": "String:28",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[2].State[0].Description",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[2].State[0].Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[2].State[0].Shutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[2].State[1].Description",
+          "access": "RW",
+          "type": "String:20",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[2].State[1].Notify",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "Environment.Input[2].State[1].Shutdown",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    },
+    {
+      "id": "Time",
+      "hiddenInOEM": false,
+      "items": [
+        {
+          "name": "System.TimeSync",
+          "access": "RW",
+          "type": "List:MANUAL,AUTO,NTP",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.TimeNtp",
+          "access": "RW",
+          "type": "String:49",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.TimeZone",
+          "access": "RW",
+          "type": "List:-43200,-39600,-36000,-32400,-28800,-25200,-21600,-18000,-14400,-10800,-7200,-3600,0,3600,7200,10800,14400,18000,21600,25200,28800,32400,36000,39600,43200",
+          "requiresRestart": false,
+          "unit": ""
+        },
+        {
+          "name": "System.TimeDaylight",
+          "access": "RW",
+          "type": "Boolean",
+          "requiresRestart": false,
+          "unit": ""
+        }
+      ]
+    }
+  ],
+  "telemetryObjectNames": [
+    "System.Network.HostName",
+    "System.Network.IPAddress",
+    "System.Network.IPMask",
+    "System.Network.IPGateway",
+    "System.Network.DomainName",
+    "System.Network.DHCP",
+    "System.Network.PrimaryDNS",
+    "System.Network.SecondaryDNS",
+    "System.Network.IPv6Enable",
+    "System.Network.IPv6AutoConfig",
+    "System.Network.IPv6Address1",
+    "System.Network.PrefixLength",
+    "System.Network.IPv6DefaultGateway",
+    "System.Network.SmtpServer.HostName",
+    "System.Network.SmtpServer.SmtpPort",
+    "System.Network.SmtpServer.Authentication",
+    "System.Network.SmtpServer.Login",
+    "System.Network.SmtpServer.Password",
+    "System.Contact",
+    "System.Location",
+    "System.Language",
+    "System.History.Log.Interval",
+    "System.Environment.Log.Interval",
+    "System.Outlet[1].iName",
+    "System.ShutdownDuration",
+    "System.ShutdownTimerSelected",
+    "System.ShutdownTimer",
+    "System.RunTimeToEmptyLimit",
+    "System.RemainingCapacityLimit",
+    "System.RestartLevel",
+    "System.ShutdownForcedReboot",
+    "System.Outlet[2].iName",
+    "System.Outlet[2].ShutdownDuration",
+    "System.Outlet[2].ShutdownTimer",
+    "System.Outlet[2].StartupTimer",
+    "System.Outlet[2].RemainingCapacityLimit",
+    "System.Outlet[3].iName",
+    "System.Outlet[3].ShutdownDuration",
+    "System.Outlet[3].ShutdownTimer",
+    "System.Outlet[3].StartupTimer",
+    "System.Outlet[3].RemainingCapacityLimit",
+    "System.Outlet[1].OffDelay",
+    "System.Outlet[1].Toggle",
+    "System.Outlet[1].OnDelay",
+    "System.Outlet[2].OffDelay",
+    "System.Outlet[2].Toggle",
+    "System.Outlet[2].OnDelay",
+    "System.Outlet[3].OffDelay",
+    "System.Outlet[3].Toggle",
+    "System.Outlet[3].OnDelay",
+    "System.Login",
+    "System.Password",
+    "System.Security",
+    "System.certificateMode",
+    "System.certificatePassPhrase",
+    "System.FirmwareUpgrade",
+    "System.Network.SNMP.ReadCommunity",
+    "System.Network.SNMP.ReadCommunityName",
+    "System.Network.SNMP.ReadCommunitySecurityLevel",
+    "System.Network.SNMP.ReadCommunitySecurityRight",
+    "System.Network.SNMP.WriteCommunity",
+    "System.Network.SNMP.WriteCommunityName",
+    "System.Network.SNMP.WriteCommunitySecurityLevel",
+    "System.Network.SNMP.WriteCommunitySecurityRight",
+    "System.Network.SNMP.Admin",
+    "System.Network.SNMP.AdminPassword",
+    "System.Network.SNMP.AdminSecurityLevel",
+    "System.Network.SNMP.AdminSecurityRight",
+    "System.Network.SNMP.User",
+    "System.Network.SNMP.UserPassword",
+    "System.Network.SNMP.UserSecurityLevel",
+    "System.Network.SNMP.UserSecurityRight",
+    "System.Network.SNMP.NotificationUserName",
+    "System.Network.SNMP.snmpVersion",
+    "System.Network.SNMP.snmpPort",
+    "System.Network.SNMP.engineBoots",
+    "System.Email.Sender",
+    "System.Email.Subject",
+    "System.Email.UPSName",
+    "System.Email.Message",
+    "System.Email.Localization",
+    "System.Email.EventName",
+    "System.Email[0].Recipient",
+    "System.Email[0].Selected",
+    "System.Email[0].Enotify",
+    "System.Email[0].Measures.Log",
+    "System.Email[0].Events.Log",
+    "System.Email[0].SystemEvents.Log",
+    "System.Email[0].Environment.Log",
+    "System.Email[0].Report.Periodicity",
+    "System.Email[0].Report.Hour",
+    "System.Email[0].Report.Next",
+    "System.Email[0].EventList.Discharging",
+    "System.Email[0].EventList.ACPresent",
+    "System.Email[0].EventList.RunTimeToShutdown",
+    "System.Email[0].EventList.BelowRemainingCapacityLimit",
+    "System.Email[0].EventList.NeedReplacement.1",
+    "System.Email[0].EventList.NeedReplacement.0",
+    "System.Email[0].EventList.Overload[1].OverThreshold.1",
+    "System.Email[0].EventList.Overload[1].OverThreshold.0",
+    "System.Email[0].EventList.Overload[2].OverThreshold.1",
+    "System.Email[0].EventList.Overload[2].OverThreshold.0",
+    "System.Email[0].EventList.Overload.1",
+    "System.Email[0].EventList.Overload.0",
+    "System.Email[0].EventList.InternalFailure.1",
+    "System.Email[0].EventList.InternalFailure.0",
+    "System.Email[0].EventList.CommunicationLost.1",
+    "System.Email[0].EventList.CommunicationLost.0",
+    "System.Email[0].EventList.Charger.InternalFailure",
+    "System.Email[0].EventList.Input[2].Used.1",
+    "System.Email[0].EventList.Input[2].Used.0",
+    "System.Email[0].EventList.PowerModule.RedundancyLost.1",
+    "System.Email[0].EventList.PowerModule.RedundancyLost.0",
+    "System.Email[0].EventList.PowerModule.ProtectionLost.1",
+    "System.Email[0].EventList.PowerModule.ProtectionLost.0",
+    "System.Email[0].EventList.FirmwareUpgrade",
+    "System.Email[0].EventList.Environment.CommunicationLost",
+    "System.Email[0].EventList.Environment.Notify",
+    "System.Email[1].Recipient",
+    "System.Email[1].Selected",
+    "System.Email[1].Enotify",
+    "System.Email[1].Measures.Log",
+    "System.Email[1].Events.Log",
+    "System.Email[1].SystemEvents.Log",
+    "System.Email[1].Environment.Log",
+    "System.Email[1].Report.Periodicity",
+    "System.Email[1].Report.Hour",
+    "System.Email[1].Report.Next",
+    "System.Email[1].EventList.Discharging",
+    "System.Email[1].EventList.ACPresent",
+    "System.Email[1].EventList.RunTimeToShutdown",
+    "System.Email[1].EventList.BelowRemainingCapacityLimit",
+    "System.Email[1].EventList.NeedReplacement.1",
+    "System.Email[1].EventList.NeedReplacement.0",
+    "System.Email[1].EventList.Overload[1].OverThreshold.1",
+    "System.Email[1].EventList.Overload[1].OverThreshold.0",
+    "System.Email[1].EventList.Overload[2].OverThreshold.1",
+    "System.Email[1].EventList.Overload[2].OverThreshold.0",
+    "System.Email[1].EventList.Overload.1",
+    "System.Email[1].EventList.Overload.0",
+    "System.Email[1].EventList.InternalFailure.1",
+    "System.Email[1].EventList.InternalFailure.0",
+    "System.Email[1].EventList.CommunicationLost.1",
+    "System.Email[1].EventList.CommunicationLost.0",
+    "System.Email[1].EventList.Charger.InternalFailure",
+    "System.Email[1].EventList.Input[2].Used.1",
+    "System.Email[1].EventList.Input[2].Used.0",
+    "System.Email[1].EventList.PowerModule.RedundancyLost.1",
+    "System.Email[1].EventList.PowerModule.RedundancyLost.0",
+    "System.Email[1].EventList.PowerModule.ProtectionLost.1",
+    "System.Email[1].EventList.PowerModule.ProtectionLost.0",
+    "System.Email[1].EventList.FirmwareUpgrade",
+    "System.Email[1].EventList.Environment.CommunicationLost",
+    "System.Email[1].EventList.Environment.Notify",
+    "System.Email[2].Recipient",
+    "System.Email[2].Selected",
+    "System.Email[2].Enotify",
+    "System.Email[2].Measures.Log",
+    "System.Email[2].Events.Log",
+    "System.Email[2].SystemEvents.Log",
+    "System.Email[2].Environment.Log",
+    "System.Email[2].Report.Periodicity",
+    "System.Email[2].Report.Hour",
+    "System.Email[2].Report.Next",
+    "System.Email[2].EventList.Discharging",
+    "System.Email[2].EventList.ACPresent",
+    "System.Email[2].EventList.RunTimeToShutdown",
+    "System.Email[2].EventList.BelowRemainingCapacityLimit",
+    "System.Email[2].EventList.NeedReplacement.1",
+    "System.Email[2].EventList.NeedReplacement.0",
+    "System.Email[2].EventList.Overload[1].OverThreshold.1",
+    "System.Email[2].EventList.Overload[1].OverThreshold.0",
+    "System.Email[2].EventList.Overload[2].OverThreshold.1",
+    "System.Email[2].EventList.Overload[2].OverThreshold.0",
+    "System.Email[2].EventList.Overload.1",
+    "System.Email[2].EventList.Overload.0",
+    "System.Email[2].EventList.InternalFailure.1",
+    "System.Email[2].EventList.InternalFailure.0",
+    "System.Email[2].EventList.CommunicationLost.1",
+    "System.Email[2].EventList.CommunicationLost.0",
+    "System.Email[2].EventList.Charger.InternalFailure",
+    "System.Email[2].EventList.Input[2].Used.1",
+    "System.Email[2].EventList.Input[2].Used.0",
+    "System.Email[2].EventList.PowerModule.RedundancyLost.1",
+    "System.Email[2].EventList.PowerModule.RedundancyLost.0",
+    "System.Email[2].EventList.PowerModule.ProtectionLost.1",
+    "System.Email[2].EventList.PowerModule.ProtectionLost.0",
+    "System.Email[2].EventList.FirmwareUpgrade",
+    "System.Email[2].EventList.Environment.CommunicationLost",
+    "System.Email[2].EventList.Environment.Notify",
+    "System.Email[3].Recipient",
+    "System.Email[3].Selected",
+    "System.Email[3].Enotify",
+    "System.Email[3].Measures.Log",
+    "System.Email[3].Events.Log",
+    "System.Email[3].SystemEvents.Log",
+    "System.Email[3].Environment.Log",
+    "System.Email[3].Report.Periodicity",
+    "System.Email[3].Report.Hour",
+    "System.Email[3].Report.Next",
+    "System.Email[3].EventList.Discharging",
+    "System.Email[3].EventList.ACPresent",
+    "System.Email[3].EventList.RunTimeToShutdown",
+    "System.Email[3].EventList.BelowRemainingCapacityLimit",
+    "System.Email[3].EventList.NeedReplacement.1",
+    "System.Email[3].EventList.NeedReplacement.0",
+    "System.Email[3].EventList.Overload[1].OverThreshold.1",
+    "System.Email[3].EventList.Overload[1].OverThreshold.0",
+    "System.Email[3].EventList.Overload[2].OverThreshold.1",
+    "System.Email[3].EventList.Overload[2].OverThreshold.0",
+    "System.Email[3].EventList.Overload.1",
+    "System.Email[3].EventList.Overload.0",
+    "System.Email[3].EventList.InternalFailure.1",
+    "System.Email[3].EventList.InternalFailure.0",
+    "System.Email[3].EventList.CommunicationLost.1",
+    "System.Email[3].EventList.CommunicationLost.0",
+    "System.Email[3].EventList.Charger.InternalFailure",
+    "System.Email[3].EventList.Input[2].Used.1",
+    "System.Email[3].EventList.Input[2].Used.0",
+    "System.Email[3].EventList.PowerModule.RedundancyLost.1",
+    "System.Email[3].EventList.PowerModule.RedundancyLost.0",
+    "System.Email[3].EventList.PowerModule.ProtectionLost.1",
+    "System.Email[3].EventList.PowerModule.ProtectionLost.0",
+    "System.Email[3].EventList.FirmwareUpgrade",
+    "System.Email[3].EventList.Environment.CommunicationLost",
+    "System.Email[3].EventList.Environment.Notify",
+    "System.Schedule[0].Off",
+    "System.Schedule[0].On",
+    "System.Schedule[1].Off",
+    "System.Schedule[1].On",
+    "System.Schedule[2].Off",
+    "System.Schedule[2].On",
+    "System.Schedule[3].Off",
+    "System.Schedule[3].On",
+    "System.Schedule[4].Off",
+    "System.Schedule[4].On",
+    "System.Schedule[5].Off",
+    "System.Schedule[5].On",
+    "System.Schedule[6].Off",
+    "System.Schedule[6].On",
+    "System.NetworkManagementSystem[0].Name",
+    "System.NetworkManagementSystem[0].HostName",
+    "System.NetworkManagementSystem[0].TrapCommunity",
+    "System.NetworkManagementSystem[0].TrapSeverity",
+    "System.NetworkManagementSystem[0].TrapSnmpVersion",
+    "System.NetworkManagementSystem[0].TrapSelectedMibs",
+    "System.NetworkManagementSystem[0].TrapPort",
+    "System.NetworkManagementSystem[1].Name",
+    "System.NetworkManagementSystem[1].HostName",
+    "System.NetworkManagementSystem[1].TrapCommunity",
+    "System.NetworkManagementSystem[1].TrapSeverity",
+    "System.NetworkManagementSystem[1].TrapSnmpVersion",
+    "System.NetworkManagementSystem[1].TrapSelectedMibs",
+    "System.NetworkManagementSystem[1].TrapPort",
+    "System.NetworkManagementSystem[2].Name",
+    "System.NetworkManagementSystem[2].HostName",
+    "System.NetworkManagementSystem[2].TrapCommunity",
+    "System.NetworkManagementSystem[2].TrapSeverity",
+    "System.NetworkManagementSystem[2].TrapSnmpVersion",
+    "System.NetworkManagementSystem[2].TrapSelectedMibs",
+    "System.NetworkManagementSystem[2].TrapPort",
+    "System.ClientCfg.ShutdownTimer.Select",
+    "System.ClientCfg.ShutdownTimer",
+    "System.ClientCfg.ShutdownDuration",
+    "System.ClientCfg.BroadcastAdmins",
+    "System.ClientCfg.BroadcastUsers",
+    "Environment.iName",
+    "Environment.Temperature.Unit",
+    "Environment.Temperature.HighThreshold",
+    "Environment.Temperature.LowThreshold",
+    "Environment.Temperature.Hysteresis",
+    "Environment.Temperature.Offset",
+    "Environment.Temperature.HighNotify",
+    "Environment.Temperature.LowNotify",
+    "Environment.Temperature.HighShutdown",
+    "Environment.Temperature.LowShutdown",
+    "Environment.Humidity.HighThreshold",
+    "Environment.Humidity.LowThreshold",
+    "Environment.Humidity.Hysteresis",
+    "Environment.Humidity.Offset",
+    "Environment.Humidity.HighNotify",
+    "Environment.Humidity.LowNotify",
+    "Environment.Humidity.HighShutdown",
+    "Environment.Humidity.LowShutdown",
+    "Environment.Input[1].iName",
+    "Environment.Input[1].State[0].Description",
+    "Environment.Input[1].State[0].Notify",
+    "Environment.Input[1].State[0].Shutdown",
+    "Environment.Input[1].State[1].Description",
+    "Environment.Input[1].State[1].Notify",
+    "Environment.Input[1].State[1].Shutdown",
+    "Environment.Input[2].iName",
+    "Environment.Input[2].State[0].Description",
+    "Environment.Input[2].State[0].Notify",
+    "Environment.Input[2].State[0].Shutdown",
+    "Environment.Input[2].State[1].Description",
+    "Environment.Input[2].State[1].Notify",
+    "Environment.Input[2].State[1].Shutdown",
+    "System.TimeSync",
+    "System.TimeNtp",
+    "System.TimeZone",
+    "System.TimeDaylight",
+    "UPS.BatterySystem.Battery.Count",
+    "UPS.BatterySystem.Battery.DesignCapacity",
+    "UPS.BatterySystem.Battery.PresentStatus.Present",
+    "UPS.BatterySystem.Battery.PresentStatus.VoltageTooHigh",
+    "UPS.BatterySystem.Battery.Test",
+    "UPS.BatterySystem.Battery.TestPeriod",
+    "UPS.BatterySystem.Charger.ChargerType",
+    "UPS.BatterySystem.Charger.Mode",
+    "UPS.BatterySystem.Charger.PresentStatus.Floating",
+    "UPS.BatterySystem.Charger.PresentStatus.InternalFailure",
+    "UPS.BatterySystem.Charger.PresentStatus.Used",
+    "UPS.Flow[1].ConfigFrequency",
+    "UPS.Flow[1].ConfigVoltage",
+    "UPS.Flow[4].ConfigActivePower",
+    "UPS.Flow[4].ConfigApparentPower",
+    "UPS.Flow[4].ConfigFrequency",
+    "UPS.Flow[4].ConfigPercentLoad",
+    "UPS.Flow[4].ConfigVoltage",
+    "UPS.OutletSystem.Outlet[2].DelayBeforeShutdown",
+    "UPS.OutletSystem.Outlet[2].DelayBeforeStartup",
+    "UPS.OutletSystem.Outlet[2].PresentStatus.Switchable",
+    "UPS.OutletSystem.Outlet[2].PresentStatus.SwitchOnOff",
+    "UPS.OutletSystem.Outlet[2].RemainingCapacityLimit",
+    "UPS.OutletSystem.Outlet[2].ShutdownTimer",
+    "UPS.OutletSystem.Outlet[2].StartupTimer",
+    "UPS.OutletSystem.Outlet[3].DelayBeforeShutdown",
+    "UPS.OutletSystem.Outlet[3].DelayBeforeStartup",
+    "UPS.OutletSystem.Outlet[3].PresentStatus.Switchable",
+    "UPS.OutletSystem.Outlet[3].PresentStatus.SwitchOnOff",
+    "UPS.OutletSystem.Outlet[3].RemainingCapacityLimit",
+    "UPS.OutletSystem.Outlet[3].ShutdownTimer",
+    "UPS.OutletSystem.Outlet[3].StartupTimer",
+    "UPS.PowerConverter.ConverterType",
+    "UPS.PowerConverter.Input[1].Frequency",
+    "UPS.PowerConverter.Input[1].PresentStatus.Boost",
+    "UPS.PowerConverter.Input[1].PresentStatus.Buck",
+    "UPS.PowerConverter.Input[1].PresentStatus.FrequencyOutOfRange",
+    "UPS.PowerConverter.Input[1].PresentStatus.InternalFailure",
+    "UPS.PowerConverter.Input[1].PresentStatus.Used",
+    "UPS.PowerConverter.Input[1].PresentStatus.VoltageOutOfRange",
+    "UPS.PowerConverter.Input[1].PresentStatus.VoltageTooHigh",
+    "UPS.PowerConverter.Input[1].PresentStatus.VoltageTooLow",
+    "UPS.PowerConverter.Input[1].PresentStatus.WiringFault",
+    "UPS.PowerConverter.Input[1].Voltage",
+    "UPS.PowerConverter.Input[1].WiringFaultDetection",
+    "UPS.PowerConverter.Input[3].EnergySaving",
+    "UPS.PowerConverter.Input[3].PresentStatus.Used",
+    "UPS.PowerConverter.Input[3].StartOnBattery",
+    "UPS.PowerConverter.Inverter.PresentStatus.Used",
+    "UPS.PowerConverter.Inverter.PresentStatus.VoltageTooHigh",
+    "UPS.PowerConverter.Inverter.PresentStatus.VoltageTooLow",
+    "UPS.PowerConverter.Output.ActivePower",
+    "UPS.PowerConverter.Output.ApparentPower",
+    "UPS.PowerConverter.Output.Current",
+    "UPS.PowerConverter.Output.ForcedReboot",
+    "UPS.PowerConverter.Output.Frequency",
+    "UPS.PowerConverter.Output.HighVoltageBuckTransfer",
+    "UPS.PowerConverter.Output.HighVoltageTransfer",
+    "UPS.PowerConverter.Output.LowVoltageBoostTransfer",
+    "UPS.PowerConverter.Output.LowVoltageTransfer",
+    "UPS.PowerConverter.Output.Overload[1].PresentStatus.OverThreshold",
+    "UPS.PowerConverter.Output.Overload[1].Threshold",
+    "UPS.PowerConverter.Output.Overload[2].PresentStatus.OverThreshold",
+    "UPS.PowerConverter.Output.Overload[2].Threshold",
+    "UPS.PowerConverter.Output.PresentStatus.ShortCircuit",
+    "UPS.PowerConverter.Output.RemainingActivePower",
+    "UPS.PowerConverter.Output.Voltage",
+    "UPS.PowerSummary.AudibleAlarmControl",
+    "UPS.PowerSummary.CapacityGranularity1",
+    "UPS.PowerSummary.CapacityMode",
+    "UPS.PowerSummary.ConfigVoltage",
+    "UPS.PowerSummary.Country",
+    "UPS.PowerSummary.DelayBeforeShutdown",
+    "UPS.PowerSummary.DelayBeforeStartup",
+    "UPS.PowerSummary.DesignCapacity",
+    "UPS.PowerSummary.FullChargeCapacity",
+    "UPS.PowerSummary.iDeviceChemistery",
+    "UPS.PowerSummary.iManufacturer",
+    "UPS.PowerSummary.iModel",
+    "UPS.PowerSummary.iOEMInformation",
+    "UPS.PowerSummary.iPartNumber",
+    "UPS.PowerSummary.iProduct",
+    "UPS.PowerSummary.iReferenceNumber",
+    "UPS.PowerSummary.iSerialNumber",
+    "UPS.PowerSummary.iVersion",
+    "UPS.PowerSummary.PercentLoad",
+    "UPS.PowerSummary.PresentStatus.ACPresent",
+    "UPS.PowerSummary.PresentStatus.BelowRemainingCapacityLimit",
+    "UPS.PowerSummary.PresentStatus.Charging",
+    "UPS.PowerSummary.PresentStatus.CommunicationLost",
+    "UPS.PowerSummary.PresentStatus.ConfigurationFailure",
+    "UPS.PowerSummary.PresentStatus.Discharging",
+    "UPS.PowerSummary.PresentStatus.EmergencyStop",
+    "UPS.PowerSummary.PresentStatus.FanFailure",
+    "UPS.PowerSummary.PresentStatus.Good",
+    "UPS.PowerSummary.PresentStatus.InternalFailure",
+    "UPS.PowerSummary.PresentStatus.NeedReplacement",
+    "UPS.PowerSummary.PresentStatus.Overload",
+    "UPS.PowerSummary.PresentStatus.OverTemperature",
+    "UPS.PowerSummary.PresentStatus.ShutdownImminent",
+    "UPS.PowerSummary.PresentStatus.Switchable",
+    "UPS.PowerSummary.RemainingCapacity",
+    "UPS.PowerSummary.RemainingCapacityLimit",
+    "UPS.PowerSummary.RemainingCapacityLimitSetting",
+    "UPS.PowerSummary.RemainingTimeLimit",
+    "UPS.PowerSummary.RestartLevel",
+    "UPS.PowerSummary.RunTimeToEmpty",
+    "UPS.PowerSummary.Schedule",
+    "UPS.PowerSummary.Time",
+    "UPS.PowerSummary.Voltage",
+    "UPS.StatisticSystem.Output.Statistic[1].Energy",
+    "UPS.StatisticSystem.Output.Statistic[1].Interval",
+    "UPS.StatisticSystem.Output.Statistic[2].RemainingActivePower",
+    "UPS.StatisticSystem.Output.Statistic[2].Time",
+    "UPS.StatisticSystem.Output.Statistic[3].ActivePower",
+    "UPS.StatisticSystem.Output.Statistic[3].Time",
+    "UPS.StatisticSystem.Output.Statistic[4].Energy",
+    "UPS.StatisticSystem.Output.Statistic[4].Time"
+  ]
+}
