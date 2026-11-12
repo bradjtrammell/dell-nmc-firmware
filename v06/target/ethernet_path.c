@@ -82,7 +82,16 @@ int ou_ethernet_path_start(ou_ethernet_path *path, const ou_dma_bus *bus) {
     path->started=1U;
     return 0;
 }
-int ou_ethernet_path_poll(ou_ethernet_path *path, const ou_dma_bus *bus) {
+int ou_ethernet_path_tcp_enable(ou_ethernet_path *path,uint32_t seed,
+                                ou_tcp_app app,void *context) {
+    if(!path||!path->rx.prepared||!path->tx.prepared||!path->vlans.count||
+       path->started||path->tcp_enabled||!seed||!app)return -1;
+    if(ou_tcp_engine_init(&path->tcp,seed)!=0)return -1;
+    path->tcp_app=app;path->tcp_context=context;path->tcp_enabled=1U;
+    return 0;
+}
+int ou_ethernet_path_poll_at(ou_ethernet_path *path, const ou_dma_bus *bus,
+                             uint32_t now_ms) {
     const uint8_t *frame=0;
     size_t length=0U,tx_len=0U;
     int status,net;
@@ -93,7 +102,21 @@ int ou_ethernet_path_poll(ou_ethernet_path *path, const ou_dma_bus *bus) {
     }
     status=ou_dma_rx_poll(bus,&path->rx,&frame,&length);
     if(status<0) {incr(&path->errors);return -1;}
-    if(!status)return 0;
+    if(!status) {
+        if(path->tcp_enabled && !path->tx.active && !path->tx.data_pending) {
+            net=ou_tcp_engine_tick(&path->tcp,now_ms,path->response,
+                                   sizeof(path->response),&tx_len);
+            if(net<0) {incr(&path->errors);return -1;}
+            if(net>0) {
+                if(ou_dma_tx_copy(&path->tx,path->response,tx_len)!=0 ||
+                   ou_dma_start(bus,&path->tx)!=0) {
+                    incr(&path->errors);return -1;
+                }
+                return 1;
+            }
+        }
+        return 0;
+    }
     incr(&path->received);
     if(path->tx.active || path->tx.data_pending) {
         incr(&path->ignored);
@@ -101,6 +124,11 @@ int ou_ethernet_path_poll(ou_ethernet_path *path, const ou_dma_bus *bus) {
     }
     net=ou_vlan_reply(&path->vlans,frame,length,path->response,
                      sizeof(path->response),&tx_len);
+    if(net==0 && path->tcp_enabled) {
+        net=ou_tcp_engine_receive(&path->tcp,&path->vlans,frame,length,now_ms,
+                 path->tcp_app,path->tcp_context,path->response,
+                 sizeof(path->response),&tx_len);
+    }
     if(net>0) {
         if(ou_dma_tx_copy(&path->tx,path->response,tx_len)!=0 ||
            ou_dma_start(bus,&path->tx)!=0) {
@@ -119,11 +147,20 @@ int ou_ethernet_path_poll(ou_ethernet_path *path, const ou_dma_bus *bus) {
     if(ou_dma_rx_release(bus,&path->rx)!=0) {incr(&path->errors);return -1;}
     return net>0 ? 1 : 0;
 }
+int ou_ethernet_path_poll(ou_ethernet_path *path,const ou_dma_bus *bus) {
+    /* Compatibility API for ARP/ICMP-only tests. A real TCP network adapter
+     * must use ou_ethernet_path_poll_at with a verified monotonic clock. */
+    if(path && path->tcp_enabled)return -1;
+    return ou_ethernet_path_poll_at(path,bus,0U);
+}
 int ou_ethernet_path_stop(ou_ethernet_path *path, const ou_dma_bus *bus) {
     int a,b;
     if(!path || !path->started) return -1;
     a=ou_dma_stop(bus,&path->rx);
     b=ou_dma_stop(bus,&path->tx);
     path->started=0U;
+    path->tcp_enabled=0U;
+    path->tcp_app=0;
+    path->tcp_context=0;
     return a==0&&b==0 ? 0 : -1;
 }

@@ -39,14 +39,14 @@ $(BUILD)/test_tcp_ingress: src/tcp_ingress.c src/vlan.c src/ipv4_wire.c tests/te
 $(BUILD)/test_vlan: src/vlan.c src/ipv4_wire.c tests/test_vlan.c include/ou_vlan.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/vlan.c src/ipv4_wire.c tests/test_vlan.c -o $@
 
-$(BUILD)/test_ethernet_manager: board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c include/ou_ethernet_manager.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c -o $@
+$(BUILD)/test_ethernet_manager: board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c include/ou_ethernet_manager.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c -o $@
 
 $(BUILD)/test_ns7520_mac: board/ns7520_mac.c tests/test_ns7520_mac.c include/ou_ns7520_mac.h include/ou_ns7520_dma.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_mac.c tests/test_ns7520_mac.c -o $@
 
-$(BUILD)/test_ethernet_path: board/ns7520_dma.c src/ipv4_wire.c src/vlan.c target/ethernet_path.c tests/test_ethernet_path.c include/ou_ethernet_path.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_dma.c src/ipv4_wire.c src/vlan.c target/ethernet_path.c tests/test_ethernet_path.c -o $@
+$(BUILD)/test_ethernet_path: board/ns7520_dma.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c tests/test_ethernet_path.c include/ou_ethernet_path.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_dma.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c tests/test_ethernet_path.c -o $@
 
 $(BUILD)/test_ns7520_dma: board/ns7520_dma.c tests/test_ns7520_dma.c include/ou_ns7520_dma.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_dma.c tests/test_ns7520_dma.c -o $@
@@ -126,6 +126,8 @@ arm-check: | $(BUILD)
 	python3 tools/verify_arm.py $(BUILD)/tcp-ingress-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/tcp_engine.c -o $(BUILD)/tcp-engine-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/tcp-engine-armeb.o
+	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/tcp_adapter.c -o $(BUILD)/tcp-adapter-armeb.o
+	python3 tools/verify_arm.py $(BUILD)/tcp-adapter-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/vlan_record.c -o $(BUILD)/vlan-record-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/vlan-record-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/ethernet_manager.c -o $(BUILD)/ethernet-manager-armeb.o
@@ -143,7 +145,7 @@ arm-link-check: arm-check
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/runtime.c -o $(BUILD)/runtime-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/reset.S -o $(BUILD)/reset-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -c target/compiler_rt.c -o $(BUILD)/compiler-rt-armeb.o
-	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
+	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
 	llvm-objcopy -O binary $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 	python3 tools/verify_native_image.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 
@@ -181,13 +183,13 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ipv4_wire_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_dma.c tests/test_ns7520_dma.c -o $(BUILD)/test_ns7520_dma_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ns7520_dma_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_dma.c src/ipv4_wire.c src/vlan.c target/ethernet_path.c tests/test_ethernet_path.c -o $(BUILD)/test_ethernet_path_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_dma.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c tests/test_ethernet_path.c -o $(BUILD)/test_ethernet_path_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ethernet_path_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_mac.c tests/test_ns7520_mac.c -o $(BUILD)/test_ns7520_mac_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ns7520_mac_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/vlan.c src/ipv4_wire.c tests/test_vlan.c -o $(BUILD)/test_vlan_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_vlan_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c -o $(BUILD)/test_ethernet_manager_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c -o $(BUILD)/test_ethernet_manager_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ethernet_manager_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/vlan_record.c src/vlan.c src/ipv4_wire.c board/config_journal.c tests/test_vlan_record.c -o $(BUILD)/test_vlan_record_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_vlan_record_sanitized
