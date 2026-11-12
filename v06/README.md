@@ -192,3 +192,12 @@ network handler fails. `target/runtime.c` now calls this event loop when
 `ou_h910p_port_prepare` succeeds. The hook intentionally fails until the
 installed H910P hardware port and recovery procedures are verified.
 See `docs/native-board-port.md`.
+
+## Read-only board MMIO snapshot path
+
+A separate `board/ns7520_board_mmio.c` adapter now permits a verified
+H910P port to collect the 23 documented NS7520 board/memory controller
+registers through a strict read-only whitelist and a three-gate physical
+qualification policy. It does not discover physical RAM capacity, program
+flash, communicate with the UPS, or authorize live flashing.
+See `docs/board-mmio-snapshot.md`.
