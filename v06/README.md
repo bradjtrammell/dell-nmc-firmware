@@ -136,3 +136,13 @@ version advertised by /api/v1/device is 0.6.0-alpha.1.
 
 Local tests include service lifecycle, invalid/duplicated/expired telemetry,
 native HTTP framing, big-endian ARM7 linking, and sanitizer builds.
+
+## NS7520 Ethernet PHY MDIO driver
+
+Native `board/ns7520_phy.c` implements the real Ethernet controller MDIO
+read transaction, bounded MIND polling, PHY ID discovery and link-state
+sampling, linked into the ARM7 application. Tested against an exact-address
+register emulator including missing-clock/ownership denials and timeout
+cleanup. This is one genuine NIC driver component; full RX/TX DMA and an
+IP/TCP stack still have to be implemented before the device can use the HTTP
+service. See `docs/ns7520-phy.md`.
