@@ -37,6 +37,9 @@ int ou_board_runtime_start(ou_board_runtime *runtime,
     phy.phy_address=0U;
     if(ou_phy_discover(&phy,&runtime->phy)!=0 || !runtime->phy.link_up)
         return -1;
+    phy.phy_address=runtime->phy.phy_address;
+    if(ou_phy_resolve_link(&phy,&runtime->link)!=0 ||
+       runtime->link.full_duplex!=cfg->mac->full_duplex)return -1;
     if(ou_ethernet_path_init_vlans(&runtime->ethernet,cfg->vlans,
           cfg->rx_descriptor,cfg->rx_descriptor_bus,
           cfg->rx_data,cfg->rx_data_bus,
@@ -49,6 +52,7 @@ int ou_board_runtime_start(ou_board_runtime *runtime,
     runtime->clock_ms=cfg->clock_ms;
     runtime->clock_context=cfg->clock_context;
     runtime->last_ms=now_ms;
+    runtime->last_link_check_ms=now_ms;
     runtime->running=1U;
     return 0;
 }
@@ -63,6 +67,26 @@ int ou_board_runtime_step(ou_board_runtime *runtime) {
         return -1;
     }
     runtime->last_ms=now_ms;
+    /* Link changes invalidate ongoing TCP sessions and PHY/MAC negotiation;
+     * fail closed and quiesce DMA instead of continuing with stale settings. */
+    if((uint32_t)(now_ms-runtime->last_link_check_ms)>=1000U) {
+        ou_phy_bus phy;
+        ou_phy_link current;
+        phy.read=ou_ns7520_hal_read32;
+        phy.write=ou_ns7520_hal_write32;
+        phy.context=runtime->hal;
+        phy.exclusive_mac_ownership=1U;
+        phy.phy_clocks_verified=1U;
+        phy.phy_address=runtime->phy.phy_address;
+        if(ou_phy_resolve_link(&phy,&current)!=0 ||
+           current.full_duplex!=runtime->link.full_duplex ||
+           current.speed100!=runtime->link.speed100) {
+            if(runtime->failed_polls!=UINT32_MAX)++runtime->failed_polls;
+            (void)ou_board_runtime_stop(runtime);
+            return -1;
+        }
+        runtime->last_link_check_ms=now_ms;
+    }
     status=ou_ethernet_path_poll_at(&runtime->ethernet,&runtime->bus,now_ms);
     if(status<0) {
         if(runtime->failed_polls!=UINT32_MAX)++runtime->failed_polls;

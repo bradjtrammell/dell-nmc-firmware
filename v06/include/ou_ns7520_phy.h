@@ -15,6 +15,20 @@
 #define OU_PHY_MIND_LINKFAIL 8U
 #define OU_PHY_POLL_LIMIT 1024U
 #define OU_PHY_BMSR_LINK UINT16_C(0x0004)
+#define OU_PHY_BMSR_AN_COMPLETE UINT16_C(0x0020)
+#define OU_PHY_BMSR_REMOTE_FAULT UINT16_C(0x0010)
+#define OU_PHY_BMCR_RESET UINT16_C(0x8000)
+#define OU_PHY_BMCR_LOOPBACK UINT16_C(0x4000)
+#define OU_PHY_BMCR_SPEED100 UINT16_C(0x2000)
+#define OU_PHY_BMCR_AN_ENABLE UINT16_C(0x1000)
+#define OU_PHY_BMCR_POWER_DOWN UINT16_C(0x0800)
+#define OU_PHY_BMCR_ISOLATE UINT16_C(0x0400)
+#define OU_PHY_BMCR_FULL_DUPLEX UINT16_C(0x0100)
+#define OU_PHY_BMCR_SPEED1000 UINT16_C(0x0040)
+#define OU_PHY_AN_100_FULL UINT16_C(0x0100)
+#define OU_PHY_AN_100_HALF UINT16_C(0x0080)
+#define OU_PHY_AN_10_FULL UINT16_C(0x0040)
+#define OU_PHY_AN_10_HALF UINT16_C(0x0020)
 
 typedef int (*ou_phy_read32)(void *, uint32_t, uint32_t *);
 typedef int (*ou_phy_write32)(void *, uint32_t, uint32_t);
@@ -43,4 +57,16 @@ int ou_phy_read_register(const ou_phy_bus *bus, uint8_t reg, uint16_t *out);
 int ou_phy_identify(const ou_phy_bus *bus, ou_phy_identity *out);
 /* Probe IEEE Clause22 addresses 0..31; fail on no device or ambiguity. */
 int ou_phy_discover(const ou_phy_bus *bus, ou_phy_identity *out);
+typedef struct {
+    uint16_t bmcr;
+    uint16_t bmsr;
+    uint16_t advertisement;
+    uint16_t partner;
+    uint8_t link_up;
+    uint8_t full_duplex;
+    uint8_t speed100;
+    uint8_t autonegotiated;
+} ou_phy_link;
+/* Resolve actual IEEE Clause22 10/100 link mode without resetting the PHY. */
+int ou_phy_resolve_link(const ou_phy_bus *bus, ou_phy_link *out);
 #endif

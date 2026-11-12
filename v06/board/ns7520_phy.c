@@ -86,3 +86,40 @@ int ou_phy_discover(const ou_phy_bus *bus, ou_phy_identity *out) {
     *out=result;
     return 0;
 }
+
+int ou_phy_resolve_link(const ou_phy_bus *bus, ou_phy_link *out) {
+    ou_phy_link v={0};
+    uint16_t first=0U;
+    uint16_t technologies;
+    if(!out)return -1;
+    *out=v;
+    if(!valid(bus) || ou_phy_read_register(bus,1U,&first)!=0 ||
+       ou_phy_read_register(bus,1U,&v.bmsr)!=0 ||
+       ou_phy_read_register(bus,0U,&v.bmcr)!=0)return -1;
+    if((v.bmsr&OU_PHY_BMSR_LINK)==0U ||
+       (v.bmsr&OU_PHY_BMSR_REMOTE_FAULT)!=0U ||
+       (v.bmcr&(OU_PHY_BMCR_RESET|OU_PHY_BMCR_LOOPBACK|
+                OU_PHY_BMCR_POWER_DOWN|OU_PHY_BMCR_ISOLATE))!=0U ||
+       (v.bmcr&OU_PHY_BMCR_SPEED1000)!=0U)return -1;
+    (void)first;
+    if(v.bmcr&OU_PHY_BMCR_AN_ENABLE) {
+       if((v.bmsr&OU_PHY_BMSR_AN_COMPLETE)==0U ||
+          ou_phy_read_register(bus,4U,&v.advertisement)!=0 ||
+          ou_phy_read_register(bus,5U,&v.partner)!=0)return -1;
+       technologies=(uint16_t)(v.advertisement&v.partner);
+       if(technologies&OU_PHY_AN_100_FULL) {
+          v.speed100=1U;v.full_duplex=1U;
+       }else if(technologies&OU_PHY_AN_100_HALF) {
+          v.speed100=1U;
+       }else if(technologies&OU_PHY_AN_10_FULL) {
+          v.full_duplex=1U;
+       }else if(!(technologies&OU_PHY_AN_10_HALF))return -1;
+       v.autonegotiated=1U;
+    }else{
+       v.speed100=(uint8_t)((v.bmcr&OU_PHY_BMCR_SPEED100)!=0U);
+       v.full_duplex=(uint8_t)((v.bmcr&OU_PHY_BMCR_FULL_DUPLEX)!=0U);
+    }
+    v.link_up=1U;
+    *out=v;
+    return 0;
+}

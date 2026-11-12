@@ -14,6 +14,8 @@ typedef struct {
     ou_dma_bus bus;
     ou_ns7520_hal *hal;
     ou_phy_identity phy;
+    ou_phy_link link;
+    uint32_t last_link_check_ms;
     ou_runtime_clock_ms clock_ms;
     void *clock_context;
     uint32_t last_ms;

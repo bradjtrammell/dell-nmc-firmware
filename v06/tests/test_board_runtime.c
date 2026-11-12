@@ -12,7 +12,7 @@ static ou_dma_bd rbd,tbd;
 static uint8_t rx[1518],tx[1518];
 static uint32_t now=10;
 static int fail_clock=0, fail_poll=0;
-static int fail_phy_link=0;static unsigned phyaddr=0,phyreg=0;
+static uint16_t phy_bmcr=0U;static int fail_phy_link=0;static unsigned phyaddr=0,phyreg=0;
 static unsigned stops=0,starts=0,iterations=0;
 static int readreg(void*ctx,uint32_t a,uint32_t*v){(void)ctx;
  if(a==OU_PHY_MIND){*v=0;return 0;}
@@ -20,6 +20,7 @@ static int readreg(void*ctx,uint32_t a,uint32_t*v){(void)ctx;
   if(phyaddr!=0U)*v=0xffffU;
   else if(phyreg==2U)*v=0x2000U;
   else if(phyreg==3U)*v=0x5c90U;
+  else if(phyreg==0U)*v=phy_bmcr;
   else if(phyreg==1U)*v=fail_phy_link?0U:OU_PHY_BMSR_LINK;
   else *v=0U;
   return 0;
@@ -85,6 +86,9 @@ int main(void){
     fail_phy_link=1;
     assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
     fail_phy_link=0;
+    phy_bmcr=OU_PHY_BMCR_FULL_DUPLEX;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    phy_bmcr=0U;
     assert(ou_board_runtime_start(&runner,&c)==0 && runner.running==1);
     assert(runner.phy.identity_valid && runner.phy.link_up &&
            runner.phy.phy_address==0U);
@@ -93,6 +97,10 @@ int main(void){
     ++now;
     assert(ou_board_runtime_step(&runner)==1);
     assert(iterations==1 && runner.successful_polls==1);
+    now=1012;fail_phy_link=1;
+    assert(ou_board_runtime_step(&runner)==-1);
+    assert(!runner.running && stops==1 && runner.failed_polls==1);
+    fail_phy_link=0;
     now=2;
     assert(ou_board_runtime_step(&runner)==-1);
     assert(!runner.running && stops==1 && runner.failed_polls==1);
