@@ -72,6 +72,8 @@ typedef struct {
     uint8_t interface_index;
 } ou_vlan_rx_context;
 
+int ou_vlan_validate(const ou_vlan_table *table);
+
 /* Transactional installation. Failure clears output, no partial config.
  * The input entries must not alias the output table. */
 int ou_vlan_configure(ou_vlan_table *table, const uint8_t mac[6],

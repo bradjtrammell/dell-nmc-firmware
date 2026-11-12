@@ -113,6 +113,34 @@ int ou_vlan_configure(ou_vlan_table *table, const uint8_t mac[6],
     table->priority_reply_tagged = priority_reply_tagged;
     return 0;
 }
+/* Revalidate a loaded policy before enabling any network DMA. This ignores
+ * mutable per-interface statistics and never writes any hardware register. */
+int ou_vlan_validate(const ou_vlan_table *table) {
+    size_t i,j;
+    uint8_t native_found=0U;
+    if (!table || table->count==0U || table->count>OU_VLAN_MAX_INTERFACES ||
+        table->trunk_enabled>1U || table->native_enabled>1U ||
+        table->accept_tagged_native>1U || table->accept_priority_tags>1U ||
+        table->priority_reply_tagged>1U ||
+        (table->mac[0]&1U) || all(table->mac,0U,6U) ||
+        all(table->mac,255U,6U) || table->native_vid>OU_VLAN_ID_MAX ||
+        table->native_enabled!=(uint8_t)(table->native_vid!=0U) ||
+        (table->native_vid==0U && (!table->trunk_enabled ||
+           table->accept_tagged_native || table->accept_priority_tags ||
+           table->priority_reply_tagged)) ||
+        (!table->trunk_enabled && table->count!=1U)) return 0;
+    for(i=0U;i<table->count;++i) {
+        const ou_vlan_interface *it=&table->interfaces[i];
+        if(!interface_valid(it))return 0;
+        if(it->vid==table->native_vid)native_found=1U;
+        for(j=0U;j<i;++j)
+            if(it->vid==table->interfaces[j].vid)return 0;
+    }
+    if (table->native_enabled && !native_found)return 0;
+    if (!table->trunk_enabled && table->interfaces[0].vid!=table->native_vid)
+        return 0;
+    return 1;
+}
 int ou_vlan_classify(const ou_vlan_table *table, const uint8_t *frame,
                      size_t length, ou_vlan_rx_context *context) {
     uint16_t outer, vid = 0U, tci = 0U, inner;

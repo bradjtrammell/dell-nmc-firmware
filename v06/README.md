@@ -155,3 +155,12 @@ and counters. The DMA RX/TX packet path classifies VLAN tags before
 ARP/ICMP processing. Unknown VLANs, double tags and unconfigured native
 VLANs are dropped, with no routing or bridging. Native startup must supply
 explicit VLAN policy. See docs/vlan-trunk.md for limits and security.
+
+## Persistent VLAN policy format
+
+`src/vlan_record.c` now encodes up to 64 independent VLAN configurations
+into a versioned 3,800-byte maximum record with CRC32, and integrates with
+the existing two-slot 4,096-byte settings journal. Invalid or corrupted
+settings are rejected; journal writes remain blocked until hardware geometry
+and dedicated settings slots are verified. See
+[Persistent VLAN policy](docs/vlan-persistence.md).
