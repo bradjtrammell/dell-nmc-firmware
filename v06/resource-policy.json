@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "status": "PROVISIONAL_RESEARCH_ONLY",
+  "reference": {
+    "dellImageBytes": 1517029,
+    "dellDecompressedApplicationBytes": 2757180,
+    "description": "Observed Dell 01.18.0005 image, not physical flash size or a native image capacity"
+  },
+  "hardware": {
+    "verified": false,
+    "installedFlashBytes": null,
+    "installedRAMBytes": null,
+    "bootloaderProtectedBytes": null,
+    "applicationPartitionBytes": null,
+    "recoveryReserveBytes": null
+  },
+  "researchLimits": {
+    "rawImageBytes": 1200000,
+    "ramSpanBytes": 1048576,
+    "minimumStackBytes": 8192
+  },
+  "principles": [
+    "Build a native ARM7TDMI embedded NMC application, not a Linux distribution",
+    "Keep the existing UI unchanged and serve its assets only after hardware storage is proven",
+    "Prefer bounded preallocated buffers and streaming JSON, not heap-heavy frameworks",
+    "Reserve bootloader, recovery and configuration flash regions before setting production limits",
+    "Never confuse a 1,517,029-byte Dell update image with installed flash capacity",
+    "Never release from provisional size budgets; an installed flash/RAM layout is mandatory"
+  ]
+}

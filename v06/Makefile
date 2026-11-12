@@ -3,7 +3,7 @@ CFLAGS ?= -std=c99 -O2 -Wall -Wextra -Werror -pedantic
 CPPFLAGS += -Iinclude
 BUILD = build
 
-.PHONY: all clean test arm-check arm-link-check
+.PHONY: all clean test arm-check arm-link-check footprint-check
 all: $(BUILD)/openh910p-sim
 
 $(BUILD):
@@ -42,3 +42,8 @@ arm-link-check: arm-check
 	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
 	llvm-objcopy -O binary $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 	python3 tools/verify_native_image.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
+
+# Research bounds are provisional until physical H910P flash/RAM mapping.
+# This target must never be used to approve an installable BIN.
+footprint-check: arm-link-check
+	python3 tools/audit_footprint.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat --policy resource-policy.json --report $(BUILD)/resource-report.json

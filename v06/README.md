@@ -12,7 +12,7 @@ Run from the repository root:
 
 ```bash
 cd v06
-make clean all test arm-link-check
+make clean all test footprint-check
 ./build/openh910p-sim --port 8760
 ```
 
@@ -46,3 +46,7 @@ Native provider states are `unavailable`, `simulator`, and `native`. API respons
 No confirmed H910P memory controller/flash geometry, bootloader recovery, native UPS protocol driver, NMC Ethernet stack, device-side authentication/TLS, management writes, signed OTA or rollback. **Do not attempt to flash the linked ELF or raw `.dat`**. These omissions are substantial; `make arm-link-check` is a code generation and linker test only.
 
 See [`docs/native-test-gates.md`](docs/native-test-gates.md) and [`docs/api-v1.md`](docs/api-v1.md).
+
+## Native image footprint
+
+The firmware engineering build now includes a **fail-closed, provisional** size audit. Run **make footprint-check** to inspect the big-endian ARM7 ELF and raw research image and produce build/resource-report.json. See docs/resource-budget.md and resource-policy.json for the provisional limits and hardware qualification blockers. This does not measure installed H910P capacity, does not authorize flashing, and does not modify the approved UI or stable v0.5.10 firmware.
