@@ -4,7 +4,7 @@ static int valid(const ou_phy_bus *bus) {
     return bus && bus->read && bus->write &&
            bus->exclusive_mac_ownership == 1U &&
            bus->phy_clocks_verified == 1U &&
-           bus->phy_address >= 1U && bus->phy_address <= 31U;
+           bus->phy_address <= 31U;
 }
 
 int ou_phy_read_register(const ou_phy_bus *bus, uint8_t reg, uint16_t *out) {
@@ -50,8 +50,7 @@ int ou_phy_identify(const ou_phy_bus *bus, ou_phy_identity *out) {
     /* IEEE 802.3 Clause 22 PHY identification: registers 2 and 3. */
     if (ou_phy_read_register(bus, 2U, &temp.id1) != 0 ||
         ou_phy_read_register(bus, 3U, &temp.id2) != 0) return -1;
-    if ((temp.id1 == 0U && temp.id2 == 0U) ||
-        (temp.id1 == UINT16_MAX && temp.id2 == UINT16_MAX)) return -1;
+    if (temp.id1 == 0U || temp.id1 == UINT16_MAX) return -1;
     /* PHY BMSR link bit may be latch-low; read twice. */
     if (ou_phy_read_register(bus, 1U, &status1) != 0 ||
         ou_phy_read_register(bus, 1U, &temp.bmsr) != 0) return -1;
@@ -59,5 +58,31 @@ int ou_phy_identify(const ou_phy_bus *bus, ou_phy_identity *out) {
     temp.link_up = (uint8_t)((temp.bmsr & OU_PHY_BMSR_LINK) != 0U);
     temp.identity_valid = 1U;
     *out = temp;
+    return 0;
+}
+
+/* Read-only PHY discovery. No PHY reset/config writes are performed.
+ * An ambiguous MDIO bus never causes us to select an arbitrary device. */
+int ou_phy_discover(const ou_phy_bus *bus, ou_phy_identity *out) {
+    ou_phy_bus query;
+    ou_phy_identity result={0};
+    ou_phy_identity candidate={0};
+    uint8_t address;
+    int discovered=0;
+    if (!out) return -1;
+    *out=result;
+    if (!bus || !bus->read || !bus->write ||
+        bus->exclusive_mac_ownership!=1U ||
+        bus->phy_clocks_verified!=1U) return -1;
+    query=*bus;
+    for (address=0U;address<32U;++address) {
+        query.phy_address=address;
+        if (ou_phy_identify(&query,&candidate)!=0) continue;
+        if (discovered) return -1;
+        result=candidate;
+        discovered=1;
+    }
+    if (!discovered) return -1;
+    *out=result;
     return 0;
 }

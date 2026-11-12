@@ -71,7 +71,8 @@ static void test_denied_conditions(void) {
     b.exclusive_mac_ownership=1U; b.phy_clocks_verified=0U;
     assert(ou_phy_read_register(&b,2U,&out)==-1 && !e.writes_done);
     b.phy_clocks_verified=1U;b.phy_address=0U;
-    assert(ou_phy_read_register(&b,2U,&out)==-1 && !e.writes_done);
+    assert(ou_phy_read_register(&b,2U,&out)==0 && e.writes_done==4U);
+    reset(&e);
     b.phy_address=32U;
     assert(ou_phy_read_register(&b,2U,&out)==-1 && !e.writes_done);
     b.phy_address=3U;

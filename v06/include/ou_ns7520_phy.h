@@ -41,4 +41,6 @@ typedef struct {
  * A verified on-device MMIO adapter is still required. */
 int ou_phy_read_register(const ou_phy_bus *bus, uint8_t reg, uint16_t *out);
 int ou_phy_identify(const ou_phy_bus *bus, ou_phy_identity *out);
+/* Probe IEEE Clause22 addresses 0..31; fail on no device or ambiguity. */
+int ou_phy_discover(const ou_phy_bus *bus, ou_phy_identity *out);
 #endif
