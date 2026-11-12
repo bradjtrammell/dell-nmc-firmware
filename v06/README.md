@@ -85,3 +85,17 @@ There is no network access, flash write or power command in this component.
 `make test arm-check board-sanitize` now includes its replay/staleness,
 overflow, session-restart and failure tests. No native HTTP service presently
 uses this guard because no verified H910P UPS transport exists.
+
+
+## Offline OEM ARM callsite and recovery-image investigation
+
+The new \`tools/analyze_oem_arm.py\` processes only pinned, CRC-validated
+original Dell OEM BIN archives. It performs ARM7 PC-relative literal-pointer
+scanning for possible UPS transport and NS7520 register references, verifies
+embedded bootHdr/CRC/LZSS2 recovery-image candidates, and compares the
+01.16.0001 / 01.18.0005 release evidence in a sanitized JSON report.
+It provides concrete targets for hardware-driver reverse engineering but
+**cannot prove any physical bus or bootloader recovery behavior**. This
+is an analysis utility only; no flashable firmware is generated. See
+[ARM OEM forensic methodology](docs/oem-arm-forensics.md) for the two-archive
+command and evidence limits.
