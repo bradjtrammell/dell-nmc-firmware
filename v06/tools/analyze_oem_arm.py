@@ -222,7 +222,7 @@ def analyze_application(blob: bytes, load_address: int = 0x08004000) -> dict[str
                     'confidence': 'candidate_register_reference_only',
                 })
     # Summarize references to exact strings and observed offsets, not raw
-    # instruction words or OEM function bytes. A BL target is only a hint.
+    # instruction words or OEM function bytes.
     label_reports = []
     for label, positions in labels.items():
         hits = candidates[label]

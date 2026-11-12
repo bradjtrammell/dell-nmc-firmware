@@ -89,7 +89,7 @@ uses this guard because no verified H910P UPS transport exists.
 
 ## Offline OEM ARM callsite and recovery-image investigation
 
-The new \`tools/analyze_oem_arm.py\` processes only pinned, CRC-validated
+The new `tools/analyze_oem_arm.py` processes only pinned, CRC-validated
 original Dell OEM BIN archives. It performs ARM7 PC-relative literal-pointer
 scanning for possible UPS transport and NS7520 register references, verifies
 embedded bootHdr/CRC/LZSS2 recovery-image candidates, and compares the

@@ -33,22 +33,22 @@ engineering pass, never as deployment evidence.
 From the repository root, with **original proprietary Dell archives** in
 the ignored originals/ directory:
 
-\`\`\`bash
+```bash
 python3 v06/tools/analyze_oem_arm.py \
   originals/NMC_Firmware_01_16_0001_YJ6JM.zip \
   originals/NMC_Firmware_01_18_0005_X2JYN.zip \
   --output v06/build/oem-arm-evidence.json
-\`\`\`
+```
 
 The output file must not exist. The directory v06/build/ is created by
-\`make all\`. A failed SHA check exits without writing the report.
+`make all`. A failed SHA check exits without writing the report.
 
 Run synthetic regression tests without the proprietary archives:
 
-\`\`\`bash
+```bash
 cd v06
-python3 -m unittest tests/test_oem_arm_forensics.py -v
-\`\`\`
+python3 -m unittest discover -s tests -p 'test_oem_arm_forensics.py' -v
+```
 
 ## What follows from the evidence
 
