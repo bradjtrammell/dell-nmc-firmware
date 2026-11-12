@@ -1,0 +1,159 @@
+{
+  "disclaimer": "No UPS protocol is decoded or implemented by this tool",
+  "operation": "OFFLINE-ONLY",
+  "releases": [
+    {
+      "decompressedBytes": 2533980,
+      "interpretation": "OEM application string references only; transport, packet layout and physical wiring unconfirmed",
+      "mainFlashOffsetField": "0x00010000",
+      "mainRamLoadField": "0x08004000",
+      "markers": [
+        {
+          "firstOffset": "0x1a147b",
+          "hits": 37,
+          "marker": "threadBinding"
+        },
+        {
+          "firstOffset": "0x1a0f7a",
+          "hits": 2,
+          "marker": "shutHostGetReport"
+        },
+        {
+          "firstOffset": "0x1a1d6c",
+          "hits": 1,
+          "marker": "shutHostSetReport"
+        },
+        {
+          "firstOffset": "0x1a1148",
+          "hits": 2,
+          "marker": "COPI_READ"
+        },
+        {
+          "firstOffset": "0x1a0f73",
+          "hits": 18,
+          "marker": "BDD"
+        },
+        {
+          "firstOffset": "0x1a0ee8",
+          "hits": 1,
+          "marker": "SendStringBufferToUPS"
+        },
+        {
+          "firstOffset": "0x1a0f3c",
+          "hits": 1,
+          "marker": "SendNMCFirmwareToUPS"
+        },
+        {
+          "firstOffset": "0x1a669d",
+          "hits": 1,
+          "marker": "UPS File Transfer Protocol"
+        },
+        {
+          "firstOffset": "0x1a1152",
+          "hits": 2,
+          "marker": "NO_REPLY_EVT"
+        },
+        {
+          "firstOffset": "0x1a117e",
+          "hits": 1,
+          "marker": "NO_DATA_EVT"
+        },
+        {
+          "firstOffset": "0x1a0f82",
+          "hits": 9,
+          "marker": "GetReport"
+        },
+        {
+          "firstOffset": "0x1a1d74",
+          "hits": 5,
+          "marker": "SetReport"
+        },
+        {
+          "firstOffset": "0x1a1954",
+          "hits": 6,
+          "marker": "HID"
+        }
+      ],
+      "originalImageBytes": 1416830,
+      "originalImageSHA256": "df6471c61126fb95b393f6c91006d136d0e63612f19ae2f5d43f33fbaef932ba",
+      "release": "01.16.0001"
+    },
+    {
+      "decompressedBytes": 2757180,
+      "interpretation": "OEM application string references only; transport, packet layout and physical wiring unconfirmed",
+      "mainFlashOffsetField": "0x00010000",
+      "mainRamLoadField": "0x08004000",
+      "markers": [
+        {
+          "firstOffset": "0x1cba87",
+          "hits": 37,
+          "marker": "threadBinding"
+        },
+        {
+          "firstOffset": "0x1cb586",
+          "hits": 3,
+          "marker": "shutHostGetReport"
+        },
+        {
+          "firstOffset": "0x1cc378",
+          "hits": 1,
+          "marker": "shutHostSetReport"
+        },
+        {
+          "firstOffset": "0x1cb754",
+          "hits": 2,
+          "marker": "COPI_READ"
+        },
+        {
+          "firstOffset": "0x1cb57f",
+          "hits": 18,
+          "marker": "BDD"
+        },
+        {
+          "firstOffset": "0x1cb4f4",
+          "hits": 1,
+          "marker": "SendStringBufferToUPS"
+        },
+        {
+          "firstOffset": "0x1cb548",
+          "hits": 1,
+          "marker": "SendNMCFirmwareToUPS"
+        },
+        {
+          "firstOffset": "0x1d0ef1",
+          "hits": 1,
+          "marker": "UPS File Transfer Protocol"
+        },
+        {
+          "firstOffset": "0x1cb75e",
+          "hits": 2,
+          "marker": "NO_REPLY_EVT"
+        },
+        {
+          "firstOffset": "0x1cb78a",
+          "hits": 1,
+          "marker": "NO_DATA_EVT"
+        },
+        {
+          "firstOffset": "0x1cb58e",
+          "hits": 9,
+          "marker": "GetReport"
+        },
+        {
+          "firstOffset": "0x1cc380",
+          "hits": 5,
+          "marker": "SetReport"
+        },
+        {
+          "firstOffset": "0x1cbf60",
+          "hits": 6,
+          "marker": "HID"
+        }
+      ],
+      "originalImageBytes": 1517029,
+      "originalImageSHA256": "ed5a8eb47ae5bdf72817286d22fccd06b8a68381194f461f7fb271325b1a6a6a",
+      "release": "01.18.0005"
+    }
+  ],
+  "schemaVersion": 1
+}

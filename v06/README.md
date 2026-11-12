@@ -45,8 +45,19 @@ Native provider states are `unavailable`, `simulator`, and `native`. API respons
 
 No confirmed H910P memory controller/flash geometry, bootloader recovery, native UPS protocol driver, NMC Ethernet stack, device-side authentication/TLS, management writes, signed OTA or rollback. **Do not attempt to flash the linked ELF or raw `.dat`**. These omissions are substantial; `make arm-link-check` is a code generation and linker test only.
 
-See [`docs/native-test-gates.md`](docs/native-test-gates.md) and [`docs/api-v1.md`](docs/api-v1.md).
+See [`docs/native-test-gates.md`](docs/native-test-gates.md), [`docs/resource-budget.md`](docs/resource-budget.md) and [`docs/api-v1.md`](docs/api-v1.md).
 
-## Native image footprint
+## Hardware footprint discipline
 
-The firmware engineering build now includes a **fail-closed, provisional** size audit. Run **make footprint-check** to inspect the big-endian ARM7 ELF and raw research image and produce build/resource-report.json. See docs/resource-budget.md and resource-policy.json for the provisional limits and hardware qualification blockers. This does not measure installed H910P capacity, does not authorize flashing, and does not modify the approved UI or stable v0.5.10 firmware.
+The v0.6 native development build now has a **measured size gate**: `make footprint-check` generates `build/resource-report.json` from the ARM ELF sections and raw research binary. Limits in `resource-policy.json` are intentionally **provisional**, not claims about real NMC flash/RAM. The audit refuses deployment qualification. Hardware flash partitions, bootloader protection and recovery have to be measured and proven before a flashable image is produced. This keeps the existing UI and stable v0.5.10 unchanged while we modernize the underlying application.
+
+## 2026-native board support engineering (read-only)
+
+- `include/ou_ns7520_mem.h` and `board/ns7520_mem.c` provide a real NS7520 chip-select register decoder from Digi's documented `0xFFC00000` controller. It accepts *injected read-only register values* through a callback. There is deliberately **no on-card MMIO adapter wired up** yet, so the installed H910P cannot be touched by this research code. A decoded address window is **not** confirmed physical RAM or flash capacity.
+- `include/ou_flash_policy.h` and `board/flash_policy.c` validate independently verified flash capacities, erase blocks, and non-overlapping protected bootloader/recovery/application/config/log partitions. No flash writes, erase or update routines are included. Geometry/recovery flags must be positively verified; unknown defaults fail closed.
+- `include/ou_ups_link.h` and `board/ups_link.c` provide a bounded, receive-only observer for **already-delimited raw frames**. It records count, length and fingerprints, **not content**, and cannot manufacture a verified UPS measurement or transmit commands. The physical link and protocol framing have not been confirmed.
+- `tools/probe_oem_transport.py` performs an offline, SHA-256-allowlisted comparison of Dell 01.16.0001 and 01.18.0005 binary strings. Both reference HID/Report/COPI logic, but this **does not prove a USB, RS-232, UART or any other physical interface**. OEM byte streams are not copied into the repository.
+
+The new board modules are included in the big-endian ARM7 compile/link/footprint audit and in native C regression tests. Running `make clean all test footprint-check` still makes **no device-installable image**. Physical hardware tests remain blocked on a verified recovery mechanism and safe NMC↔UPS data path.
+
+For OEM-backed chip-select register evidence and the status of the native UPS transport work, see [board-and-ups-transport.md](docs/board-and-ups-transport.md). The new C modules require no platform headers or proprietary binaries to compile; nothing in this v0.6 work touches the approved UI or stable branch.
