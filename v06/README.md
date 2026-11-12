@@ -118,3 +118,7 @@ first vector and reset literal remain unchanged. The ELF image verifier now
 checks these exact ARM7 instructions and verifies that the User-mode rejection
 branch lands on a self-halt. This does not create an H910P BSP, validate RAM,
 or allow native firmware to be installed. See tests/test_native_image.py.
+
+## NET+OS alpha image packaging (offline, not operational)
+
+`make alpha-lab-image` produces a **structurally valid NET+OS bootHdr v2 / flags 9 / LZSS2 / CRC** image from the freestanding big-endian ARM7 application and an accompanying JSON integrity/safety manifest. The original card has previously accepted modified Dell-derived images through the HTTP/1.0 uploader; this preserves the observed container format without containing Dell's application code. This independent image still has no H910P MAC/UPS drivers and is NOT safe to install on the operating card. No deployment command or device access is part of the build. The literal-only encoder is deterministic; all bytes, CRC, header and the decompressed application are checked before output.

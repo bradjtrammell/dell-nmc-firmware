@@ -71,6 +71,12 @@ arm-link-check: arm-check
 	llvm-objcopy -O binary $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 	python3 tools/verify_native_image.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 
+.PHONY: alpha-lab-image
+# Build an OEM-envelope alpha research BIN for separate recovery-hardware tests.
+# This has NO hardware drivers and is not a safe live-card update. Not default.
+alpha-lab-image: footprint-check
+	python3 tools/package_alpha.py $(BUILD)/native-research-NOT-FLASHABLE.dat --output $(BUILD)/H910P-0.6.0-alpha.1-RESEARCH-DO-NOT-FLASH.bin --manifest $(BUILD)/alpha-research-manifest.json --acknowledge-research-only
+
 # Research size bounds are provisional until the actual H910P memory and flash
 # layout is verified. This does NOT certify a deployable firmware image.
 footprint-check: arm-link-check
