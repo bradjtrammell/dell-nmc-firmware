@@ -1,4 +1,4 @@
-/* Research-only ARM7 startup entry. Never install: no validated H910P BSP. */
+/* Research-only ARM7 entry. No H910P BSP or loader recovery yet: NOT FLASHABLE. */
 .syntax unified
 .cpu arm7tdmi
 .arm
@@ -7,6 +7,7 @@
 .global _start
 .type _start,%function
 _start:
+    /* OEM-format entry vector/literal layout is preserved. */
     ldr pc, [pc, #0x38]
     .rept 15
     nop
@@ -22,8 +23,15 @@ _start:
 .global ou_reset
 .type ou_reset,%function
 ou_reset:
-    /* Stack is mapped relative to the image; the physical board mapping
-     * has not been established, so this cannot run safely on a live NMC. */
+    /* A loader handoff in User mode must never initialize an SVC stack. */
+    mrs r0, cpsr
+    and r1, r0, #0x1f
+    cmp r1, #0x10
+    beq ou_boot_halt
+    /* Mask IRQ/FIQ, force ARM/SVC until vector and clock mapping is proven. */
+    bic r0, r0, #0x3f
+    orr r0, r0, #0xd3
+    msr cpsr_c, r0
     ldr sp, =__stack_top
     ldr r0, =__bss_start
     ldr r1, =__bss_end
@@ -35,6 +43,7 @@ ou_reset:
     b 1b
 2:
     bl ou_target_main
-3:
-    b 3b
+ou_boot_halt:
+    /* No bootloader fallback is assumed and no flash commands are issued. */
+    b ou_boot_halt
 .size ou_reset, . - ou_reset

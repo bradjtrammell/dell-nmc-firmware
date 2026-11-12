@@ -108,3 +108,13 @@ controller register addresses. It checks the OEM RAM load address against
 a decoded DRAM aperture but never claims physical capacity or boot recovery.
 No physical MMIO adapter is present; flash qualification always remains false.
 See docs/board-probe.md and its C/ASAN/ARM build tests.
+
+## Guarded native ARM7 reset handoff
+
+The independent research-only reset entry now verifies that the loader did
+not enter unprivileged User mode, explicitly enters ARM Supervisor mode with
+IRQ/FIQ masked before using the stack, and parks on invalid handoff. The OEM
+first vector and reset literal remain unchanged. The ELF image verifier now
+checks these exact ARM7 instructions and verifies that the User-mode rejection
+branch lands on a self-halt. This does not create an H910P BSP, validate RAM,
+or allow native firmware to be installed. See tests/test_native_image.py.
