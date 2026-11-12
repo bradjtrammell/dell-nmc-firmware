@@ -201,3 +201,14 @@ registers through a strict read-only whitelist and a three-gate physical
 qualification policy. It does not discover physical RAM capacity, program
 flash, communicate with the UPS, or authorize live flashing.
 See `docs/board-mmio-snapshot.md`.
+
+## Evidence-based SHUT receive decoder
+
+The Dell firmware's `shutHostGetReport` and HID references are consistent
+with the published Eaton/MGE SHUT serial HID protocol used by some Dell
+UPSes. The new `board/shut_rx.c` accepts only receive frames, validates
+1–8 byte packet lengths and XOR checksums, reassembles 256-byte bounded
+notifications and replies, and records metadata through `ups_link.c`.
+It has no UART electrical interface, SHUT sender, report parser, or UPS
+power-control support. The physical H910P-to-UPS link is not yet confirmed.
+See `docs/shut-rx.md`. This code is NOT flash-qualified.
