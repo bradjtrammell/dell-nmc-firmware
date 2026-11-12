@@ -99,3 +99,12 @@ It provides concrete targets for hardware-driver reverse engineering but
 is an analysis utility only; no flashable firmware is generated. See
 [ARM OEM forensic methodology](docs/oem-arm-forensics.md) for the two-archive
 command and evidence limits.
+
+## Native NS7520 passive board qualification
+
+The research ARM7 target now links board/board_probe.c, a whitelisted
+23-register read-only inventory with documented GEN, MAC, serial and memory
+controller register addresses. It checks the OEM RAM load address against
+a decoded DRAM aperture but never claims physical capacity or boot recovery.
+No physical MMIO adapter is present; flash qualification always remains false.
+See docs/board-probe.md and its C/ASAN/ARM build tests.
