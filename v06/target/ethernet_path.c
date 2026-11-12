@@ -14,16 +14,13 @@ static int overlap(uint32_t a, uint32_t alen, uint32_t b, uint32_t blen) {
     uint64_t aa = a, bb = b;
     return aa < bb + blen && bb < aa + alen;
 }
-int ou_ethernet_path_init(ou_ethernet_path *path,
-                          const ou_net_identity *identity,
+static int prepare_queues(ou_ethernet_path *path,
                           ou_dma_bd *rx_desc, uint32_t rx_desc_bus,
                           uint8_t *rx_data, uint32_t rx_data_bus,
                           ou_dma_bd *tx_desc, uint32_t tx_desc_bus,
                           uint8_t *tx_data, uint32_t tx_data_bus) {
-    if (!path) return -1;
-    *path=(ou_ethernet_path){0};
-    if (!valid_identity(identity) ||
-        overlap(rx_desc_bus,1024U,tx_desc_bus,1024U) ||
+    unsigned i;
+    if (overlap(rx_desc_bus,1024U,tx_desc_bus,1024U) ||
         overlap(rx_data_bus,OU_DMA_MAX_FRAME,tx_data_bus,OU_DMA_MAX_FRAME) ||
         overlap(rx_desc_bus,1024U,tx_data_bus,OU_DMA_MAX_FRAME) ||
         overlap(tx_desc_bus,1024U,rx_data_bus,OU_DMA_MAX_FRAME) ||
@@ -34,11 +31,52 @@ int ou_ethernet_path_init(ou_ethernet_path *path,
         *path=(ou_ethernet_path){0};
         return -1;
     }
-    path->identity=*identity;
+    for (i=0;i<6U;++i) path->identity.mac[i]=path->vlans.mac[i];
+    for (i=0;i<4U;++i)
+        path->identity.ipv4[i]=path->vlans.interfaces[0].ipv4[i];
+    path->identity.enabled=1U;
     return 0;
 }
+int ou_ethernet_path_init_vlans(ou_ethernet_path *path,
+                          const ou_vlan_table *config,
+                          ou_dma_bd *rx_desc, uint32_t rx_desc_bus,
+                          uint8_t *rx_data, uint32_t rx_data_bus,
+                          ou_dma_bd *tx_desc, uint32_t tx_desc_bus,
+                          uint8_t *tx_data, uint32_t tx_data_bus) {
+    if (!path || !config || (const void *)path == (const void *)config) return -1;
+    *path=(ou_ethernet_path){0};
+    if (ou_vlan_configure(&path->vlans,config->mac,config->interfaces,
+                          config->count,config->native_vid,
+                          config->trunk_enabled,config->accept_tagged_native,
+                          config->accept_priority_tags,
+                          config->priority_reply_tagged)!=0) return -1;
+    return prepare_queues(path,rx_desc,rx_desc_bus,rx_data,rx_data_bus,
+                          tx_desc,tx_desc_bus,tx_data,tx_data_bus);
+}
+int ou_ethernet_path_init(ou_ethernet_path *path,
+                          const ou_net_identity *identity,
+                          ou_dma_bd *rx_desc, uint32_t rx_desc_bus,
+                          uint8_t *rx_data, uint32_t rx_data_bus,
+                          ou_dma_bd *tx_desc, uint32_t tx_desc_bus,
+                          uint8_t *tx_data, uint32_t tx_data_bus) {
+    ou_vlan_interface legacy={0};
+    unsigned i;
+    if (!path) return -1;
+    *path=(ou_ethernet_path){0};
+    if (!valid_identity(identity)) return -1;
+    /* Host compatibility adapter only; a physical trunk must use
+     * ou_ethernet_path_init_vlans with explicit masks and ACL policy. */
+    legacy.vid=1U;legacy.prefix_length=24U;legacy.allow_local_subnet=1U;
+    legacy.allowed_services=OU_VLAN_SERVICE_ARP|OU_VLAN_SERVICE_PING;
+    for (i=0;i<4U;++i)legacy.ipv4[i]=identity->ipv4[i];
+    if (ou_vlan_configure(&path->vlans,identity->mac,&legacy,1U,1U,
+                          0U,0U,0U,0U)!=0) return -1;
+    return prepare_queues(path,rx_desc,rx_desc_bus,rx_data,rx_data_bus,
+                          tx_desc,tx_desc_bus,tx_data,tx_data_bus);
+}
 int ou_ethernet_path_start(ou_ethernet_path *path, const ou_dma_bus *bus) {
-    if(!path || !path->rx.prepared || !path->tx.prepared || path->started)
+    if(!path || !path->rx.prepared || !path->tx.prepared || path->started ||
+       !path->vlans.count)
         return -1;
     if(ou_dma_start(bus,&path->rx)!=0) return -1;
     path->started=1U;
@@ -61,7 +99,7 @@ int ou_ethernet_path_poll(ou_ethernet_path *path, const ou_dma_bus *bus) {
         incr(&path->ignored);
         return ou_dma_rx_release(bus,&path->rx)==0 ? 0 : -1;
     }
-    net=ou_net_reply(&path->identity,frame,length,path->response,
+    net=ou_vlan_reply(&path->vlans,frame,length,path->response,
                      sizeof(path->response),&tx_len);
     if(net>0) {
         if(ou_dma_tx_copy(&path->tx,path->response,tx_len)!=0 ||

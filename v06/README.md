@@ -146,3 +146,12 @@ register emulator including missing-clock/ownership denials and timeout
 cleanup. This is one genuine NIC driver component; full RX/TX DMA and an
 IP/TCP stack still have to be implemented before the device can use the HTTP
 service. See `docs/ns7520-phy.md`.
+
+## VLAN-aware Ethernet trunk (native code)
+
+The single physical NIC now has an 802.1Q demultiplexer with up to 64
+separate IPv4 interfaces, each with source CIDR ACLs, service masks, PCP
+and counters. The DMA RX/TX packet path classifies VLAN tags before
+ARP/ICMP processing. Unknown VLANs, double tags and unconfigured native
+VLANs are dropped, with no routing or bridging. Native startup must supply
+explicit VLAN policy. See docs/vlan-trunk.md for limits and security.
