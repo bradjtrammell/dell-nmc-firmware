@@ -1,0 +1,14 @@
+#ifndef OU_HTTP_WIRE_H
+#define OU_HTTP_WIRE_H
+#include <stddef.h>
+#include <stdint.h>
+#include "openh910p.h"
+#define OU_HTTP_MAX_REQUEST 4096U
+#define OU_HTTP_PREFIX_RESERVE 512U
+#define OU_HTTP_MAX_RESPONSE (OU_HTTP_PREFIX_RESERVE + OU_JSON_CAPACITY)
+/* One complete bounded request, one read-only HTTP response.
+ * No NIC, sockets, heap, TLS, or POSIX dependencies. */
+int ou_http_respond(const uint8_t *request, size_t size,
+                    const ou_snapshot *snapshot, char *output,
+                    size_t capacity, size_t *written);
+#endif
