@@ -42,3 +42,20 @@ References:
 The installed H910P must not receive any speculative SHUT command,
 flash update, reset, or power-control instruction. The research image
 remains explicitly NOT FLASHABLE.
+
+## Pure read-only GET REPORT packet builder
+
+`board/shut_request.c` builds the published HID feature GET REPORT
+command using SHUT's final REQUEST packet (0x81), duplicated length (0x88),
+`A1 01 <report-id> 03 00 00 00 00` and an XOR checksum. It has **no
+transport callback or hardware write capability**; it only fills a
+caller-supplied 11-byte array for later, independently qualified transport
+integration. There is explicitly **no SET REPORT implementation**. Unit
+tests check all 256 possible report IDs, XOR correctness and unchanged
+caller buffers on argument/capacity failure. ARM7 and ASAN/UBSAN are
+mandatory build checks.
+
+Encoding a documented read-only SHUT command is NOT permission to send
+it to an unverified UPS physical interface. Initial synchronization,
+ACK/NAK scheduling, report descriptors, actual physical mapping and
+recovery tests still remain.
