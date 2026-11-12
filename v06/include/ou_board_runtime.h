@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "ou_ethernet_manager.h"
 #include "ou_ns7520_hal.h"
+#include "ou_ns7520_phy.h"
 
 typedef int (*ou_runtime_clock_ms)(void *opaque, uint32_t *monotonic_ms);
 
@@ -12,6 +13,7 @@ typedef struct {
     ou_mac_state mac;
     ou_dma_bus bus;
     ou_ns7520_hal *hal;
+    ou_phy_identity phy;
     ou_runtime_clock_ms clock_ms;
     void *clock_context;
     uint32_t last_ms;

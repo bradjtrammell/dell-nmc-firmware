@@ -8,7 +8,7 @@ static int mapped(const ou_ns7520_hal *hal,uint32_t bus,size_t size) {
 }
 static int validate(const ou_board_boot_config *cfg) {
     if (!cfg || !cfg->hal || !cfg->hal->configured || !cfg->vlans ||
-        !cfg->mac || !cfg->clock_ms || !cfg->rx_descriptor ||
+        !cfg->mac || cfg->mac->link_confirmed!=1U || !cfg->clock_ms || !cfg->rx_descriptor ||
         !cfg->tx_descriptor || !cfg->rx_data || !cfg->tx_data ||
         cfg->enable_tcp_http>1U ||
         (cfg->enable_tcp_http && (!cfg->tcp_boot_seed || !cfg->http_application)) ||
@@ -22,10 +22,21 @@ static int validate(const ou_board_boot_config *cfg) {
 int ou_board_runtime_start(ou_board_runtime *runtime,
                            const ou_board_boot_config *cfg) {
     uint32_t now_ms=0U;
+    ou_phy_bus phy;
     if (!runtime || !cfg || runtime->running || !validate(cfg))return -1;
     if (ou_ns7520_hal_bus(cfg->hal,&runtime->bus)!=0) return -1;
     runtime->hal=cfg->hal;
     if(cfg->clock_ms(cfg->clock_context,&now_ms)!=0) return -1;
+    /* Require a real MDIO identity and physical link, not merely a
+     * caller-supplied link_confirmed boolean. No PHY configuration writes. */
+    phy.read=ou_ns7520_hal_read32;
+    phy.write=ou_ns7520_hal_write32;
+    phy.context=cfg->hal;
+    phy.exclusive_mac_ownership=1U;
+    phy.phy_clocks_verified=1U;
+    phy.phy_address=0U;
+    if(ou_phy_discover(&phy,&runtime->phy)!=0 || !runtime->phy.link_up)
+        return -1;
     if(ou_ethernet_path_init_vlans(&runtime->ethernet,cfg->vlans,
           cfg->rx_descriptor,cfg->rx_descriptor_bus,
           cfg->rx_data,cfg->rx_data_bus,

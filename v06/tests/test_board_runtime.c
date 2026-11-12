@@ -12,9 +12,24 @@ static ou_dma_bd rbd,tbd;
 static uint8_t rx[1518],tx[1518];
 static uint32_t now=10;
 static int fail_clock=0, fail_poll=0;
+static int fail_phy_link=0;static unsigned phyaddr=0,phyreg=0;
 static unsigned stops=0,starts=0,iterations=0;
-static int readreg(void*ctx,uint32_t a,uint32_t*v){(void)ctx;(void)a;*v=0;return 0;}
-static int writereg(void*ctx,uint32_t a,uint32_t v){(void)ctx;(void)a;(void)v;return 0;}
+static int readreg(void*ctx,uint32_t a,uint32_t*v){(void)ctx;
+ if(a==OU_PHY_MIND){*v=0;return 0;}
+ if(a==OU_PHY_MRDD){
+  if(phyaddr!=0U)*v=0xffffU;
+  else if(phyreg==2U)*v=0x2000U;
+  else if(phyreg==3U)*v=0x5c90U;
+  else if(phyreg==1U)*v=fail_phy_link?0U:OU_PHY_BMSR_LINK;
+  else *v=0U;
+  return 0;
+ }
+ *v=0;return 0;
+}
+static int writereg(void*ctx,uint32_t a,uint32_t v){(void)ctx;
+ if(a==OU_PHY_MADR){phyaddr=(v>>8U)&31U;phyreg=v&31U;}
+ return 0;
+}
 static int barr(void*ctx,uint32_t a,size_t n,uint8_t d){(void)ctx;(void)a;(void)n;(void)d;return 0;}
 static int clk(void *ctx,uint32_t *v){(void)ctx;if(fail_clock)return -1;*v=now;return 0;}
 int ou_vlan_validate(const ou_vlan_table*t){return t && t->count==1U;}
@@ -54,6 +69,7 @@ int main(void){
     ou_board_boot_config c;
     memset(&runner,0,sizeof(runner));memset(&policy,0,sizeof(policy));
     policy.count=1;
+    mac.link_confirmed=1U;
     c=cfg();
     assert(ou_board_runtime_start(&runner,&c)==-1);
     assert(starts==0);
@@ -66,7 +82,12 @@ int main(void){
     c=cfg();fail_clock=1;
     assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
     fail_clock=0;
+    fail_phy_link=1;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    fail_phy_link=0;
     assert(ou_board_runtime_start(&runner,&c)==0 && runner.running==1);
+    assert(runner.phy.identity_valid && runner.phy.link_up &&
+           runner.phy.phy_address==0U);
     assert(ou_board_runtime_start(&runner,&c)==-1);
     assert(starts==1 && runner.ethernet.tcp_enabled);
     ++now;
