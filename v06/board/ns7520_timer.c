@@ -26,6 +26,17 @@ int ou_timer_start(ou_ns7520_timer *timer, ou_timer_read read,
  timer->active=1U;
  return 0;
 }
+/* Fixed 32-bit long division: 32 iterations regardless of tick delta,
+ * avoiding an unbounded ARM7 spin and runtime libgcc division dependency. */
+static uint32_t ticks_to_ms(uint32_t ticks,uint32_t per,uint32_t *remaining){
+ uint32_t whole=0U,part=0U;unsigned i;
+ for(i=0U;i<32U;++i){
+   part=(part<<1U)|((ticks>>(31U-i))&1U);
+   if(part>=per){part-=per;whole|=UINT32_C(1)<<(31U-i);}
+ }
+ *remaining=part;
+ return whole;
+}
 int ou_timer_now(void *opaque,uint32_t *ms){
  ou_ns7520_timer *timer=opaque;
  uint32_t control,status,current,elapsed;
@@ -48,9 +59,11 @@ int ou_timer_now(void *opaque,uint32_t *ms){
  timer->previous=current;
  timer->remainder+=elapsed;
  /* Avoid division/libgcc on bare ARM7. */
- while(timer->remainder>=timer->ticks_per_ms){
-   timer->remainder-=timer->ticks_per_ms;
-   ++timer->now_ms;
+ {
+   uint32_t whole,remaining=0U;
+   whole=ticks_to_ms(timer->remainder,timer->ticks_per_ms,&remaining);
+   timer->remainder=remaining;
+   timer->now_ms+=whole;
  }
  *ms=timer->now_ms;
  return 0;

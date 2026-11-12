@@ -23,3 +23,12 @@ ticks, wrap handling, denied ownership and stop.
 Reference: Digi NS7520 Hardware Reference, GEN module Timer Control and
 Timer Status register tables.
 https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/
+
+## Bounded tick-to-millisecond conversion
+
+Timer polling no longer subtracts one ms interval repeatedly from the
+elapsed tick delta (up to 134,217,727 ticks). A constant 32-iteration
+binary long divider converts the maximum count without a libgcc EABI
+division helper or startup hangs. Both 1 and 251 ticks-per-ms edge cases
+are exercised by host GCC and ASAN/UBSAN, and the driver compiles for
+big-endian ARM7.
