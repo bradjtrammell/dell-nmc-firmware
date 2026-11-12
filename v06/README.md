@@ -61,3 +61,7 @@ The v0.6 native development build now has a **measured size gate**: `make footpr
 The new board modules are included in the big-endian ARM7 compile/link/footprint audit and in native C regression tests. Running `make clean all test footprint-check` still makes **no device-installable image**. Physical hardware tests remain blocked on a verified recovery mechanism and safe NMC↔UPS data path.
 
 For OEM-backed chip-select register evidence and the status of the native UPS transport work, see [board-and-ups-transport.md](docs/board-and-ups-transport.md). The new C modules require no platform headers or proprietary binaries to compile; nothing in this v0.6 work touches the approved UI or stable branch.
+
+## Crash-safe native configuration storage (no physical flash writes)
+
+`board/config_journal.c` implements an independent 2-slot, 24-byte-header, CRC-checked, NOR-friendly configuration store. It is intentionally **not** connected to any device erase/program routines: it refuses writes unless real geometry, separated config regions and write authorization have been verified. The host NOR emulator tests interrupted writes, corrupted payloads and recovery to the previous slot. See [configuration-journal.md](docs/configuration-journal.md). This is a foundation for later typed JSON configuration, **not** a functional v0.6 settings updater on the H910P yet.
