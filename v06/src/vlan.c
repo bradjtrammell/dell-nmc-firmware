@@ -272,7 +272,16 @@ int ou_vlan_reply(ou_vlan_table *table, const uint8_t *frame,
     for (i = 0U; i < 4U; ++i) device.ipv4[i] = c->ipv4[i];
     device.enabled = 1U;
     result = ou_net_reply(&device,packet,plain_len,response,capacity,&reply_len);
-    if (result <= 0) return result;
+    if (result < 0) {
+        /* Invalid on-wire source MAC or malformed packet must never strand
+         * the RX DMA descriptor. A full-size output buffer distinguishes
+         * packet rejection from insufficient caller storage. */
+        if (capacity < OU_VLAN_MAX_TAGGED) return -1;
+        inc(&table->denied);
+        inc(&table->statistics[ctx.interface_index].denied);
+        return 0;
+    }
+    if (result == 0) return 0;
     tag_output = (uint8_t)(ctx.tagged &&
         (((u16(frame+14U) & UINT16_C(0x0fff)) != 0U) ||
          table->priority_reply_tagged));

@@ -152,9 +152,16 @@ static void test_native_priority(void) {
     assert(ou_vlan_reply(&table,f,64,tx,sizeof(tx),&n)==1);
     assert(tx[15]==10);
 }
+static void test_malformed_source_does_not_fault_rx(void) {
+    uint8_t frame[64],reply[1518];size_t n=123U;
+    init();arp(frame,17,20,1);
+    frame[6]=3U; /* invalid multicast source MAC */
+    assert(ou_vlan_reply(&table,frame,64,reply,sizeof(reply),&n)==0);
+    assert(n==0U);
+}
 int main(void) {
     test_config();test_parse();test_acl();
-    test_tagged_reply_and_isolation();test_native_priority();
+    test_tagged_reply_and_isolation();test_native_priority();test_malformed_source_does_not_fault_rx();
     puts("PASS: 64 independent VLAN interfaces, native/802.1p, tagged ARP/ICMP, ACL, isolation and strict frames");
     return 0;
 }

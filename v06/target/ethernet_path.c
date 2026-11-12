@@ -43,7 +43,7 @@ int ou_ethernet_path_init_vlans(ou_ethernet_path *path,
                           uint8_t *rx_data, uint32_t rx_data_bus,
                           ou_dma_bd *tx_desc, uint32_t tx_desc_bus,
                           uint8_t *tx_data, uint32_t tx_data_bus) {
-    if (!path || !config || (const void *)path == (const void *)config) return -1;
+    if (!path || !config || (const void *)&path->vlans == (const void *)config) return -1;
     *path=(ou_ethernet_path){0};
     if (ou_vlan_configure(&path->vlans,config->mac,config->interfaces,
                           config->count,config->native_vid,
@@ -109,7 +109,13 @@ int ou_ethernet_path_poll(ou_ethernet_path *path, const ou_dma_bus *bus) {
         }
         incr(&path->answered);
     } else if (net==0) incr(&path->ignored);
-    else {incr(&path->errors);return -1;}
+    else {
+        incr(&path->errors);
+        /* Release the last incoming descriptor even on a software packet
+         * failure, avoiding unbounded receive denial-of-service. */
+        (void)ou_dma_rx_release(bus,&path->rx);
+        return -1;
+    }
     if(ou_dma_rx_release(bus,&path->rx)!=0) {incr(&path->errors);return -1;}
     return net>0 ? 1 : 0;
 }
