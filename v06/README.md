@@ -181,3 +181,14 @@ responses, FIN and retransmission timeouts. The lower-level VLAN/TCP ingress
 validator remains mandatory. This code is ARM7-linked but physical MAC/TCP
 execution, authentication and real UPS telemetry remain unavailable.
 See docs/tcp-engine.md.
+
+## NS7520 physical HAL and boot runtime
+
+`board/ns7520_hal.c` implements a restricted ARM7 MMIO adapter for
+Ethernet MAC, PHY management and DMA, with bounded qualified DMA bus mapping.
+`board/board_runtime.c` starts and polls the real VLAN/TCP/MAC path after
+board-specific provisioning and stops the MAC when the monotonic clock or
+network handler fails. `target/runtime.c` now calls this event loop when
+`ou_h910p_port_prepare` succeeds. The hook intentionally fails until the
+installed H910P hardware port and recovery procedures are verified.
+See `docs/native-board-port.md`.
