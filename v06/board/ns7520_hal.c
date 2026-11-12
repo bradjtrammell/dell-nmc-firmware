@@ -1,4 +1,5 @@
 #include "ou_ns7520_hal.h"
+#include "ou_ns7520_timer.h"
 
 /* NS7520 registers documented in Digi Hardware Reference Rev G. Reads of
  * bus status are permitted; only the MAC and its dedicated DMA channels
@@ -84,16 +85,40 @@ int ou_ns7520_hal_init(ou_ns7520_hal *hal, ou_hal_read read,
     hal->dma_mapping_verified=dma_mapping_verified;
     hal->configured=1U;return 0;
 }
+/* A timer lease never permits general system, watchdog or flash writes. */
+static int timer_register(const ou_ns7520_hal *hal,uint32_t reg){
+ uint32_t control;
+ if(!hal || hal->timer_bound!=1U ||
+    (hal->timer_index!=1U && hal->timer_index!=2U))return 0;
+ control=hal->timer_index==1U?OU_TIMER1_CTRL:OU_TIMER2_CTRL;
+ return reg==control || reg==control+4U;
+}
+int ou_ns7520_hal_timer_bind(ou_ns7520_hal *hal,unsigned timer_index,
+                              uint8_t exclusive,uint8_t clock_verified){
+ if(!valid(hal) || hal->timer_bound ||
+    (timer_index!=1U && timer_index!=2U) ||
+    exclusive!=1U || clock_verified!=1U)return -1;
+ hal->timer_index=(uint8_t)timer_index;hal->timer_bound=1U;
+ return 0;
+}
+int ou_ns7520_hal_timer_unbind(ou_ns7520_hal *hal){
+ uint32_t control=0U,reg;
+ if(!valid(hal) || !hal->timer_bound)return -1;
+ reg=hal->timer_index==1U?OU_TIMER1_CTRL:OU_TIMER2_CTRL;
+ if(hal->read(hal->opaque,reg,&control)!=0 || (control&OU_TIMER_TE))return -1;
+ hal->timer_bound=0U;hal->timer_index=0U;
+ return 0;
+}
 int ou_ns7520_hal_read32(void *opaque, uint32_t reg, uint32_t *value) {
     ou_ns7520_hal *hal=opaque;
     if (!value) return -1;
     *value=0U;
-    if (!valid(hal) || (reg & 3U) || !readable(reg)) return -1;
+    if (!valid(hal) || (reg & 3U) || (!readable(reg) && !timer_register(hal,reg))) return -1;
     return hal->read(hal->opaque,reg,value);
 }
 int ou_ns7520_hal_write32(void *opaque, uint32_t reg, uint32_t value) {
     ou_ns7520_hal *hal=opaque;
-    if (!valid(hal) || (reg & 3U) || !writable(reg)) return -1;
+    if (!valid(hal) || (reg & 3U) || (!writable(reg) && !timer_register(hal,reg))) return -1;
     /* Never permit DMA pointer registers to target outside qualified RAM. */
     if ((reg == OU_DMA_RX_BDP || reg == OU_DMA_TX_BDP) &&
         (value < hal->dma_start || value >

@@ -24,6 +24,8 @@ typedef struct {
     uint8_t phy_clocks_verified;
     uint8_t dma_mapping_verified;
     uint8_t configured;
+    uint8_t timer_bound;
+    uint8_t timer_index;
 } ou_ns7520_hal;
 
 /* Fails closed unless explicit evidence and platform operations are present.
@@ -34,6 +36,11 @@ int ou_ns7520_hal_init(ou_ns7520_hal *hal, ou_hal_read read,
                        uint8_t board_verified, uint8_t mac_exclusive,
                        uint8_t phy_clocks_verified, uint8_t dma_mapping_verified);
 
+/* One hardware timer is accessible only after proven exclusive ownership
+ * and calibrated input clock. Never permits GEN clock/watchdog writes. */
+int ou_ns7520_hal_timer_bind(ou_ns7520_hal *hal,unsigned timer_index,
+                              uint8_t exclusive,uint8_t clock_verified);
+int ou_ns7520_hal_timer_unbind(ou_ns7520_hal *hal);
 int ou_ns7520_hal_read32(void *opaque, uint32_t reg, uint32_t *value);
 int ou_ns7520_hal_write32(void *opaque, uint32_t reg, uint32_t value);
 int ou_ns7520_hal_dma_sync(void *opaque, uint32_t bus_address,
