@@ -8,6 +8,7 @@ static ou_board_runtime runner;
 static ou_vlan_table policy;
 static ou_ns7520_hal hal;
 static ou_mac_config mac;
+static ou_board_probe snapshot;
 static ou_dma_bd rbd,tbd;
 static uint8_t rx[1518],tx[1518];
 static uint32_t now=10;
@@ -33,6 +34,13 @@ static int writereg(void*ctx,uint32_t a,uint32_t v){(void)ctx;
 }
 static int barr(void*ctx,uint32_t a,size_t n,uint8_t d){(void)ctx;(void)a;(void)n;(void)d;return 0;}
 static int clk(void *ctx,uint32_t *v){(void)ctx;if(fail_clock)return -1;*v=now;return 0;}
+static int dma_match(void *ctx,const void *p,uint32_t addr,size_t bytes){
+ (void)ctx;
+ return (p==&rbd && addr==0x08002000U && bytes==sizeof(ou_dma_bd)) ||
+        (p==&tbd && addr==0x08002400U && bytes==sizeof(ou_dma_bd)) ||
+        (p==rx && addr==0x08003000U && bytes==OU_DMA_MAX_FRAME) ||
+        (p==tx && addr==0x08004000U && bytes==OU_DMA_MAX_FRAME);
+}
 int ou_vlan_validate(const ou_vlan_table*t){return t && t->count==1U;}
 int ou_ethernet_path_init_vlans(ou_ethernet_path*p,const ou_vlan_table*v,
     ou_dma_bd*rb,uint32_t rba,uint8_t*rxbuf,uint32_t rxba,
@@ -58,6 +66,7 @@ static int app(void*p,const uint8_t*req,size_t n,uint32_t t,char*out,size_t cap,
 static ou_board_boot_config cfg(void){
     ou_board_boot_config c={0};
     c.vlans=&policy;c.mac=&mac;c.hal=&hal;
+    c.board_snapshot=&snapshot;c.dma_resolve=dma_match;
     c.rx_descriptor=&rbd;c.rx_descriptor_bus=0x08002000U;
     c.rx_data=rx;c.rx_data_bus=0x08003000U;
     c.tx_descriptor=&tbd;c.tx_descriptor_bus=0x08002400U;
@@ -71,6 +80,15 @@ int main(void){
     memset(&runner,0,sizeof(runner));memset(&policy,0,sizeof(policy));
     policy.count=1;
     mac.link_confirmed=1U;
+    {
+      uint32_t regs[OU_MEM_CS_COUNT][3]={{0}};
+      regs[1][0]=UINT32_C(0x08000009);
+      regs[1][1]=UINT32_C(0xFF000000);
+      assert(ou_mem_decode(0U,regs,&snapshot.memory)==0);
+      snapshot.registers_observed=1U;
+      snapshot.soc_revision_matches_reference=1U;
+      snapshot.application_load_window_decoded=1U;
+    }
     c=cfg();
     assert(ou_board_runtime_start(&runner,&c)==-1);
     assert(starts==0);
@@ -78,6 +96,16 @@ int main(void){
              0x08000000U,0x100000U,1,1,1,1)==0);
     c=cfg();c.rx_descriptor_bus=0x09002000U;
     assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    c=cfg();c.rx_data=tx; /* Same bus value but wrong CPU buffer. */
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    c=cfg();c.dma_resolve=0;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    c=cfg();snapshot.soc_revision_matches_reference=0U;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    snapshot.soc_revision_matches_reference=1U;
+    c=cfg();snapshot.application_load_window_decoded=0U;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    snapshot.application_load_window_decoded=1U;
     c=cfg();c.tcp_boot_seed=0;
     assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
     c=cfg();fail_clock=1;

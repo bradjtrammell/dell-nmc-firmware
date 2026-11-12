@@ -6,8 +6,30 @@ static int mapped(const ou_ns7520_hal *hal,uint32_t bus,size_t size) {
     offset=bus-hal->dma_start;
     return offset <= hal->dma_span && size <= hal->dma_span-offset;
 }
+static int identities(const ou_board_boot_config *cfg){
+    if(!cfg->dma_resolve || !cfg->hal)return 0;
+    return cfg->dma_resolve(cfg->dma_resolve_context,cfg->rx_descriptor,
+             cfg->rx_descriptor_bus,sizeof(ou_dma_bd))==1 &&
+           cfg->dma_resolve(cfg->dma_resolve_context,cfg->tx_descriptor,
+             cfg->tx_descriptor_bus,sizeof(ou_dma_bd))==1 &&
+           cfg->dma_resolve(cfg->dma_resolve_context,cfg->rx_data,
+             cfg->rx_data_bus,OU_DMA_MAX_FRAME)==1 &&
+           cfg->dma_resolve(cfg->dma_resolve_context,cfg->tx_data,
+             cfg->tx_data_bus,OU_DMA_MAX_FRAME)==1;
+}
 static int validate(const ou_board_boot_config *cfg) {
     if (!cfg || !cfg->hal || !cfg->hal->configured || !cfg->vlans ||
+        !cfg->board_snapshot ||
+        cfg->board_snapshot->registers_observed!=1U ||
+        cfg->board_snapshot->soc_revision_matches_reference!=1U ||
+        cfg->board_snapshot->application_load_window_decoded!=1U ||
+        cfg->board_snapshot->memory.decoded!=1U ||
+        /* Controller decode is not physical installed-chip capacity proof.
+         * Nonetheless, prevent startup outside the live decoded aperture. */
+        !ou_board_application_window(&cfg->board_snapshot->memory,
+             OU_NMC_APPLICATION_LOAD,UINT32_C(0x00100000)) ||
+        !ou_board_application_window(&cfg->board_snapshot->memory,
+             cfg->hal->dma_start,cfg->hal->dma_span) ||
         !cfg->mac || cfg->mac->link_confirmed!=1U || !cfg->clock_ms || !cfg->rx_descriptor ||
         !cfg->tx_descriptor || !cfg->rx_data || !cfg->tx_data ||
         cfg->enable_tcp_http>1U ||
@@ -16,7 +38,8 @@ static int validate(const ou_board_boot_config *cfg) {
         !mapped(cfg->hal,cfg->rx_descriptor_bus,sizeof(ou_dma_bd)) ||
         !mapped(cfg->hal,cfg->tx_descriptor_bus,sizeof(ou_dma_bd)) ||
         !mapped(cfg->hal,cfg->rx_data_bus,OU_DMA_MAX_FRAME) ||
-        !mapped(cfg->hal,cfg->tx_data_bus,OU_DMA_MAX_FRAME))return 0;
+        !mapped(cfg->hal,cfg->tx_data_bus,OU_DMA_MAX_FRAME) ||
+        !identities(cfg))return 0;
     return 1;
 }
 int ou_board_runtime_start(ou_board_runtime *runtime,

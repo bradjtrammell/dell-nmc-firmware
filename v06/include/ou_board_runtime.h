@@ -5,8 +5,13 @@
 #include "ou_ethernet_manager.h"
 #include "ou_ns7520_hal.h"
 #include "ou_ns7520_phy.h"
+#include "ou_board_probe.h"
 
 typedef int (*ou_runtime_clock_ms)(void *opaque, uint32_t *monotonic_ms);
+/* The physical BSP must prove each CPU pointer resolves to its DMA address.
+ * A bus aperture alone cannot establish CPU/DMA pointer identity. */
+typedef int (*ou_runtime_dma_resolve)(void *opaque, const void *cpu,
+                                      uint32_t dma_bus, size_t bytes);
 
 typedef struct {
     ou_ethernet_path ethernet;
@@ -26,6 +31,9 @@ typedef struct {
 
 typedef struct {
     const ou_vlan_table *vlans;
+    const ou_board_probe *board_snapshot;
+    ou_runtime_dma_resolve dma_resolve;
+    void *dma_resolve_context;
     const ou_mac_config *mac;
     ou_ns7520_hal *hal;
     ou_dma_bd *rx_descriptor;

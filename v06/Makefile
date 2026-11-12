@@ -45,8 +45,8 @@ $(BUILD)/test_hal_timer: board/ns7520_hal.c board/ns7520_timer.c tests/test_hal_
 $(BUILD)/test_ns7520_hal: board/ns7520_hal.c tests/test_ns7520_hal.c include/ou_ns7520_hal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_hal.c tests/test_ns7520_hal.c -o $@
 
-$(BUILD)/test_board_runtime: board/ns7520_hal.c board/ns7520_phy.c board/board_runtime.c tests/test_board_runtime.c include/ou_board_runtime.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_hal.c board/ns7520_phy.c board/board_runtime.c tests/test_board_runtime.c -o $@
+$(BUILD)/test_board_runtime: board/ns7520_hal.c board/ns7520_phy.c board/board_probe.c board/ns7520_mem.c board/board_runtime.c tests/test_board_runtime.c include/ou_board_runtime.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_hal.c board/ns7520_phy.c board/board_probe.c board/ns7520_mem.c board/board_runtime.c tests/test_board_runtime.c -o $@
 
 $(BUILD)/test_tcp_native_http: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c -o $@
@@ -253,7 +253,7 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_tcp_native_http_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_hal.c tests/test_ns7520_hal.c -o $(BUILD)/test_ns7520_hal_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ns7520_hal_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_hal.c board/ns7520_phy.c board/board_runtime.c tests/test_board_runtime.c -o $(BUILD)/test_board_runtime_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_hal.c board/ns7520_phy.c board/board_probe.c board/ns7520_mem.c board/board_runtime.c tests/test_board_runtime.c -o $(BUILD)/test_board_runtime_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_board_runtime_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_phy.c tests/test_phy_discover.c -o $(BUILD)/test_phy_discover_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_phy_discover_sanitized
