@@ -50,7 +50,7 @@ static void init(void){
 static void transact(uint16_t port,const char *http,const char *expected_status,uint32_t start){
  uint32_t peer_seq=10000U+port,initial_server,client_next;
  const uint8_t *tcp;
- size_t len=strlen(http);
+ size_t len=strlen(http);unsigned nseg=0U;
  init();packet(104U,port,peer_seq,0U,0x02U,0,0U);
  assert(rx(start)==1);assert(outbound[12]==0x81&&r16(outbound+14)==104U);
  tcp=outbound+38U;assert(tcp[13]==0x12U);initial_server=r32(tcp+4U);
@@ -62,7 +62,7 @@ static void transact(uint16_t port,const char *http,const char *expected_status,
  assert(memcmp(outbound+58U,expected_status,strlen(expected_status))==0);
  client_next=peer_seq+1U+(uint32_t)len;
  /* Follow the native response until all segments and FIN are acknowledged. */
- while(engine.slots[0].state&&engine.slots[0].state!=4U){
+ while(engine.slots[0].state&&engine.slots[0].state!=4U && nseg++<8U){
   packet(104U,port,client_next,engine.slots[0].send_next,0x10U,0,0U);
   assert(rx(start+3U)==1);
  }
