@@ -1,0 +1,75 @@
+name: H910P v0.6 native alpha integration
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "v06/**"
+      - ".github/workflows/v06-alpha.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h910p-v06-alpha-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-arm7:
+    name: ARM7 native build, tests, NET+OS package verification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install ARM7 cross-build and sanitizer toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang lld llvm make gcc python3
+          command -v clang
+          command -v ld.lld
+          command -v llvm-objcopy
+      - name: Native C, Python, ARM7 and sanitizer acceptance
+        working-directory: v06
+        run: |
+          make clean all test arm-link-check footprint-check board-sanitize
+      - name: Generate independent NET+OS laboratory alpha image
+        working-directory: v06
+        run: |
+          make alpha-lab-image
+      - name: Independently verify alpha with existing Dell NET+OS image parser
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          from tools.h910p_rebuild import read_image
+          build = Path("v06/build")
+          path = build / "H910P-0.6.0-alpha.1-RESEARCH-DO-NOT-FLASH.bin"
+          raw = (build / "native-research-NOT-FLASHABLE.dat").read_bytes()
+          report = json.loads((build / "alpha-research-manifest.json").read_text())
+          parsed = read_image(path.read_bytes())
+          assert parsed.unpacked == raw
+          assert parsed.ram_address == 0x08004000
+          assert parsed.flash_offset == 0x00010000
+          assert hashlib.sha256(path.read_bytes()).hexdigest() == report["imageSHA256"]
+          assert report["safeToInstall"] is False
+          assert report["independentBootVerified"] is False
+          assert report["ethernetDriverImplemented"] is False
+          assert report["upsDriverImplemented"] is False
+          print("PASS: Independent NET+OS CRC, header, LZSS2 and exact ARM payload verification")
+          print("RESEARCH ONLY — NOT SAFE FOR DEVICE FLASHING")
+          PY
+      - name: Upload explicitly unqualified alpha research build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: H910P-0.6.0-alpha.1-RESEARCH-NOT-FLASHABLE
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            v06/build/H910P-0.6.0-alpha.1-RESEARCH-DO-NOT-FLASH.bin
+            v06/build/alpha-research-manifest.json
+            v06/build/resource-report.json
