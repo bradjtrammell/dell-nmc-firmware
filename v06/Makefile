@@ -18,6 +18,9 @@ $(BUILD)/test_core: src/core.c src/schema.c src/provider.c tests/test_core.c inc
 $(BUILD)/test_provider: src/core.c src/schema.c src/provider.c tests/test_provider.c include/openh910p.h include/ou_schema.h include/ou_provider.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c tests/test_provider.c -o $@
 
+$(BUILD)/test_compiler_rt: target/compiler_rt.c tests/test_compiler_rt.c | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) target/compiler_rt.c tests/test_compiler_rt.c -o $@
+
 $(BUILD)/test_board: board/ns7520_mem.c board/ups_link.c board/flash_policy.c tests/test_board.c include/ou_ns7520_mem.h include/ou_ups_link.h include/ou_flash_policy.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_mem.c board/ups_link.c board/flash_policy.c tests/test_board.c -o $@
 
@@ -36,7 +39,7 @@ $(BUILD)/test_telemetry_guard: src/core.c src/schema.c src/provider.c src/teleme
 $(BUILD)/test_journal: board/config_journal.c tests/test_config_journal.c include/ou_config_journal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/config_journal.c tests/test_config_journal.c -o $@
 
-test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_http_wire $(BUILD)/test_native_service
+test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt
 	./$(BUILD)/test_core
 	./$(BUILD)/test_provider
 	./$(BUILD)/test_board
@@ -45,6 +48,7 @@ test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)
 	./$(BUILD)/test_board_probe
 	./$(BUILD)/test_http_wire
 	./$(BUILD)/test_native_service
+	./$(BUILD)/test_compiler_rt
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 arm-check: | $(BUILD)
@@ -109,3 +113,5 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_http_wire_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c target/service.c tests/test_native_service.c -o $(BUILD)/test_native_service_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_service_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined target/compiler_rt.c tests/test_compiler_rt.c -o $(BUILD)/test_compiler_rt_sanitized
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_compiler_rt_sanitized
