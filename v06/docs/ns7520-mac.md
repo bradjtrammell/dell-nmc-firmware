@@ -22,3 +22,10 @@ HTTP listener. It cannot safely run on the operating H910P yet.
 Digi NS7520 Hardware Reference Rev G, Ethernet chapter, tables 52, 53,
 60, 61, and 77-79.
 https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/
+
+## EFE full-duplex coordination
+
+The NS7520 MAC2 FULLD and EGCR EFULLD bits must agree with verified
+PHY duplex negotiation. The prior implementation set only MAC2 FULLD.
+This change stores the validated duplex mode and applies it to both
+registers before receive enablement, with a half/full duplex regression.

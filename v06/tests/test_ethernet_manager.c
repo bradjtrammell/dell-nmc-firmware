@@ -65,7 +65,8 @@ int main(void) {
     assert(ou_ethernet_manager_start(&path,&bus,&config,&state)==0);
     assert(path.started&&state.enabled);
     assert(m.egcr==(OU_MAC_EGCR_ERX|OU_MAC_EGCR_ERXDMA|
-                     OU_MAC_EGCR_ETX|OU_MAC_EGCR_ETXDMA));
+                     OU_MAC_EGCR_ETX|OU_MAC_EGCR_ETXDMA|
+                     OU_MAC_EGCR_EFULLD));
     assert(ou_ethernet_manager_stop(&path,&bus,&state)==0);
     assert(!path.started&&!state.enabled);
     puts("PASS: 802.1Q trunk MAC MAXF=1522, matching station MAC and DMA/MAC start");

@@ -51,13 +51,15 @@ int ou_mac_configure(const ou_dma_bus *bus,const ou_mac_config *cfg,
                   (cfg->full_duplex?OU_MAC_MAC2_FULLD:0U))!=0) {
         state->faulted=1U;return -1;
     }
+    state->full_duplex=cfg->full_duplex;
     state->configured=1U;
     return 0;
 }
 int ou_mac_activate(const ou_dma_bus *bus,ou_mac_state *state,
                     const ou_dma_queue *rx,const ou_dma_queue *tx) {
     const uint32_t options=OU_MAC_EGCR_ERX|OU_MAC_EGCR_ERXDMA|
-                           OU_MAC_EGCR_ETX|OU_MAC_EGCR_ETXDMA;
+                           OU_MAC_EGCR_ETX|OU_MAC_EGCR_ETXDMA|
+                           (state && state->full_duplex ? OU_MAC_EGCR_EFULLD : 0U);
     if(!valid_bus(bus)||!state||state->configured!=1U||state->enabled||
        state->faulted||!rx||!tx||rx->direction_tx||!tx->direction_tx||
        !rx->active||!tx->prepared||tx->faulted)return -1;

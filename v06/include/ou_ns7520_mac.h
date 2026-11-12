@@ -17,6 +17,7 @@
 #define OU_MAC_EGCR_ERXDMA UINT32_C(0x40000000)
 #define OU_MAC_EGCR_ETX UINT32_C(0x00800000)
 #define OU_MAC_EGCR_ETXDMA UINT32_C(0x00400000)
+#define OU_MAC_EGCR_EFULLD UINT32_C(0x00010000)
 #define OU_MAC_MAC1_RXEN 1U
 #define OU_MAC_MAC2_PADEN UINT32_C(0x20)
 #define OU_MAC_MAC2_CRCEN UINT32_C(0x10)
@@ -37,6 +38,7 @@ typedef struct {
     uint8_t configured;
     uint8_t enabled;
     uint8_t faulted;
+    uint8_t full_duplex;
 } ou_mac_state;
 
 /* Exclusively-owned, MMIO-capable DMA bus. No guessed H910P address,

@@ -9,7 +9,7 @@ static int sy(void*p,uint32_t a,size_t n,uint8_t d){(void)p;(void)a;(void)n;(voi
 static ou_mac_config cfg(void){ou_mac_config c={{2,10,20,30,40,50},1,1,1,0x15,0x0012,0x370f,1518};return c;}
 static void init(mock*m){memset(m,0,sizeof(*m));m->fail_write=9999U;}
 static void test_configure(void){mock m;ou_dma_bus b={rd,wr,sy,&m,1,1,1};ou_mac_state s;ou_mac_config c=cfg();ou_dma_queue rx={0},tx={0};init(&m);
- assert(ou_mac_configure(&b,&c,&s)==0);assert(s.configured&&!s.enabled);
+ assert(ou_mac_configure(&b,&c,&s)==0);assert(s.configured&&!s.enabled&&s.full_duplex);
  assert(m.count==8);assert(m.address[0]==OU_MAC_SA1&&m.value[0]==0x020a);
  assert(m.address[1]==OU_MAC_SA2&&m.value[1]==0x141e);
  assert(m.address[2]==OU_MAC_SA3&&m.value[2]==0x2832);
@@ -18,7 +18,7 @@ static void test_configure(void){mock m;ou_dma_bus b={rd,wr,sy,&m,1,1,1};ou_mac_
  assert(ou_mac_activate(&b,&s,&rx,&tx)==-1);
  rx.active=1;rx.prepared=1;tx.prepared=1;tx.direction_tx=1;
  assert(ou_mac_activate(&b,&s,&rx,&tx)==0);assert(s.enabled);
- assert(m.address[8]==OU_MAC_EGCR&&m.value[8]==0xc0c00000);
+ assert(m.address[8]==OU_MAC_EGCR&&m.value[8]==0xc0c10000);
  assert(m.address[9]==OU_MAC_MAC1&&m.value[9]==1);
  assert(ou_mac_disable(&b,&s)==0);assert(!s.enabled);
  assert(m.address[10]==OU_MAC_MAC1&&m.value[10]==0);

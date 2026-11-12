@@ -60,6 +60,9 @@ $(BUILD)/test_vlan: src/vlan.c src/ipv4_wire.c tests/test_vlan.c include/ou_vlan
 $(BUILD)/test_ethernet_manager: board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c include/ou_ethernet_manager.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_dma.c board/ns7520_mac.c src/ipv4_wire.c src/vlan.c src/tcp_ingress.c src/tcp_engine.c target/ethernet_path.c target/ethernet_manager.c tests/test_ethernet_manager.c -o $@
 
+$(BUILD)/test_mac_duplex: board/ns7520_mac.c tests/test_mac_duplex.c include/ou_ns7520_mac.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_mac.c tests/test_mac_duplex.c -o $@
+
 $(BUILD)/test_ns7520_mac: board/ns7520_mac.c tests/test_ns7520_mac.c include/ou_ns7520_mac.h include/ou_ns7520_dma.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_mac.c tests/test_ns7520_mac.c -o $@
 
@@ -87,7 +90,7 @@ $(BUILD)/test_telemetry_guard: src/core.c src/schema.c src/provider.c src/teleme
 $(BUILD)/test_journal: board/config_journal.c tests/test_config_journal.c include/ou_config_journal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/config_journal.c tests/test_config_journal.c -o $@
 
-test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer
+test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex
 	./$(BUILD)/test_core
 	./$(BUILD)/test_provider
 	./$(BUILD)/test_board
@@ -113,6 +116,7 @@ test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)
 	./$(BUILD)/test_board_runtime
 	./$(BUILD)/test_phy_discover
 	./$(BUILD)/test_ns7520_timer
+	./$(BUILD)/test_mac_duplex
 	python3 -m unittest discover -s tests -p 'test_*.py' -v
 
 arm-check: | $(BUILD)
@@ -239,3 +243,5 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_phy_discover_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_timer.c tests/test_ns7520_timer.c -o $(BUILD)/test_ns7520_timer_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ns7520_timer_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_mac.c tests/test_mac_duplex.c -o $(BUILD)/test_mac_duplex_sanitized
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_mac_duplex_sanitized
