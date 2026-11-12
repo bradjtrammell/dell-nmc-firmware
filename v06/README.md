@@ -65,3 +65,23 @@ For OEM-backed chip-select register evidence and the status of the native UPS tr
 ## Crash-safe native configuration storage (no physical flash writes)
 
 `board/config_journal.c` implements an independent 2-slot, 24-byte-header, CRC-checked, NOR-friendly configuration store. It is intentionally **not** connected to any device erase/program routines: it refuses writes unless real geometry, separated config regions and write authorization have been verified. The host NOR emulator tests interrupted writes, corrupted payloads and recovery to the previous slot. See [configuration-journal.md](docs/configuration-journal.md). This is a foundation for later typed JSON configuration, **not** a functional v0.6 settings updater on the H910P yet.
+
+## Native UPS telemetry anti-replay and freshness guard
+
+`src/telemetry_guard.c` and `include/ou_telemetry_guard.h` now extend the
+existing validated-sample provider with a **stateful, fail-closed** acceptance
+boundary: samples must be verified, in forward sequence, fresh (5-second
+budget), have advancing monotonic receive time, and not rewind source uptime.
+Rejected, repeated or expired reports immediately hide previously accepted
+telemetry rather than presenting a stale measurement as live. Both sequence
+and monotonic tick wraps are handled without signed arithmetic. Explicit reset
+of the history is permitted **only after an independently verified new physical
+source session**; malformed input cannot reset replay protection.
+
+This adds portable C functionality and test coverage to the research ARM7 ELF,
+not an H910P transport driver. The future physical driver must verify framing,
+checksum, physical source identity and session before setting `verified`.
+There is no network access, flash write or power command in this component.
+`make test arm-check board-sanitize` now includes its replay/staleness,
+overflow, session-restart and failure tests. No native HTTP service presently
+uses this guard because no verified H910P UPS transport exists.
