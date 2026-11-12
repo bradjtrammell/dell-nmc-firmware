@@ -164,3 +164,11 @@ the existing two-slot 4,096-byte settings journal. Invalid or corrupted
 settings are rejected; journal writes remain blocked until hardware geometry
 and dedicated settings slots are verified. See
 [Persistent VLAN policy](docs/vlan-persistence.md).
+
+## Native per-VLAN TCP ingress validation
+
+A freestanding 802.1Q TCP/IPv4 ingress guard validates TCP checksums,
+per-VLAN HTTP-read service ACLs and source network restrictions before
+future stateful TCP handling. It is linked into the ARM7 image and host
+and sanitizer tests. It does not yet listen for connections or expose
+unauthenticated UPS control. See docs/tcp-ingress.md.
