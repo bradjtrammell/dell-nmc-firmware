@@ -172,3 +172,12 @@ per-VLAN HTTP-read service ACLs and source network restrictions before
 future stateful TCP handling. It is linked into the ARM7 image and host
 and sanitizer tests. It does not yet listen for connections or expose
 unauthenticated UPS control. See docs/tcp-ingress.md.
+
+## Stateful VLAN TCP transport
+
+Native src/tcp_engine.c now implements a four-slot, VLAN-separated TCP
+connection lifecycle with SYN/ACK, bounded HTTP request buffering, segmented
+responses, FIN and retransmission timeouts. The lower-level VLAN/TCP ingress
+validator remains mandatory. This code is ARM7-linked but physical MAC/TCP
+execution, authentication and real UPS telemetry remain unavailable.
+See docs/tcp-engine.md.
