@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define OU_API_VERSION 1U
-#define OU_FIRMWARE_VERSION "0.6.0-dev.2"
+#define OU_FIRMWARE_VERSION "0.6.0-alpha.1"
 #define OU_JSON_CAPACITY 4096U
 
 enum ou_origin {

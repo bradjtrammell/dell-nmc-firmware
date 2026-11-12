@@ -122,3 +122,17 @@ or allow native firmware to be installed. See tests/test_native_image.py.
 ## NET+OS alpha image packaging (offline, not operational)
 
 `make alpha-lab-image` produces a **structurally valid NET+OS bootHdr v2 / flags 9 / LZSS2 / CRC** image from the freestanding big-endian ARM7 application and an accompanying JSON integrity/safety manifest. The original card has previously accepted modified Dell-derived images through the HTTP/1.0 uploader; this preserves the observed container format without containing Dell's application code. This independent image still has no H910P MAC/UPS drivers and is NOT safe to install on the operating card. No deployment command or device access is part of the build. The literal-only encoder is deterministic; all bytes, CRC, header and the decompressed application are checked before output.
+
+## Native application service integration — alpha.1
+
+target/service.c now binds the independent ARM7 HTTP request/response engine to
+the existing native API, read-only UPS provider, and replay/expiry guard. The
+target/runtime.c first-boot diagnostic calls this service with unavailable
+telemetry, checks its HTTP response and then parks because the physical NIC and
+UPS drivers are not yet implemented. Host/simulator endpoints remain intact.
+This provides one native service API for future verified NIC and UPS adapters,
+but the packaged alpha prototype is NOT operational on a physical card. The
+version advertised by /api/v1/device is 0.6.0-alpha.1.
+
+Local tests include service lifecycle, invalid/duplicated/expired telemetry,
+native HTTP framing, big-endian ARM7 linking, and sanitizer builds.
