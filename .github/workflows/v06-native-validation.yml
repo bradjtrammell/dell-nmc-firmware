@@ -36,6 +36,12 @@ jobs:
           ln -s "$(command -v ld.lld-18)" "$RUNNER_TEMP/h910p-tools/ld.lld"
           ln -s "$(command -v llvm-objcopy-18)" "$RUNNER_TEMP/h910p-tools/llvm-objcopy"
           printf '%s\n' "$RUNNER_TEMP/h910p-tools" >> "$GITHUB_PATH"
+      - name: Validate browser console source
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --version
+          node --check v06/web/app.js
       - name: Execute host tests and cross-compile ARM7 image
         shell: bash
         run: |
