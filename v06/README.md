@@ -292,3 +292,7 @@ H910P board binding and a streamed SHA-256 image digest. The manifest
 signer and hardware trust/flash/recovery providers are not qualified,
 so no installation or rollback is enabled. OEM/Dell release sources
 are not used. See `docs/github-updater.md`.
+
+## Native SNMP monitoring
+
+A bounded read-only SNMPv2c GET/GETNEXT implementation maps seven RFC 1628 UPS-MIB objects from verified native measurements and rejects SET operations. The SNMP page shows supported OIDs and actual disabled network qualifications. SNMPv3 authPriv, secure credential provisioning and UDP listener remain unfinished. See `docs/snmp-monitoring.md`.

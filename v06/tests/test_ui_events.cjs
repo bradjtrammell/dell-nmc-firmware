@@ -129,6 +129,23 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="snmp/capabilities")return {
+      schemaVersion:1,source:"native",simulated:false,
+      readOnlyAgentCompiled:true,listenerEnabled:false,
+      v2cPacketCodec:true,v3UsmAuthPrivQualified:false,
+      communityProvisioned:false,sourceAclQualified:false,
+      verifiedNativeTelemetryRequired:true,setOperationsAllowed:false,
+      maximumVarbinds:8,supportedOids:7,
+      oids:[
+        ["1.3.6.1.2.1.33.1.2.1.0","Battery status"],
+        ["1.3.6.1.2.1.33.1.2.3.0","Runtime remaining (minutes)"],
+        ["1.3.6.1.2.1.33.1.2.4.0","Battery charge (%)"],
+        ["1.3.6.1.2.1.33.1.3.3.1.3.1","Input voltage (V)"],
+        ["1.3.6.1.2.1.33.1.4.1.0","Output power source"],
+        ["1.3.6.1.2.1.33.1.4.4.1.2.1","Output voltage (V)"],
+        ["1.3.6.1.2.1.33.1.4.4.1.5.1","Output load (%)"]
+      ].map(([oid,label])=>({oid,label}))
+    };
     if(route==="firmware/update-policy")return {
       schemaVersion:1,source:"native",simulated:false,
       releaseProvider:"github",repository:"bradjtrammell/dell-nmc-firmware",
@@ -570,4 +587,19 @@ test("GitHub release check fails visibly and leaves installed firmware unchanged
   assert.match(allText(env.named.view),/GitHub returned HTTP 403/);
   assert.equal(button.disabled,false);
   assert.equal(env.downloads.length,0);
+});
+
+test("SNMP monitoring page shows exact supported OIDs and disabled listener",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#snmp";env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("snmp/capabilities"));
+  const view=allText(env.named.view);
+  assert.match(view,/UPS-MIB monitoring/);
+  assert.match(view,/SNMP listener not enabled/);
+  assert.match(view,/1\.3\.6\.1\.2\.1\.33\.1\.4\.4\.1\.5\.1/);
+  assert.match(view,/Not provisioned/);
+  assert.match(view,/Not qualified/);
+  assert.match(view,/Event notification routing/);
 });

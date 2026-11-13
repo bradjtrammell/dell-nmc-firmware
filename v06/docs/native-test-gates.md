@@ -262,3 +262,7 @@ exists in this module. Host and Node tests cover update-source
 reporting, live public release discovery, empty/malformed feeds,
 errors, and refusal to expose installer controls. `main` and
 physical firmware remain unchanged. See `docs/github-updater.md`.
+
+## SNMPv2c read-only codec and UPS-MIB validation
+
+The protocol unit suite checks strict bounded BER GET/GETNEXT parsing, OID order, missing and unavailable data, community/ACL denial, SET rejection and malformed packets. An independent service integration suite accepts only guarded native measurements and withdraws them on link loss. The ARM7 big-endian code is linked into the research ELF and exercised under AddressSanitizer/UBSan; no SNMP UDP listener or SNMPv3 USM is enabled. See `docs/snmp-monitoring.md`.

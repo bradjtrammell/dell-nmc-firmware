@@ -100,6 +100,30 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_snmp_monitoring_is_bounded_and_unavailable_for_network(self):
+        status, headers, raw = self.request("GET", "/api/v1/snmp/capabilities")
+        self.assertEqual(status, 200)
+        body = json.loads(raw)
+        self.assertEqual(body["resource"], "snmp.capabilities")
+        self.assertEqual(body["supportedOids"], 7)
+        self.assertEqual(len(body["oids"]), 7)
+        self.assertEqual(body["maximumVarbinds"], 8)
+        self.assertIs(body["readOnlyAgentCompiled"], True)
+        self.assertIs(body["v2cPacketCodec"], True)
+        self.assertIs(body["setOperationsAllowed"], False)
+        self.assertIs(body["listenerEnabled"], False)
+        self.assertIs(body["v3UsmAuthPrivQualified"], False)
+        self.assertIs(body["sourceAclQualified"], False)
+        self.assertIs(body["communityProvisioned"], False)
+        self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+        self.assertEqual(len(set(o["oid"] for o in body["oids"])), 7)
+        status, _, data = self.request("HEAD", "/api/v1/snmp/capabilities")
+        self.assertEqual((status,data),(200,b""))
+        for verb in ("POST","PUT","PATCH","DELETE"):
+            code, _, packet = self.request(verb,"/api/v1/snmp/capabilities","{}")
+            self.assertEqual(code,405)
+            self.assertEqual(json.loads(packet)["error"],"READ_ONLY")
+
     def test_custom_github_update_policy_and_read_only_release_check(self):
         status, headers, raw = self.request("GET", "/api/v1/firmware/update-policy")
         self.assertEqual(status, 200)

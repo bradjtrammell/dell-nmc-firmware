@@ -6,6 +6,7 @@
 #include "ou_http_wire.h"
 #include "ou_event_archive.h"
 #include "ou_notify.h"
+#include "ou_snmp.h"
 
 /* Single-threaded, zero-heap native application service. The future verified
  * MAC/TCP adapter submits ONE complete bounded request at a time.
@@ -39,6 +40,11 @@ int ou_native_service_notify_configure(const ou_notify_rule *rules,
 int ou_native_service_notify_step(const ou_notify_sender *sender,
                                    uint32_t now_ms);
 
+/* Qualified source ACL/community must be enforced by the future network
+ * adapter; malformed/unauthorized packets never receive a response. */
+int ou_native_service_snmp(const ou_snmp_access *access,
+               const uint8_t *request,size_t request_len,uint32_t now_ms,
+               uint8_t *response,size_t capacity,size_t *written);
 /* Fail-closed native data; never substitutes simulated UPS measurements. */
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,
                            char *response, size_t capacity, size_t *response_len);

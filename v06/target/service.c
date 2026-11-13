@@ -4,6 +4,7 @@
 #include "ou_event_archive.h"
 #include "ou_history.h"
 #include "ou_notify.h"
+#include "ou_snmp.h"
 
 /* One service instance, zero allocation; native events remain available
  * independently of UPS telemetry and are intentionally volatile for now. */
@@ -109,6 +110,15 @@ void ou_native_service_source_lost(void) {
     /* Compatibility caller lacks the event time. Use the last accepted
      * frame's timestamp, never invent a new monotonic reading. */
     ou_native_service_source_lost_at(source.last_received_ms);
+}
+
+int ou_native_service_snmp(const ou_snmp_access *access,
+               const uint8_t *request,size_t request_len,uint32_t now_ms,
+               uint8_t *response,size_t capacity,size_t *written) {
+    ou_snapshot sample=ou_unavailable_snapshot();
+    (void)ou_telemetry_guard_read(&source,now_ms,&sample);
+    return ou_snmp_respond(access,&sample,request,request_len,
+                           response,capacity,written);
 }
 
 int ou_native_service_http(const uint8_t *req,size_t req_len,uint32_t now_ms,

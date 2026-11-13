@@ -243,3 +243,7 @@ asset names, and an explicit unverified-for-installation status,
 including zero releases and errors. The current API returned no
 published releases. Nothing can be installed, updated or downgraded
 from the browser. See `docs/github-updater.md`.
+
+## Bounded read-only SNMP UPS-MIB agent (no network listener yet)
+
+`GET /api/v1/snmp/capabilities` lists seven RFC1628 UPS-MIB OIDs for independently verified native readings and the compiled SNMPv2c GET/GETNEXT BER codec. Listener, ACL, community provisioning and SNMPv3 authPriv are explicitly unavailable. `ou_native_service_snmp` passes validated telemetry to a bounded datagram parser, which refuses SET and drops unauthorized requests. No UDP/161 adapter or power action is enabled. See `docs/snmp-monitoring.md`.

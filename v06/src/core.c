@@ -423,6 +423,27 @@ int ou_dispatch_managed(const char *method, const char *path,
             }
             put_char(&w,']');
         }
+    } else if (same(path, "/api/v1/snmp/capabilities")) {
+        common(&w,"snmp.capabilities",snapshot);
+        property_bool(&w,"readOnlyAgentCompiled",1U,1);
+        property_bool(&w,"listenerEnabled",0U,1);
+        property_bool(&w,"v2cPacketCodec",1U,1);
+        property_bool(&w,"v3UsmAuthPrivQualified",0U,1);
+        property_bool(&w,"communityProvisioned",0U,1);
+        property_bool(&w,"sourceAclQualified",0U,1);
+        property_bool(&w,"verifiedNativeTelemetryRequired",1U,1);
+        property_bool(&w,"setOperationsAllowed",0U,1);
+        property_uint(&w,"maximumVarbinds",8U,1);
+        property_uint(&w,"supportedOids",7U,1);
+        property_string(&w,"transport","qualified-udp-adapter-required",1);
+        put_str(&w,",\"oids\":[");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.2.1.0\",\"label\":\"Battery status\"},");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.2.3.0\",\"label\":\"Runtime remaining (minutes)\"},");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.2.4.0\",\"label\":\"Battery charge (%)\"},");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.3.3.1.3.1\",\"label\":\"Input voltage (V)\"},");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.4.1.0\",\"label\":\"Output power source\"},");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.4.4.1.2.1\",\"label\":\"Output voltage (V)\"},");
+        put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.4.4.1.5.1\",\"label\":\"Output load (%)\"}]");
     } else if (same(path, "/api/v1/firmware/update-policy")) {
         common(&w,"firmware.update-policy",snapshot);
         property_string(&w,"releaseProvider","github",1);

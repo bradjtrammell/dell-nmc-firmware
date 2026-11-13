@@ -1001,6 +1001,28 @@
     return panel;
   }
 
+  function renderSnmpAgent(policy){
+    const panel=element("div","snmp-monitor");
+    add(panel,section("UPS-MIB monitoring","Supported read-only SNMP object identifiers for verified UPS measurements."));
+    if(!policy||policy.readOnlyAgentCompiled!==true||policy.supportedOids!==7||
+       !Array.isArray(policy.oids)||policy.oids.length!==7){
+      add(panel,notice("SNMP monitoring capabilities unavailable",
+        "The management service has not advertised a compatible UPS-MIB mapping.","error"));
+      return panel;
+    }
+    add(panel,notice("SNMP listener not enabled",
+      "Native SNMPv2c GET/GETNEXT encoding is implemented, but access restrictions, a provisioned community and a qualified UDP listener are not connected. SNMPv3 authPriv remains required for secure remote monitoring.","info"));
+    add(panel,properties([
+      ["Read-only object support","Seven UPS-MIB objects"],
+      ["Community access",policy.communityProvisioned?"Provisioned":"Not provisioned"],
+      ["Network source restrictions",policy.sourceAclQualified?"Qualified":"Not qualified"],
+      ["SNMPv3 security",policy.v3UsmAuthPrivQualified?"Qualified":"Not qualified"],
+      ["Write operations",policy.setOperationsAllowed?"Allowed":"Always disabled"]
+    ]));
+    const rows=policy.oids.map(entry=>[entry.label,entry.oid]);
+    panel.appendChild(table(["Measurement","UPS-MIB OID"],rows));
+    return panel;
+  }
   function renderFirmwareUpdate(policy){
     const panel=element("div","firmware-update");
     add(panel,section("Project firmware releases",
@@ -1085,12 +1107,13 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy) {
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
     if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
     if(key==="firmware")container.appendChild(renderFirmwareUpdate(updatePolicy));
+    if(key==="snmp")container.appendChild(renderSnmpAgent(snmpPolicy));
     if(key==="email"||key==="snmp")
       container.appendChild(renderNotificationRules(notifyPolicy,notifyStatus,key));
     if(key==="network"||key==="system")
@@ -1220,8 +1243,13 @@
           try{updatePolicy=await request("firmware/update-policy",signal);}
           catch(error){if(error.httpStatus!==404)throw error;}
         }
+        let snmpPolicy=null;
+        if(page==="snmp"){
+          try{snmpPolicy=await request("snmp/capabilities",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);
