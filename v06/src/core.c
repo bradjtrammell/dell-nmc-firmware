@@ -280,6 +280,7 @@ int ou_dispatch_events(const char *method, const char *path,
                 put_char(&w,'{');
                 property_uint(&w,"id",entry->id,0);
                 property_uint(&w,"monotonicMs",entry->monotonic_ms,1);
+                property_uint(&w,"bootGeneration",entry->boot_generation,1);
                 property_string(&w,"code",event_code_string(entry->code),1);
                 property_string(&w,"severity",event_severity(entry->code),1);
                 property_string(&w,"message",event_message(entry->code),1);
