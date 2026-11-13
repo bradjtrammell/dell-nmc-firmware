@@ -179,3 +179,28 @@ required by the software test.
 BSP must still select the real UPS physical interface and prove that
 its installed electrical transport is in fact this SHUT/UART protocol.
 The research binary must not be flashed.
+
+## Integrated native UPS monitor (read-only, experimental)
+
+`board/ups_monitor.c` now owns the entire source-verified measurement cycle:
+qualified NS7520 UART FIFO writes/reads → SHUT synchronization and GET REPORT
+with ACKs → strict HID Feature report decoder → nine-metric coherence checks
+→ stateful native service → `GET /api/v1/ups/status`. It derives a unique
+report-ID queue and exact report byte lengths from the independently supplied
+HID descriptor; it does not guess the Dell UPS's report IDs or units. It
+schedules another full acquisition after 1,000 ms, without reusing cached
+HID samples or accepting partial sets.
+
+A failed physical read, rejected SHUT checksum, bad report ID, stale value,
+or failed native publication immediately revokes both UART callbacks and
+descriptor-mapping state, withdraws previously published status (HTTP 503),
+and **preserves the native service's anti-replay watermark**. A new
+verified physical source must be established before rebind. No power-changing
+HID write path is reachable.
+
+Host-only integration tests simulate two distinct NS7520 serial channels
+including actual Status A/control and FIFO accesses, all three synthetic
+HID feature report IDs, actual SHUT read/ACK framing, repeated acquisition,
+API publication, corruption and unplug. Those host-supplied qualification
+flags do NOT prove the installed H910P bus. The ARM7 image links the
+module but the default board startup still refuses unqualified hardware.
