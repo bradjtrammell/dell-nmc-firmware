@@ -1,0 +1,51 @@
+name: H910P v0.6 native offline validation
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'v06/**'
+      - '.github/workflows/v06-native-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: h910p-v06-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-offline:
+    name: Host C tests and ARM7 research image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install tested toolchain family
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-18 lld-18 llvm-18 gcc make python3
+          mkdir -p "$RUNNER_TEMP/h910p-tools"
+          ln -s "$(command -v clang-18)" "$RUNNER_TEMP/h910p-tools/clang"
+          ln -s "$(command -v ld.lld-18)" "$RUNNER_TEMP/h910p-tools/ld.lld"
+          ln -s "$(command -v llvm-objcopy-18)" "$RUNNER_TEMP/h910p-tools/llvm-objcopy"
+          printf '%s\n' "$RUNNER_TEMP/h910p-tools" >> "$GITHUB_PATH"
+      - name: Execute host tests and cross-compile ARM7 image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          make -C v06 clean all test arm-link-check footprint-check
+      - name: Confirm image remains explicitly research-only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s v06/build/native-research-NOT-FLASHABLE.elf
+          test -s v06/build/native-research-NOT-FLASHABLE.dat
+          test -s v06/build/resource-report.json
+          test ! -f v06/build/H910P-0.6.0-alpha.1-RESEARCH-DO-NOT-FLASH.bin
