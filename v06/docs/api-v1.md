@@ -155,3 +155,29 @@ Nothing is POSTed to the card or written to storage, and an export is **not**
 an installable configuration package. This preserves user work and
 validates the form while the future HTTPS session, rollback-safe activation
 and independently verified flash remain outstanding.
+
+## Authentication and session capabilities (development integration)
+
+`GET /api/v1/security/capabilities` is a strict read-only statement
+of what the independently implemented C authentication core supports.
+It returns `sessionEngineCompiled:true`, the four-session limit,
+15-minute idle and eight-hour absolute timeouts, five-failure/60-second
+lockout policy, and CSRF/replay requirements. It explicitly returns
+`loginEnabled:false`, `authenticationAvailable:false`,
+`tlsQualified:false`, `entropyQualified:false`,
+`credentialStoreQualified:false`, and
+`mutationsAuthorized:false`. It provides no password, token, stored
+secret, or account list.
+
+The Access Control page fetches this endpoint and shows actual
+qualification status instead of an inoperative login screen. All
+password- or mutation-related requests remain rejected with 405;
+there is no live HTTP authentication endpoint or on-card session.
+
+The new `ou_auth_config_authorize` adapter supports the existing
+transactional configuration authorization callback by checking
+operator permissions, independent CSRF and strictly increasing
+request IDs. External qualified password KDF, hardware entropy,
+HTTPS cookie transport, credential persistence and live H910P
+integration are **still required**. See
+`docs/authentication-sessions.md`.

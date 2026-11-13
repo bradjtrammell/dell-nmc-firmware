@@ -100,6 +100,41 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_authentication_status_is_truthful_and_login_is_disabled(self):
+        code, headers, raw = self.request("GET", "/api/v1/security/capabilities")
+        self.assertEqual(code, 200)
+        data = json.loads(raw)
+        self.assertEqual(data["resource"], "security.capabilities")
+        self.assertIs(data["sessionEngineCompiled"], True)
+        self.assertEqual(data["maximumSessions"], 4)
+        self.assertEqual(data["idleTimeoutSeconds"], 900)
+        self.assertEqual(data["absoluteTimeoutSeconds"], 28800)
+        self.assertEqual(data["maximumFailedAttempts"], 5)
+        self.assertEqual(data["lockoutSeconds"], 60)
+        self.assertIs(data["csrfRequiredForWrites"], True)
+        self.assertIs(data["increasingRequestIdRequired"], True)
+        self.assertEqual(data["status"], "provider-unqualified")
+        for key in ("authenticationAvailable", "loginEnabled",
+                    "tlsQualified", "entropyQualified",
+                    "credentialStoreQualified", "mutationsAuthorized"):
+            self.assertIs(data[key], False)
+        self.assertNotIn("password", raw.decode().lower())
+        self.assertNotIn("sessiontoken", raw.decode().lower())
+        self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+        code, _, data = self.request("HEAD", "/api/v1/security/capabilities")
+        self.assertEqual(code, 200)
+        self.assertEqual(data, b"")
+        for path in ("/api/v1/security/capabilities", "/api/v1/security/login",
+                     "/api/v1/security/sessions"):
+            for method in ("POST", "PUT", "PATCH", "DELETE"):
+                with self.subTest(path=path, method=method):
+                    code, _, data = self.request(method, path, "{}")
+                    self.assertEqual(code, 405)
+                    self.assertEqual(json.loads(data)["error"], "READ_ONLY")
+        code, _, body = self.request("GET", "/api/v1/security/login")
+        self.assertEqual(code, 404)
+        self.assertEqual(json.loads(body)["code"], "NOT_FOUND")
+
     def test_configuration_staging_is_metadata_only_and_read_only(self):
         code, headers, raw = self.request("GET", "/api/v1/configuration/staging")
         self.assertEqual(code, 200)

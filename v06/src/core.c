@@ -421,6 +421,26 @@ int ou_dispatch_observed(const char *method, const char *path,
             }
             put_char(&w,']');
         }
+    } else if (same(path, "/api/v1/security/capabilities")) {
+        /* The authentication engine is compiled and tested, but no verified
+         * TLS, credential verifier, clock or CSPRNG exists on H910P yet.
+         * Do not expose pretend logins or unprotected credentials. */
+        common(&w,"security.capabilities",snapshot);
+        property_bool(&w,"sessionEngineCompiled",1U,1);
+        property_bool(&w,"authenticationAvailable",0U,1);
+        property_bool(&w,"loginEnabled",0U,1);
+        property_bool(&w,"tlsQualified",0U,1);
+        property_bool(&w,"entropyQualified",0U,1);
+        property_bool(&w,"credentialStoreQualified",0U,1);
+        property_bool(&w,"mutationsAuthorized",0U,1);
+        property_uint(&w,"maximumSessions",4U,1);
+        property_uint(&w,"idleTimeoutSeconds",900U,1);
+        property_uint(&w,"absoluteTimeoutSeconds",28800U,1);
+        property_uint(&w,"maximumFailedAttempts",5U,1);
+        property_uint(&w,"lockoutSeconds",60U,1);
+        property_bool(&w,"csrfRequiredForWrites",1U,1);
+        property_bool(&w,"increasingRequestIdRequired",1U,1);
+        property_string(&w,"status","provider-unqualified",1);
     } else if (same(path, "/api/v1/configuration/staging")) {
         /* Never return current network addresses or unprotected secrets.
          * No credential- or flash-qualification available to HTTP yet. */

@@ -128,6 +128,17 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="security/capabilities")return {
+      schemaVersion:1,source:"native",simulated:false,
+      sessionEngineCompiled:true,authenticationAvailable:false,
+      loginEnabled:false,tlsQualified:false,entropyQualified:false,
+      credentialStoreQualified:false,mutationsAuthorized:false,
+      maximumSessions:4,idleTimeoutSeconds:900,
+      absoluteTimeoutSeconds:28800,
+      maximumFailedAttempts:5,lockoutSeconds:60,
+      csrfRequiredForWrites:true,increasingRequestIdRequired:true,
+      status:"provider-unqualified"
+    };
     if(route==="configuration/fields")
       return {schemaVersion:1,source:"native",simulated:false,pages:1,total:0};
     if(route==="configuration/fields/0")
@@ -358,4 +369,22 @@ test("System identity drafts reject control characters and preserve other pages"
   await settled(env);
   assert.match(allText(env.named.view),/Local configuration draft/);
   assert.equal(env.downloads.length,1);
+});
+
+test("Access Control shows real security-provider state, not a fake login",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#access";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("security/capabilities"));
+  const text=allText(env.named.view);
+  assert.match(text,/Authentication and session enforcement/);
+  assert.match(text,/Account login/);
+  assert.match(text,/Disabled/);
+  assert.match(text,/Qualified TLS/);
+  assert.match(text,/Not qualified/);
+  assert.match(text,/CSRF verification for mutations/);
+  assert.match(text,/No default user is created/);
+  assert.equal(find(env.named.view,"input",n=>n.type==="password"),undefined);
 });

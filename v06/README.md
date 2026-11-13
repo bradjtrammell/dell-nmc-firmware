@@ -242,3 +242,19 @@ and every HTTP write remains disabled. The controller is verified by
 host simulations of interrupted writes, reconnect/timeout, rollback
 and fatal restoration. These checks do not imply a working on-card
 network configuration or completed firmware.
+
+## Independent management security core
+
+The native freestanding `src/auth.c` engine now provides a bounded
+four-session role/permission model with separate random session/CSRF
+tokens, replay resistance, idle/absolute expiry, revocation and
+login lockout. A permission callback can guard the existing
+configuration activation model. No fallback or default credentials
+are built in.
+
+`GET /api/v1/security/capabilities` and the Access Control UI
+expose the **actual disabled-login state**. The host simulator remains
+read-only and unencrypted on loopback. Device-resident HTTPS,
+qualified RNG, password KDF, secure credential storage and
+authorized write endpoints are **not implemented**. See
+`docs/authentication-sessions.md` for mandatory acceptance gates.

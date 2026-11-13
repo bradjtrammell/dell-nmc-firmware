@@ -183,3 +183,27 @@ authentication, HTTPS session, independent recovery channel, actual
 configuration flash partition, and device-resident confirmation UI.
 The existing read-only simulator remains read-only, without hidden
 power/network operations.
+
+## Authentication core and honest UI qualification
+
+The independent auth engine is compiled and linked into the ARM7
+research ELF but has no executable live login path. It requires
+an explicitly qualified TLS transport, password-verifier provider
+and secure entropy source: all must be present before
+`ou_auth_init` can enable session operations. Every login checks
+encrypted transport and a bounded role; tokens and CSRF secrets
+come from an external CSPRNG and all-zero/duplicate tokens fail.
+A four-session limit, monotonic session expiry, role gates,
+CSRF/replay rejection, logout, revoke-all, and global lockout
+are tested under host, sanitizer, and ARM7 build gates.
+
+The real configuration activation implementation remains inactive;
+its new session permission adapter only allows
+`OU_AUTH_CONFIG_WRITE` operations with an operator-or-admin
+authenticated session and strictly increasing request counter.
+Host `GET /api/v1/security/capabilities` and Access Control
+UI report no live authentication credentials, TLS, entropy
+or write permission; host HTTP writes remain 405.
+
+See `docs/authentication-sessions.md` for the full threat boundary.
+Do not interpret offline tests as a real device login.

@@ -746,9 +746,42 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging) {
+  function renderAccessSecurity(security) {
+    const panel=element("div","security-status");
+    add(panel,section("Authentication and session enforcement","Actual backend qualification status. This preview does not accept account passwords."));
+    if(!security || security.sessionEngineCompiled!==true) {
+      add(panel,notice("Security status unavailable",
+        "No trustworthy authentication status was returned. Management writes remain disabled.","error"));
+      return panel;
+    }
+    if(!security.authenticationAvailable) {
+      add(panel,notice("Authentication not yet connected to the physical card",
+        "The independent C session core is compiled, but hardware TLS, secure entropy, password verification, and persistent credential storage are not qualified. Login, session cookies, and all mutations are disabled.","warning"));
+    }
+    const rows=[
+      ["Native session core",security.sessionEngineCompiled?"Compiled":"Unavailable"],
+      ["Account login",security.loginEnabled?"Enabled":"Disabled"],
+      ["Qualified TLS",security.tlsQualified?"Ready":"Not qualified"],
+      ["Secure random generator",security.entropyQualified?"Ready":"Not qualified"],
+      ["Credential verifier",security.credentialStoreQualified?"Ready":"Not qualified"],
+      ["Authenticated configuration writes",security.mutationsAuthorized?"Enabled":"Disabled"],
+      ["Concurrent sessions",valueOrDash(security.maximumSessions)],
+      ["Session idle timeout",valueOrDash(security.idleTimeoutSeconds," seconds")],
+      ["Maximum session lifetime",valueOrDash(security.absoluteTimeoutSeconds," seconds")],
+      ["Failed attempts before lockout",valueOrDash(security.maximumFailedAttempts)],
+      ["Lockout duration",valueOrDash(security.lockoutSeconds," seconds")],
+      ["CSRF verification for mutations",security.csrfRequiredForWrites?"Required":"Not configured"],
+      ["Replay protection",security.increasingRequestIdRequired?"Increasing request ID required":"Not configured"]
+    ];
+    add(panel,properties(rows));
+    add(panel,notice("Operator accounts remain locked",
+      "No default user is created and no browser password is transmitted. Configure users, roles, certificates and sessions only after the real TLS/credential providers and device-side storage are accepted.","info"));
+    return panel;
+  }
+  function renderGeneral(summary,key,items,staging,security) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
+    if(key==="access")container.appendChild(renderAccessSecurity(security));
     if(key==="network"||key==="system")
       container.appendChild(renderConfigDraft(staging,key));
     add(container,readOnlyMessage());
@@ -854,8 +887,13 @@
           try{staging=await request("configuration/staging",signal);}
           catch(error){if(error.httpStatus!==404)throw error;}
         }
+        let security=null;
+        if(page==="access"){
+          try{security=await request("security/capabilities",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging);
+        content=renderGeneral(summary,page,fields,staging,security);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);
