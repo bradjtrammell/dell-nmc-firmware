@@ -1,8 +1,8 @@
 # v0.6 independent firmware — test gates and hardware safety
 
-**Status: ARM7 native core + JSON services + offline-linked research ELF. NOT flashable.**
+**Status: ARM7 native core, native JSON services, host-loopback management UI and offline-linked research ELF. NOT flashable.**
 
-The v0.5.10 `main` firmware and the existing `source/` UI are unchanged. The `v06` directory contains only underlying firmware engineering: freestanding C code, a read-only native data-provider boundary, a host-only JSON API simulator, ARM7 reset/linker research, and tests. There are **no HTML/CSS/JS design files** under `v06`.
+The v0.5.10 `main` firmware and existing production `source/` UI are unchanged. The `v06` directory includes freestanding native C firmware foundations, ARM7 research ELF, host-only API simulator and a new loopback management console under `web/`. The browser assets are served **only by the development host server** until a qualified on-card HTTP/static-asset and authentication stack is integrated. The simulator remains read-only.
 
 ## What is actually implemented
 
@@ -10,7 +10,7 @@ The v0.5.10 `main` firmware and the existing `source/` UI are unchanged. The `v0
 | --- | --- | --- |
 | Independent JSON core | Freestanding C99; typed routes; strict bounded serialization; 302 OEM schema definitions in 19 JSON pages | Native hardware service and persistent config |
 | Read-only data provider | `ou_provider_accept` validates version, verified framing flag, reading ranges, monotonic age <=5 sec, and clears state on failure | Actual H910P NMC↔UPS electrical transport driver |
-| HTTP | Loopback-only host adapter, exact API routes, security headers, denied mutations and XML paths | H910P Ethernet driver, TCP/IP, TLS and sessions |
+| HTTP/UI | Loopback-only host adapter serves a full 15-destination read-only management console with exact JSON API routes, security headers, and denied mutations | Device-resident UI asset serving, TLS and authenticated sessions |
 | ARM7 startup | Big-endian ELF32 link at OEM header's `0x08004000` destination, reset vector and no unresolved external symbols | Verified board RAM controller, flash/ROM mapping, watchdog, NIC and UART initialization |
 | Offline captured-data reference | Private OEM XML numeric data validated into typed reference measurements (no secrets) | Runtime XML parser: deliberately absent |
 | Safety | 503 for absent/stale UPS telemetry, 503 for unimplemented native events, power writes always 405 | Safe field-tested power controls, firmware updater and recovery |
@@ -28,6 +28,7 @@ make clean all test arm-link-check
 From a second terminal on that same Linux machine:
 
 ```bash
+curl --fail --silent --show-error http://127.0.0.1:8760/
 curl --fail --silent --show-error http://127.0.0.1:8760/api/v1/health
 curl --fail --silent --show-error http://127.0.0.1:8760/api/v1/ups/status
 curl --silent --show-error -X POST http://127.0.0.1:8760/api/v1/ups/outlets
@@ -74,3 +75,27 @@ for all edge combinations and 10,000 deterministic pseudorandom operands.
 The helper's zero-divisor fallback is not an application success condition;
 all callers validate divisors before invoking it. ARM7 linking and full
 sanitizer tests remain mandatory.
+
+## v0.6 development console — implemented scope and remaining requirements
+
+The host simulator now serves `/`, `/index.html`, `/app.css` and
+`/app.js` through an **explicit static allowlist**, using the same
+loopback-only process and same-origin JSON API. The files are never
+selected by arbitrary path input, and security headers require same-origin
+external scripts/styles. There are no credential uploads or automatic
+firmware updates. The UI includes the **15 established management destinations**
+with accessible keyboard navigation, 360px mobile behavior, unavailable/
+loading/error states, and visible simulator indicators. Implemented sections
+use actual JSON values for device identity, UPS status, measurements,
+outlet states, events and the complete 302-item configuration schema.
+Missing mutation endpoints are intentionally disabled, *not counted as
+implemented production management operations*. Read-only frontend
+integration is the scope of this host validation pass, not the end state.
+
+**Remaining:** Serve these resources from the native board runtime under an
+authenticated HTTPS management service, implement and qualify every required
+management write/control feature (including authorization, persistence,
+recovery, UPS power operations, scheduling, notifications, SNMP and update
+rollback), and test on actual H910P hardware. The existing production UI
+identity and requirements remain authoritative; no production UI files or
+update/release mechanisms were replaced.

@@ -112,13 +112,64 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
-    def test_no_alternative_user_interface(self):
-        for path in ("/", "/index.html", "/style.css", "/app.js", "/favicon.svg"):
+    def test_complete_management_interface_and_security_headers(self):
+        expected = {
+            "/": ("text/html", b'<nav id="navigation"', b'/app.js'),
+            "/index.html": ("text/html", b'<main id="main"', b'OpenH910P'),
+            "/app.css": ("text/css", b'grid-template-columns', b'prefers-reduced-motion'),
+            "/app.js": ("text/javascript", b'/api/v1/', b'UPS Properties'),
+        }
+        for path, (mime, first, second) in expected.items():
             with self.subTest(path=path):
-                code, headers, body = self.request("GET", path)
-                self.assertEqual(code, 404)
-                self.assertEqual(json.loads(body)["error"], "NOT_FOUND")
+                code, headers, data = self.request("GET", path)
+                self.assertEqual(code, 200)
+                self.assertTrue(headers["Content-Type"].startswith(mime))
+                self.assertEqual(len(data), int(headers["Content-Length"]))
+                self.assertIn(first, data)
+                self.assertIn(second, data)
+                self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+                self.assertEqual(headers["Cache-Control"], "no-store")
+                self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+                self.assertEqual(headers["X-Frame-Options"], "DENY")
+                self.assertIn("script-src 'self'", headers["Content-Security-Policy"])
                 self.assertNotIn("Access-Control-Allow-Origin", headers)
+                code, headers, data = self.request("HEAD", path)
+                self.assertEqual(code, 200)
+                self.assertEqual(data, b"")
+                self.assertGreater(int(headers["Content-Length"]), 0)
+        for path in ("/style.css", "/favicon.svg", "/app.js.map", "/web/app.js",
+                     "/.git/config", "/..%2fetc%2fpasswd", "/docs/current-ui-baseline.md"):
+            with self.subTest(path=path):
+                code, _, data = self.request("GET", path)
+                self.assertIn(code, (400, 404))
+                self.assertIn("error", json.loads(data))
+        for path in ("/", "/app.js", "/app.css", "/index.html"):
+            for method in ("POST", "PUT", "DELETE"):
+                with self.subTest(path=path, method=method):
+                    code, _, data = self.request(method, path, b"{}")
+                    self.assertEqual(code, 405)
+                    self.assertEqual(json.loads(data)["error"], "READ_ONLY")
+
+    def test_ui_navigation_scope_and_read_only_state(self):
+        script = (ROOT / "web/app.js").read_text(encoding="utf-8")
+        html = (ROOT / "web/index.html").read_text(encoding="utf-8")
+        for label in ("UPS Properties", "UPS Control", "Weekly Schedule",
+                      "Shutdown Parameters", "Measurements", "Event Log",
+                      "System Log", "Email Notification", "Network", "System",
+                      "Notified Applications", "Access Control", "SNMP", "Time",
+                      "Firmware Upload"):
+            self.assertIn(label, script)
+        for path in ("health", "device", "capabilities", "ups/status",
+                     "ups/measurements", "ups/outlets", "events",
+                     "configuration/fields"):
+            self.assertIn(path, script)
+        self.assertIn("disabled=!!disabled", script)
+        self.assertIn("textContent", script)
+        self.assertIn("aria-live", html)
+        self.assertIn("app.js", html)
+        self.assertNotIn("<script>", html)
+        self.assertNotIn("http://", script)
+        self.assertNotIn("https://", script)
 
     def test_head_and_bad_routes(self):
         code, headers, body = self.request("HEAD", "/api/v1/device")

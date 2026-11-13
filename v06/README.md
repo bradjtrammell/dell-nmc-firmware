@@ -21,7 +21,7 @@ make clean all test footprint-check
 From another terminal **on the same machine**:
 
 ```bash
-curl --fail http://127.0.0.1:8760/api/v1/health
+curl --fail http://127.0.0.1:8760/
 curl --fail http://127.0.0.1:8760/api/v1/ups/status
 curl -i -X POST http://127.0.0.1:8760/api/v1/ups/outlets
 ```
@@ -212,3 +212,13 @@ notifications and replies, and records metadata through `ups_link.c`.
 It has no UART electrical interface, SHUT sender, report parser, or UPS
 power-control support. The physical H910P-to-UPS link is not yet confirmed.
 See `docs/shut-rx.md`. This code is NOT flash-qualified.
+
+## Native management console preview (development host)
+
+After `make -C v06 all`, run `cd v06 && ./build/openh910p-sim --port 8760`.
+Open `http://127.0.0.1:8760/` on the same machine. The server is bound to
+loopback only; the UI and API explicitly identify the simulated source.
+The 15 management destinations preserve project scope, but unavailable
+hardware mutation operations are disabled and are *not implemented*
+merely because they appear in the interface. Do not expose this host
+preview to the internet or deploy it as on-card firmware.

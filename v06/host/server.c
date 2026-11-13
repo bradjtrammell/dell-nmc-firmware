@@ -3,6 +3,8 @@
 
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <signal.h>
 #include <stdio.h>
@@ -72,6 +74,48 @@ static void error_reply(int fd, int code, const char *message, int head) {
         "{\"schemaVersion\":1,\"source\":\"simulator\",\"error\":\"%s\"}", message);
     if (length < 0 || (size_t)length >= sizeof(body)) return;
     respond(fd, code, "application/json; charset=utf-8", body, (size_t)length, head);
+}
+
+/* Fixed allowlist only. Never derive a disk path from untrusted URL input.
+ * This is the loopback development frontend, NOT the on-card web server. */
+static int serve_asset(int fd,const char *path,int head) {
+    const char *filename=NULL,*mime=NULL;
+    unsigned char payload[65536U];
+    size_t length=0U;
+    ssize_t size;
+    int file;
+    struct stat statbuf;
+    if(!strcmp(path,"/") || !strcmp(path,"/index.html")) {
+        filename="web/index.html";mime="text/html; charset=utf-8";
+    } else if(!strcmp(path,"/app.css")) {
+        filename="web/app.css";mime="text/css; charset=utf-8";
+    } else if(!strcmp(path,"/app.js")) {
+        filename="web/app.js";mime="text/javascript; charset=utf-8";
+    } else return 0;
+    file=open(filename,O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
+    if(file<0) {
+        error_reply(fd,500,"UI_ASSET_UNAVAILABLE",head);
+        return 1;
+    }
+    if(fstat(file,&statbuf)!=0 || !S_ISREG(statbuf.st_mode) ||
+       statbuf.st_size<0 || statbuf.st_size>(off_t)sizeof(payload)) {
+        close(file);
+        error_reply(fd,500,"UI_ASSET_UNAVAILABLE",head);
+        return 1;
+    }
+    while(length<(size_t)statbuf.st_size) {
+        size=read(file,payload+length,(size_t)statbuf.st_size-length);
+        if(size<0 && errno==EINTR)continue;
+        if(size<=0){
+            close(file);
+            error_reply(fd,500,"UI_ASSET_UNAVAILABLE",head);
+            return 1;
+        }
+        length+=(size_t)size;
+    }
+    close(file);
+    respond(fd,200,mime,payload,length,head);
+    return 1;
 }
 
 static int parse_line(char *request, char *method, size_t method_size,
@@ -160,6 +204,7 @@ static void serve_client(int fd) {
     if (!get && !head) {
         error_reply(fd, 405, "READ_ONLY", 0); return;
     }
+    if (serve_asset(fd,path,head)) return;
     if (strncmp(path, "/api/v1/", 8) == 0) {
         char body[OU_JSON_CAPACITY];
         ou_reply reply;
@@ -208,7 +253,7 @@ int main(int argc, char **argv) {
         perror("bind/listen"); close(listener); return 1;
     }
     printf("OpenH910P v0.6 native C development simulator\n");
-    printf("http://127.0.0.1:%lu/api/v1/health — JSON only, simulated, read-only\n", port);
+    printf("http://127.0.0.1:%lu/ — management UI backed by simulated read-only JSON API\n", port);
     fflush(stdout);
     while (!shutting_down) {
         int client = accept(listener, NULL, NULL);

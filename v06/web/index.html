@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#182a31">
+<title>OpenH910P | UPS Network Management</title>
+<link rel="stylesheet" href="/app.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="layout">
+ <aside id="sidebar" class="sidebar" aria-label="Primary navigation">
+  <div class="identity"><span class="glyph" aria-hidden="true">▤</span><span><strong>OpenH910P</strong><small>UPS NETWORK MANAGEMENT</small></span></div>
+  <div class="device"><small>CONNECTED DEVICE</small><strong>H910P Management Card</strong><span id="device-status">Checking management API</span></div>
+  <nav id="navigation" aria-label="Management pages"></nav>
+  <div class="sidebar-foot">Independent firmware<br><span>Development management console</span></div>
+ </aside>
+ <div class="right">
+  <header class="topbar">
+   <button id="menu" class="menu-button" type="button" aria-expanded="false" aria-controls="sidebar">Menu</button>
+   <div class="breadcrumb"><small>H910P / MANAGEMENT</small><strong id="breadcrumb-name">UPS Properties</strong></div>
+   <div class="top-actions"><span id="health-indicator" class="health-indicator">Connecting</span><button id="refresh" class="button small" type="button">Refresh</button></div>
+  </header>
+  <main id="main" tabindex="-1">
+   <div id="banner" class="banner" role="status" aria-live="polite"><strong>Connecting to management API</strong><span>UPS readings will only appear when supplied by the API.</span></div>
+   <div id="view"><div class="loading" role="status">Loading the management console…</div></div>
+   <footer>OpenH910P · Management functions reflect backend capabilities · No simulated data is presented as live hardware</footer>
+  </main>
+ </div>
+</div>
+<noscript>This management console requires JavaScript. The JSON API is available separately.</noscript>
+</body>
+</html>
