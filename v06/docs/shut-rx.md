@@ -108,3 +108,37 @@ MGE example; it is not asserted to be the Dell H910P layout.
 
 Reference: USB HID 1.11 item encoding and HID Power Device usage tables
 (USB-IF), plus MGE 51029473ZA AC p.14 for the example 4-byte report.
+
+
+## Complete descriptor-bound telemetry assembly (research only)
+
+`ou_hid_telemetry` is the new native SHUT/HID-to-provider bridge. It accepts
+only a completed SHUT response, validates it against the independently
+sourced HID Feature report descriptor, and maps **nine explicit required
+fields** (battery %, load %, remaining runtime, input/output decivolts,
+AC present, battery present, and both switched load-segment states). The
+HID usage pages, usage IDs, report IDs, and integer calibration ratios must
+be supplied from real hardware evidence: **no guessed field positions or
+implicit physical units**. Missing or duplicate descriptor fields, bad
+ranges, fractional scaling, short/extra packet data, stale or replayed
+messages fail closed.
+
+A complete snapshot requires all nine fields, each captured within a
+four-second coherence window. Each complete set is consumed once,
+assembled atomically into the already-existing `ou_driver_report` and
+checked by the provider before submission to the stateful native
+telemetry guard and HTTP API. The integration host test exercises the
+full path: **synthetic SHUT reports -> HID descriptor -> mapped measurements
+-> provider -> native HTTP 200**, as well as untrusted-source 503,
+staleness, truncation, missing fields, replay, invalid units, cache
+invalidation and monotonic clock wrap.
+
+**IMPORTANT:** The interface takes four explicit physical-source evidence
+assertions. The current research-only target supplies none. These assertions
+are an *interface contract*, **not actual independent attestation**. The
+test fixture intentionally synthesizes them; that is not a working
+H910P driver or real UPS telemetry. Never set them from an XML response,
+known MAC address, string matches, generic SHUT checksum or wishful test
+fixture. The weak native H910P port still refuses physical startup until
+electrical routing, actual descriptor, source identity and recovery
+have been independently established. No power-control or write path exists.
