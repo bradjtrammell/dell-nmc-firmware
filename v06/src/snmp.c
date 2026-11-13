@@ -130,7 +130,7 @@ int ou_snmp_respond(const ou_snmp_access *access,
                     uint8_t *response,size_t response_capacity,
                     size_t *written){
     reader packet,outer,version,community,pdu,field_view,list,bind,oid,nullvalue;
-    uint8_t tag,pdu_type,request_id[4],ids[OU_SNMP_MAX_VARBINDS][32];
+    uint8_t pdu_type,request_id[4],ids[OU_SNMP_MAX_VARBINDS][32];
     uint8_t lengths[OU_SNMP_MAX_VARBINDS];
     uint8_t bindings[512],pdu_body[640],outer_body[OU_SNMP_MAX_PACKET];
     writer bind_writer,pdu_writer,outer_writer,result;
