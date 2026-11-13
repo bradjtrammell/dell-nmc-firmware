@@ -41,6 +41,14 @@ typedef struct {
  * The snapshot is supplied by a caller, not populated from unverified hardware.
  * Returns -1 on invalid arguments or insufficient response buffer.
  */
+struct ou_history_log;
+/* Native-only history is optional; simulator never manufactures prior UPS
+ * samples. Compatibility dispatcher functions remain source-stable. */
+int ou_dispatch_observed(const char *method, const char *path,
+                const ou_snapshot *snapshot, const ou_event_log *events,
+                const struct ou_history_log *history,
+                char *body, size_t capacity, ou_reply *reply);
+
 /* Extended native dispatcher uses an independently owned event store.
  * Existing host simulation remains unchanged through ou_dispatch(). */
 int ou_dispatch_events(const char *method, const char *path,

@@ -87,6 +87,12 @@ tbody tr:nth-child(even){background:#f8fafb}
 .tag.warning{background:#f9eede;color:#7d4506;border-color:#a96b13}
 .tag.error{background:#f9e7e5;color:#91291e;border-color:#ac3529}
 .tag.ok{background:#e3f2eb;color:#075d3a;border-color:#128252}
+.history-chart{display:flex;gap:2px;align-items:stretch;height:190px;max-width:100%;overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-bottom:2px solid #78909a;padding:12px 10px 2px;margin:14px 0 21px}
+.history-chart-column{height:100%;display:flex;align-items:flex-end;gap:1px;flex:1 0 7px;min-width:7px;max-width:30px}
+.history-chart-column.history-gap{border-left:3px dashed #aa3a2d;padding-left:2px}
+.history-bar{display:block;width:50%;min-width:2px;transition:height .18s}
+.history-bar.history-battery{background:#176c94}
+.history-bar.history-load{background:#b36d20}
 .event-controls{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:18px 0}
 .event-controls .label{margin-right:auto}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}

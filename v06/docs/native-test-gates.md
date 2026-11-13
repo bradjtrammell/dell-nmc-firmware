@@ -117,3 +117,22 @@ and a dependency-free DOM/API behavior test in addition to the C,
 Python, sanitizer and ARM7 gates. This is **not a substitute for**
 automated real-browser visual and keyboard acceptance or on-card
 signed firmware, authenticated control, and verified storage.
+
+## Native measurement-history acceptance
+
+The read-only monitoring history is a 64-entry, RAM-only structure. It
+accepts only previously validated native samples, aggregates on a
+60-second cadence, records AC/low-battery edges immediately, and
+annotates gaps after telemetry loss. No physical or simulated UPS is
+contacted by the tests. Historical reads remain available with
+`live:false` during a physical-link outage, and the simulator
+explicitly does not provide genuine historical records.
+
+Native API integration tests assert 8-page retrieval, strict page
+validation, zero-record behavior, write-method denial, and rollback
+of current telemetry without destroying historical evidence. The
+host UI provides an accessible table, a battery/load bar visualization,
+CSV/JSON export and coherent cross-page retrieval. Node-based DOM
+behavior tests cover full history, interrupted reads and unavailable
+sources; the original ARM7, sanitizer and research-only flash gates
+remain mandatory. This is not a board-installed web UI.

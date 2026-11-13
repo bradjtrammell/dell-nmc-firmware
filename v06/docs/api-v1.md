@@ -11,6 +11,8 @@ The C99 response code has no Dell XML/CGI dependencies. The **only** HTTP listen
 | GET `/api/v1/capabilities` | independently gated telemetry, configuration and control capabilities |
 | GET `/api/v1/ups/status` | battery, load, AC, runtime (503 if unavailable) |
 | GET `/api/v1/ups/measurements` | input/output voltage with `dV` unit (503 if unavailable) |
+| GET `/api/v1/ups/history` | read-only validated native measurement history, eight samples per page; retained data available during UPS outage |
+| GET `/api/v1/ups/history/{0..7}` | history pages, stable latest-record token and exact decivolt units; no simulator history |
 | GET `/api/v1/ups/outlets` | three outlet summaries; power controls disabled (503 if unavailable) |
 | GET `/api/v1/events` | native typed event history, newest-first, independent of UPS telemetry (simulator retains its synthetic events) |
 | GET `/api/v1/events/{0..3}` | native event pages, 8 records each, strict path validation and consistent `latestEventId` token |
@@ -100,3 +102,39 @@ browser-behavior harness run in the existing CI validation job. It checks
 navigation, cross-page filtering, exports, error responses and snapshot
 consistency. This verifies JavaScript behavior against a fake DOM/API,
 **not** browser rendering, physical hardware, HTTPS, or durable flash writes.
+
+## Native historical monitoring
+
+A fixed 64-sample, volatile, verification-gated history buffer receives only
+accepted `ou_telemetry_guard` native snapshots. It samples at a 60-second
+interval and immediately captures AC-power transitions, low-battery threshold
+crossings, and the first sample following a link loss. The next valid record
+after disconnection carries `gapBefore:true` so plots never imply
+uninterrupted monitoring. No raw UART frames, credentials, personal data or
+unsafe commands are stored. Invalid and replayed reports cannot be recorded.
+
+The native `GET /api/v1/ups/history[/0..7]` response contains
+`schemaVersion:1`, `sampleSource:"verified-native-only"`, `live`, a
+retention/capacity summary, `latestRecordSequence` (stable during
+unsampled device polling) and `samples`. Each sample includes sequence,
+uptime-relative monotonic milliseconds, battery and load percentages,
+runtime seconds, input/output decivolts, AC state, and gap flag.
+No wall-clock time is inferred; these values are uptime-relative.
+The resource remains available during a telemetry outage, with
+`live:false`. Simulator requests return `503 HISTORY_UNAVAILABLE`
+rather than invented native history.
+
+The management UI fetches all retained pages, checks
+`latestRecordSequence`, count, and duplicate IDs for a coherent snapshot,
+shows accessible rows and battery/load bars with reconnection markers, and
+exports exact values as CSV or JSON. If a live sample has not yet
+been physically qualified, the UI shows an explicit unavailable
+message; it does not plot arbitrary simulator readings.
+History is **RAM-only**, does not survive reboot, and is not claimed
+as a persistent trend database.
+
+Automated tests cover report verification, 60-second cadence, immediate
+power/threshold edges, loss/recovery gap markers, ring overwrite, counter
+wrap, offline HTTP read access, all eight pages, CSV/JSON download
+behavior and concurrent-page consistency failures. They do not qualify
+the physical UPS or enable flash writes.

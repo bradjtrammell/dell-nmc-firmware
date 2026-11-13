@@ -108,6 +108,20 @@ class SimulatorHttpTests(unittest.TestCase):
         self.assertEqual(code, 405)
         self.assertEqual(json.loads(body)["error"], "READ_ONLY")
 
+    def test_simulator_never_fabricates_native_measurement_history(self):
+        for route in ("/api/v1/ups/history", "/api/v1/ups/history/0"):
+            code, _, raw = self.request("GET", route)
+            self.assertEqual(code, 503)
+            parsed = json.loads(raw)
+            self.assertEqual(parsed["code"], "HISTORY_UNAVAILABLE")
+            self.assertEqual(parsed["source"], "simulator")
+        code, _, raw = self.request("GET", "/api/v1/ups/history/8")
+        self.assertEqual(code, 404)
+        self.assertEqual(json.loads(raw)["code"], "PAGE_NOT_FOUND")
+        code, _, raw = self.request("POST", "/api/v1/ups/history", "{}")
+        self.assertEqual(code, 405)
+        self.assertEqual(json.loads(raw)["error"], "READ_ONLY")
+
     def test_no_mutations_can_be_sent(self):
         for method in ("POST", "PUT", "PATCH", "DELETE"):
             with self.subTest(method=method):

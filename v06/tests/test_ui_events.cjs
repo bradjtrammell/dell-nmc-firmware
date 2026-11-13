@@ -62,7 +62,7 @@ function allText(root) {
 function find(root,tag,matching){
   return descendants(root).find(n=>n.tagName===tag&&matching(n));
 }
-function createEnvironment({inconsistent=false}={}){
+function createEnvironment({inconsistent=false,historyInconsistent=false,historyMissing=false}={}){
   const names=["navigation","view","banner","refresh","health-indicator",
     "sidebar","menu","device-status","breadcrumb-name"];
   const named=Object.fromEntries(names.map(name=>[name,new Element("div")]));
@@ -113,6 +113,21 @@ function createEnvironment({inconsistent=false}={}){
       outletControl:false,configurationWritable:false,firmwareInstall:false,transport:"native-json-c"};
     if(route==="ups/status"||route==="ups/measurements"||route==="ups/outlets")
       return {error:"TELEMETRY_UNAVAILABLE",status:503};
+    if(route==="ups/history"||route==="ups/history/1") {
+      if(historyMissing)return {error:"HISTORY_UNAVAILABLE",status:503};
+      const history=Array.from({length:9},(_,i)=>({
+        sequence:20-i,monotonicMs:90000-i*10000,
+        batteryPercent:90-i,loadPercent:25+i,runtimeSeconds:2000-i*20,
+        inputDecivolts:1190,outputDecivolts:1200,
+        acPresent:i!==4,gapBefore:i===4
+      }));
+      return {schemaVersion:1,source:"native",simulated:false,
+        page:route==="ups/history"?0:1,pageSize:8,pages:2,
+        capacity:64,stored:9,overwritten:3,persistent:false,live:false,
+        latestRecordSequence:historyInconsistent&&route==="ups/history/1"?21:20,
+        sampleSource:"verified-native-only",
+        samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
+    }
     if(route==="events/stats")return {schemaVersion:1,source:"native",simulated:false,
       stored:9,info:6,warning:2,error:2,latestEventId:20,
       currentBootGeneration:2,byCode:{SERVICE_START:2}};
@@ -145,7 +160,7 @@ function createEnvironment({inconsistent=false}={}){
 async function settled(env){
   for(let i=0;i<20;i++){
     await new Promise(resolve=>setImmediate(resolve));
-    if(!allText(env.named.view).includes("Loading Event Log"))break;
+    if(!allText(env.named.view).includes("Loading"))break;
   }
   await new Promise(resolve=>setImmediate(resolve));
 }
@@ -209,4 +224,53 @@ test("system log filters across all event pages",async()=>{
   assert.match(allText(env.named.view),/System Log/);
   assert.match(allText(env.named.view),/TELEMETRY_OFFLINE/);
   assert.doesNotMatch(allText(env.named.view),/BATTERY_LOW/);
+});
+
+test("Measurements shows retained native readings even with live UPS offline",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#measurements";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("ups/history"));
+  assert.ok(env.calls.includes("ups/history/1"));
+  assert.match(allText(env.named.view),/UPS history available while offline/);
+  assert.match(allText(env.named.view),/Recorded samples/);
+  assert.match(allText(env.named.view),/9/);
+  assert.ok(find(env.named.view,"div",n=>n.className==="history-chart"));
+  const csv=find(env.named.view,"button",n=>n.textContent==="Export measurements CSV");
+  assert.ok(csv&&!csv.disabled);
+  csv.click();
+  assert.equal(env.downloads.length,1);
+  const data=await env.downloads[0].blob.text();
+  assert.match(data,/sequence,?/);
+  assert.match(data,/gapBefore/);
+  assert.match(data,/20/);
+  const json=find(env.named.view,"button",n=>n.textContent==="Export measurements JSON");
+  json.click();
+  const record=JSON.parse(await env.downloads[1].blob.text());
+  assert.equal(record.samples.length,9);
+  assert.equal(record.persistent,false);
+  assert.equal(record.live,false);
+  assert.equal(record.samples[4].gapBefore,true);
+});
+test("History snapshot conflict never silently exports torn readings",async()=>{
+  const env=createEnvironment({historyInconsistent:true});
+  await settled(env);
+  env.location.hash="#measurements";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/History changed while reading/);
+  assert.equal(env.calls.filter(x=>x==="ups/history").length,2);
+  assert.equal(env.downloads.length,0);
+});
+test("Unavailable native history does not fabricate a trend",async()=>{
+  const env=createEnvironment({historyMissing:true});
+  await settled(env);
+  env.location.hash="#measurements";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/No native measurement history/);
+  assert.equal(find(env.named.view,"div",n=>n.className==="history-chart"),undefined);
+  assert.equal(env.downloads.length,0);
 });

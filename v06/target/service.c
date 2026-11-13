@@ -2,11 +2,13 @@
 #include "ou_telemetry_guard.h"
 #include "ou_events.h"
 #include "ou_event_archive.h"
+#include "ou_history.h"
 
 /* One service instance, zero allocation; native events remain available
  * independently of UPS telemetry and are intentionally volatile for now. */
 static ou_telemetry_guard source;
 static ou_event_log history;
+static ou_history_log measurements;
 
 static void record(uint8_t code,uint32_t now_ms) {
     (void)ou_events_add(&history,code,now_ms);
@@ -15,6 +17,7 @@ static void record(uint8_t code,uint32_t now_ms) {
 void ou_native_service_init(void) {
     ou_telemetry_guard_reset(&source);
     ou_events_init(&history);
+    ou_history_init(&measurements);
     record(OU_EVENT_SERVICE_START,0U);
 }
 
@@ -34,6 +37,19 @@ int ou_native_service_events_checkpoint(const ou_journal_io *dedicated_events,
 int ou_native_service_driver_report(const ou_driver_report *report,uint32_t now_ms) {
     int accepted=ou_telemetry_guard_accept(&source,report,now_ms);
     if(accepted!=0) {
+        ou_history_source_lost(&measurements);
+        record(OU_EVENT_REPORT_REJECTED,now_ms);
+        if(history.source_online) {
+            record(OU_EVENT_TELEMETRY_OFFLINE,now_ms);
+            history.source_online=0U;
+            history.state_known=0U;
+        }
+        return -1;
+    }
+    if(ou_history_accept(&measurements,&source.current,
+                         report->received_monotonic_ms)<0) {
+        ou_telemetry_guard_source_lost(&source);
+        ou_history_source_lost(&measurements);
         record(OU_EVENT_REPORT_REJECTED,now_ms);
         if(history.source_online) {
             record(OU_EVENT_TELEMETRY_OFFLINE,now_ms);
@@ -65,6 +81,7 @@ int ou_native_service_driver_report(const ou_driver_report *report,uint32_t now_
 
 void ou_native_service_source_lost_at(uint32_t now_ms) {
     ou_telemetry_guard_source_lost(&source);
+    ou_history_source_lost(&measurements);
     if(history.source_online)
         record(OU_EVENT_TELEMETRY_OFFLINE,now_ms);
     history.source_online=0U;
@@ -81,6 +98,6 @@ int ou_native_service_http(const uint8_t *req,size_t req_len,uint32_t now_ms,
                            char *response,size_t capacity,size_t *response_len) {
     ou_snapshot sample=ou_unavailable_snapshot();
     (void)ou_telemetry_guard_read(&source,now_ms,&sample);
-    return ou_http_respond_events(req,req_len,&sample,&history,
-                                   response,capacity,response_len);
+    return ou_http_respond_observed(req,req_len,&sample,&history,
+                                   &measurements,response,capacity,response_len);
 }

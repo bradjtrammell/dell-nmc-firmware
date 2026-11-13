@@ -1,5 +1,6 @@
 #include "openh910p.h"
 #include "ou_schema.h"
+#include "ou_history.h"
 
 typedef struct {
     char *data;
@@ -103,6 +104,68 @@ static void one_outlet(json_writer *w, uint32_t id,
  * unrelated paths. Keep pagination independent of POSIX/HTTP implementations. */
 /* Events use explicit path segments because the strict HTTP parser rejects
  * query strings. /events shows page 0; /events/0..3 are stable page IDs. */
+static int history_page(const char *path,uint32_t *page) {
+    const char prefix[]="/api/v1/ups/history/";
+    const char *p=prefix,*s=path;
+    uint32_t n=0U;
+    if(same(path,"/api/v1/ups/history")){*page=0U;return 1;}
+    while(*p&&*s==*p){++p;++s;}
+    if(*p)return 0;
+    if(!*s || (*s=='0'&&s[1]))return -1;
+    while(*s) {
+        if(*s<'0'||*s>'9'||n>=OU_HISTORY_CAPACITY)return -1;
+        n=n*10U+(uint32_t)(*s++-'0');
+    }
+    if(n>=OU_HISTORY_CAPACITY/OU_HISTORY_PAGE_SIZE)return -1;
+    *page=n;
+    return 1;
+}
+static void history_page_response(json_writer *w,
+                                  const ou_history_log *history,
+                                  const ou_snapshot *snapshot,
+                                  uint32_t page) {
+    size_t i,start,end;
+    common(w,"ups.history",snapshot);
+    property_bool(w,"persistent",0U,1);
+    property_bool(w,"live",snapshot->origin==OU_ORIGIN_NATIVE &&
+                       snapshot->sample_ready,1);
+    property_string(w,"sampleSource","verified-native-only",1);
+    property_uint(w,"sampleIntervalMs",OU_HISTORY_INTERVAL_MS,1);
+    property_uint(w,"capacity",OU_HISTORY_CAPACITY,1);
+    property_uint(w,"stored",history->count,1);
+    property_uint(w,"overwritten",history->overwritten,1);
+    property_uint(w,"latestSequence",history->latest_sequence,1);
+    property_uint(w,"latestRecordSequence",
+       history->count?history->samples[
+          ((size_t)history->next_slot+OU_HISTORY_CAPACITY-1U)%
+           OU_HISTORY_CAPACITY].sequence:0U,1);
+    property_uint(w,"page",page,1);
+    property_uint(w,"pageSize",OU_HISTORY_PAGE_SIZE,1);
+    property_uint(w,"pages",(history->count+OU_HISTORY_PAGE_SIZE-1U)/
+                              OU_HISTORY_PAGE_SIZE,1);
+    put_str(w,",\"samples\":[");
+    start=(size_t)page*OU_HISTORY_PAGE_SIZE;
+    end=start+OU_HISTORY_PAGE_SIZE;
+    if(end>history->count)end=history->count;
+    for(i=start;i<end;++i){
+        size_t slot=((size_t)history->next_slot+
+                      OU_HISTORY_CAPACITY-1U-i)%OU_HISTORY_CAPACITY;
+        const ou_history_sample *sample=&history->samples[slot];
+        if(i!=start)put_char(w,',');
+        put_char(w,'{');
+        property_uint(w,"sequence",sample->sequence,0);
+        property_uint(w,"monotonicMs",sample->monotonic_ms,1);
+        property_uint(w,"batteryPercent",sample->battery_percent,1);
+        property_uint(w,"loadPercent",sample->load_percent,1);
+        property_uint(w,"runtimeSeconds",sample->runtime_seconds,1);
+        property_uint(w,"inputDecivolts",sample->input_decivolts,1);
+        property_uint(w,"outputDecivolts",sample->output_decivolts,1);
+        property_bool(w,"acPresent",sample->ac_present,1);
+        property_bool(w,"gapBefore",sample->gap_before,1);
+        put_char(w,'}');
+    }
+    put_char(w,']');
+}
 static int event_page(const char *path, uint32_t *page) {
     const char prefix[]="/api/v1/events/";
     const char *p=prefix;
@@ -242,12 +305,13 @@ ou_snapshot ou_unavailable_snapshot(void) {
     return state;
 }
 
-int ou_dispatch_events(const char *method, const char *path,
+int ou_dispatch_observed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
+                const ou_history_log *history,
                 char *body, size_t capacity, ou_reply *reply) {
     json_writer w;
-    uint32_t field_page = 0, events_page = 0;
-    int page_status, events_path;
+    uint32_t field_page = 0, events_page = 0, history_index = 0;
+    int page_status, events_path, history_path;
     if (!method || !path || !snapshot || !body || !reply || capacity < 2U)
         return -1;
     if (snapshot->origin > OU_ORIGIN_NATIVE || snapshot->sample_ready > 1U ||
@@ -255,6 +319,7 @@ int ou_dispatch_events(const char *method, const char *path,
         return -1;
     page_status = parse_schema_page(path, &field_page);
     events_path = event_page(path, &events_page);
+    history_path = history_page(path,&history_index);
     w.data = body;
     w.capacity = capacity;
     w.length = 0U;
@@ -291,6 +356,19 @@ int ou_dispatch_events(const char *method, const char *path,
         property_bool(&w, "smtpDelivery", 0, 1);
         property_string(&w, "transport", "native-json-c", 1);
         put_str(&w, ",\"legacyOemInventory\":{\"configurationGroups\":24,\"configurationItems\":302,\"objectNames\":420}");
+    } else if(history_path!=0) {
+        if(history_path<0) {
+            reply->status=404;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","PAGE_NOT_FOUND",1);
+        } else if(!history || history->count>OU_HISTORY_CAPACITY ||
+           history->next_slot>=OU_HISTORY_CAPACITY) {
+            reply->status=503;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","HISTORY_UNAVAILABLE",1);
+        } else {
+            history_page_response(&w,history,snapshot,history_index);
+        }
     } else if (events && same(path,"/api/v1/events/stats")) {
         if(events->count>OU_EVENTS_CAPACITY ||
            events->next_slot>=OU_EVENTS_CAPACITY ||
@@ -432,6 +510,13 @@ int ou_dispatch_events(const char *method, const char *path,
     body[w.length] = '\0';
     reply->body_length = w.length;
     return 0;
+}
+
+int ou_dispatch_events(const char *method, const char *path,
+                const ou_snapshot *snapshot, const ou_event_log *events,
+                char *body, size_t capacity, ou_reply *reply) {
+    return ou_dispatch_observed(method,path,snapshot,events,0,
+                                body,capacity,reply);
 }
 
 int ou_dispatch(const char *method, const char *path,

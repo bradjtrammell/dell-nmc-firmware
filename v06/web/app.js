@@ -215,11 +215,11 @@
     }else add(container,notice("Outlet state unavailable","The API has not returned an outlet inventory.","error"));
     return container;
   }
-  function renderMeasurements(summary) {
+  function renderMeasurements(summary,history) {
     const container=element("div");
     const status=summary.status,measurements=summary.measurements;
-    add(container,title("Measurements","Power measurements from the UPS management API and their reported units."));
-    if(!status || !measurements)add(container,notice("No verified sample","Input, output and battery values are unavailable until the UPS reports a valid measurement set.","error"));
+    add(container,title("Measurements","Current UPS electrical measurements and retained, independently verified measurement history."));
+    if(!status||!measurements)add(container,notice("No current UPS sample","Live voltage, load and battery readings are unavailable. Historical samples, if previously collected, remain visible.","error"));
     add(container,table(["Measurement","Value","Unit","Source"],[
       ["Input voltage",measurements?valueOrDash(measurements.inputVoltage?.valueDecivolts/10):"Unavailable","V",measurements?"UPS API":"Unavailable"],
       ["Output voltage",measurements?valueOrDash(measurements.outputVoltage?.valueDecivolts/10):"Unavailable","V",measurements?"UPS API":"Unavailable"],
@@ -228,9 +228,67 @@
       ["Estimated runtime",status?status.estimatedRuntimeSeconds:"Unavailable","seconds",status?"UPS API":"Unavailable"],
       ["Utility supply",status?status.powerSource:"Unavailable","state",status?"UPS API":"Unavailable"]
     ]));
-    add(container,section("Measurement retention"));
-    add(container,readOnlyMessage());
-    add(container,commands([["Export measurements","Historical export requires a persistent measurement repository."],["Clear history","No persistent measurement history is connected to this firmware service."]]));
+    add(container,section("Measurement history","At most 64 retained validated samples; scheduled one minute apart, plus significant power transitions."));
+    if(!history){
+      add(container,notice("No native measurement history","This source has not exposed a verified history provider. Simulator measurements are never saved or presented as genuine history.","info"));
+      return container;
+    }
+    const {meta,samples}=history;
+    if(!meta.live)add(container,notice("UPS history available while offline","The stored readings below are from earlier verified samples. The UPS is not currently supplying live data.","warning"));
+    if(!meta.persistent)add(container,notice("Volatile history","Samples are in RAM only. Power loss or restart clears them; there is no flash storage or fabricated long-term trend.","info"));
+    const counters=element("div","metrics");
+    const battery=samples.length?samples[0].batteryPercent:null;
+    const minBattery=samples.length?Math.min(...samples.map(row=>row.batteryPercent)):null;
+    const maxLoad=samples.length?Math.max(...samples.map(row=>row.loadPercent)):null;
+    add(counters,metric("Recorded samples",samples.length,"Maximum 64"),
+      metric("Last battery reading",valueOrDash(battery,"%"),"Historical sample"),
+      metric("Lowest battery",valueOrDash(minBattery,"%"),"Retained history"),
+      metric("Peak load",valueOrDash(maxLoad,"%"),"Retained history"));
+    container.appendChild(counters);
+    if(samples.length){
+      const note=element("p","label","Blue = battery capacity; amber = UPS load. Horizontal order is oldest to newest. A vertical separator marks a reconnection.");
+      container.appendChild(note);
+      const chart=element("div","history-chart");
+      chart.setAttribute("aria-hidden","true");
+      for(const row of samples.slice().reverse()){
+        const group=element("div","history-chart-column"+(row.gapBefore?" history-gap":""));
+        group.title="Boot time "+row.monotonicMs+" ms, battery "+row.batteryPercent+
+          "%, load "+row.loadPercent+"%, utility "+(row.acPresent?"on":"off");
+        const batteryBar=element("span","history-bar history-battery");
+        const loadBar=element("span","history-bar history-load");
+        batteryBar.style.height=String(Math.max(1,row.batteryPercent))+"%";
+        loadBar.style.height=String(Math.max(1,row.loadPercent))+"%";
+        group.appendChild(batteryBar);group.appendChild(loadBar);
+        chart.appendChild(group);
+      }
+      container.appendChild(chart);
+      const controls=element("div","event-controls");
+      const csv=button("Export measurements CSV",()=>saveEventFile(
+        "openh910p-measurements.csv",
+        "\ufeff"+[["sequence","monotonicMs","batteryPercent","loadPercent",
+          "runtimeSeconds","inputDecivolts","outputDecivolts","acPresent","gapBefore"],
+          ...samples.map(row=>[row.sequence,row.monotonicMs,row.batteryPercent,
+            row.loadPercent,row.runtimeSeconds,row.inputDecivolts,row.outputDecivolts,
+            row.acPresent,row.gapBefore])].map(row=>row.map(csvCell).join(",")).join("\r\n")+"\r\n",
+        "text/csv;charset=utf-8"));
+      const json=button("Export measurements JSON",()=>saveEventFile(
+        "openh910p-measurements.json",JSON.stringify({
+          schemaVersion:1,sampleSource:meta.sampleSource,
+          live:meta.live,persistent:false,retained:samples.length,
+          overwritten:meta.overwritten,latestRecordSequence:meta.latestRecordSequence,
+          samples
+        },null,2)+"\n","application/json;charset=utf-8"));
+      add(controls,csv,json);
+      container.appendChild(controls);
+      add(container,table(["Sequence","Boot uptime","Battery","Load","Input","Output","Runtime","Utility / Link"],samples.map(row=>[
+        row.sequence,valueOrDash(row.monotonicMs," ms"),
+        valueOrDash(row.batteryPercent,"%"),valueOrDash(row.loadPercent,"%"),
+        valueOrDash(row.inputDecivolts/10," V"),valueOrDash(row.outputDecivolts/10," V"),
+        valueOrDash(Math.round(row.runtimeSeconds/60)," min"),
+        (row.acPresent?"Utility":"Battery")+(row.gapBefore?" · after reconnect":"")
+      ])));
+    } else add(container,notice("No historical samples yet","The native driver has not submitted a verified reading. History remains empty until a qualified physical measurement is received.","info"));
+    add(container,node("p","Records overwritten by the bounded history ring: "+String(meta.overwritten||0),"label"));
     return container;
   }
   function renderControl(summary) {
@@ -251,6 +309,39 @@
   /* Return one consistent retained-history snapshot. Every page must share
    * the same newest event ID and boot generation. If a new event arrives while
    * paging, retry once rather than export duplicates or silently omit rows. */
+  async function loadMeasurementHistory(signal) {
+    for(let attempt=0;attempt<2;attempt++){
+      const first=await request("ups/history",signal);
+      if(first.simulated || first.sampleSource!=="verified-native-only")
+        throw new Error("Unverified measurement history source");
+      if(!Array.isArray(first.samples)||!Number.isInteger(first.stored)||
+         first.stored<0||first.stored>64||first.pageSize!==8||
+         !Number.isInteger(first.pages)||first.pages<0||first.pages>8)
+        throw new Error("Malformed history metadata");
+      const remaining=await Promise.all(Array.from(
+        {length:Math.max(0,first.pages-1)},(_,index)=>
+          request("ups/history/"+(index+1),signal)));
+      const pages=[first,...remaining];
+      const all=pages.flatMap(page=>page.samples||[]);
+      const valid=pages.every((page,index)=>page.page===index&&
+        page.stored===first.stored&&page.overwritten===first.overwritten&&
+        page.latestRecordSequence===first.latestRecordSequence&&
+        page.sampleSource==="verified-native-only"&&Array.isArray(page.samples))&&
+        all.length===first.stored &&
+        new Set(all.map(row=>row.sequence)).size===all.length &&
+        all.every(row=>Number.isInteger(row.sequence)&&row.sequence>0&&
+          Number.isInteger(row.monotonicMs)&&row.monotonicMs>=0&&
+          Number.isInteger(row.batteryPercent)&&row.batteryPercent>=0&&row.batteryPercent<=100&&
+          Number.isInteger(row.loadPercent)&&row.loadPercent>=0&&row.loadPercent<=100&&
+          Number.isInteger(row.inputDecivolts)&&row.inputDecivolts>=0&&
+          Number.isInteger(row.outputDecivolts)&&row.outputDecivolts>=0&&
+          Number.isInteger(row.runtimeSeconds)&&row.runtimeSeconds>=0&&
+          typeof row.acPresent==="boolean"&&typeof row.gapBefore==="boolean");
+      if(valid)return {meta:first,samples:all};
+      if(attempt===1)throw new Error("History changed while reading; try refreshing.");
+    }
+    throw new Error("History could not be retrieved consistently.");
+  }
   async function loadEventHistory(signal) {
     for(let attempt=0;attempt<2;attempt++) {
       const first=await request("events",signal);
@@ -567,7 +658,16 @@
       if(summary.fatal){renderFatal("The /api/v1/health request did not succeed.");return;}
       let content;
       if(page==="properties")content=renderOverview(summary);
-      else if(page==="measurements")content=renderMeasurements(summary);
+      else if(page==="measurements"){
+        let history=null;
+        try{
+          history=await loadMeasurementHistory(signal);
+        }catch(error){
+          if(error.httpStatus!==503)throw error;
+        }
+        if(signal.aborted||generation!==state.generation)return;
+        content=renderMeasurements(summary,history);
+      }
       else if(page==="control")content=renderControl(summary);
       else if(page==="events"||page==="system-log"){
         let history=null;

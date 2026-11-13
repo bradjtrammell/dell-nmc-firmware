@@ -125,8 +125,9 @@ static int parse_request(const uint8_t *r, size_t size,
     }
     return 400;
 }
-int ou_http_respond_events(const uint8_t *request, size_t size,
+int ou_http_respond_observed(const uint8_t *request, size_t size,
                     const ou_snapshot *snapshot, const ou_event_log *events,
+                    const struct ou_history_log *history,
                     char *output, size_t capacity, size_t *written) {
     char method[9] = {0}, path[193] = {0};
     writer w;
@@ -150,7 +151,7 @@ int ou_http_respond_events(const uint8_t *request, size_t size,
                    path[6] != '1' || path[7] != '/') {
             status = 404;
             error = errjson(404);
-        } else if (ou_dispatch_events(method,path,snapshot,events,output+OU_HTTP_PREFIX_RESERVE,
+        } else if (ou_dispatch_observed(method,path,snapshot,events,history,output+OU_HTTP_PREFIX_RESERVE,
                                capacity-OU_HTTP_PREFIX_RESERVE,&reply) != 0) {
             status = 500;
             error = errjson(500);
@@ -178,6 +179,13 @@ int ou_http_respond_events(const uint8_t *request, size_t size,
     for (i=0;i<bodylen;++i) output[hdrlen+i]=output[OU_HTTP_PREFIX_RESERVE+i];
     *written=hdrlen+bodylen;
     return 0;
+}
+
+int ou_http_respond_events(const uint8_t *request, size_t size,
+                    const ou_snapshot *snapshot, const ou_event_log *events,
+                    char *output, size_t capacity, size_t *written) {
+    return ou_http_respond_observed(request,size,snapshot,events,0,
+                                    output,capacity,written);
 }
 
 int ou_http_respond(const uint8_t *request, size_t size,
