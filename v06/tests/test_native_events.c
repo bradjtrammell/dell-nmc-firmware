@@ -97,6 +97,7 @@ static void ring_and_pagination(void) {
     assert(strstr(response,"\"overwritten\":")!=0);
     assert(strstr(response,"\"UTILITY_LOST\":")!=0);
     assert(strstr(response,"\"UTILITY_RESTORED\":")!=0);
+    http("GET","/api/v1/events",200,"\"stored\":32",0);
     assert(strstr(response,"\"overwritten\":")!=0);
     assert(strstr(response,"\"page\":0")!=0);
     assert(strstr(response,"\"pages\":4")!=0);
