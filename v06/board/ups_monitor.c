@@ -7,6 +7,8 @@ void ou_ups_monitor_revoke(ou_ups_monitor *m) {
     if(!m)return;
     if(m->initialized || m->link.initialized || m->hid.initialized)
         ou_native_service_source_lost();
+    if(m->hid.sequence>m->sequence_watermark)
+        m->sequence_watermark=m->hid.sequence;
     ou_shut_uart_link_revoke(&m->link);
     ou_hid_telemetry_revoke(&m->hid);
     m->initialized=0U;
@@ -37,11 +39,26 @@ int ou_ups_monitor_bind(ou_ups_monitor *m,
     uint16_t lengths[OU_UPS_MONITOR_MAX_REPORTS]={0};
     size_t i,j;
     unsigned count=0U;
+    uint32_t prior_sequence=0U,prior_sets=0U,prior_published_ms=0U;
+    uint8_t prior_lifetime=0U;
     if(!m)return -1;
     /* A binding may never silently overwrite an active transaction or
      * authenticated history. Explicit revoke is required on failure. */
     if(m->initialized)return -1;
+    if(m->source_lifetime_valid==1U) {
+        prior_sequence=m->sequence_watermark;
+        prior_sets=m->published_sets;
+        prior_published_ms=m->last_publish_ms;
+        prior_lifetime=1U;
+    }
     *m=(ou_ups_monitor){0};
+    /* Keep the source's replay watermark even after failed rebind attempts.
+     * Do not reset the native API guard or accept stale on-card reports. */
+    m->sequence_watermark=prior_sequence;
+    m->published_sets=prior_sets;
+    m->last_publish_ms=prior_published_ms;
+    m->source_lifetime_valid=prior_lifetime;
+    if(prior_sequence==UINT32_MAX)return -1;
     if(ou_hid_telemetry_init(&m->hid,hid_descriptor,hid_descriptor_length,
                               bindings,source_evidence)!=0)return -1;
     /* SHUT GET REPORT replies include the HID report ID byte. A no-ID
@@ -73,6 +90,8 @@ int ou_ups_monitor_bind(ou_ups_monitor *m,
         m->report_length[i]=lengths[i];
     }
     m->report_count=(uint8_t)count;
+    m->hid.sequence=m->sequence_watermark;
+    m->source_lifetime_valid=1U;
     m->initialized=1U;
     return 0;
 }
@@ -118,6 +137,7 @@ int ou_ups_monitor_step(ou_ups_monitor *m,uint32_t now_ms) {
        ou_native_service_driver_report(&report,now_ms)!=0)
         return fail(m);
     m->last_publish_ms=now_ms;
+    m->sequence_watermark=m->hid.sequence;
     if(m->published_sets!=UINT32_MAX)++m->published_sets;
     m->cycle_active=0U;
     return 1;

@@ -209,6 +209,21 @@ static void fault_revokes_immediately(void) {
  assert(mon.failures==1U&&!mon.initialized);
  status(503,"TELEMETRY_UNAVAILABLE");
  assert(ou_ups_monitor_step(&mon,now_ms)==-1);
+ /* New qualified source resumes sequence instead of resetting the API
+  * replay guard. All physical source assertions are synthetic in test. */
+ {
+   ou_ns7520_serial_rx s=source(1U);
+   uint32_t previous=mon.sequence_watermark;
+   hw.fail_read=0;
+   assert(previous==1U && mon.source_lifetime_valid==1U);
+   assert(ou_ups_monitor_bind(&mon,&s,wr8,wr32,0,1U,1U,1U,
+          2400U,descriptor,sizeof(descriptor),bindings,
+          &fixture_proof)==0);
+   assert(mon.hid.sequence==previous && mon.published_sets==1U);
+   run_until(2U);
+   assert(mon.hid.sequence==2U);
+   status(200,"\"batteryPercent\":87");
+ }
 }
 static void corruption_never_publishes(void) {
  unsigned i;int failed=0;

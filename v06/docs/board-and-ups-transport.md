@@ -204,3 +204,13 @@ HID feature report IDs, actual SHUT read/ACK framing, repeated acquisition,
 API publication, corruption and unplug. Those host-supplied qualification
 flags do NOT prove the installed H910P bus. The ARM7 image links the
 module but the default board startup still refuses unqualified hardware.
+
+## Qualified source reconnect with persistent anti-replay sequence
+
+A report sequence is now preserved across explicit UPS link revocation and
+rebind within the same native service uptime. The monitor never calls a
+service reset to bypass previously accepted timestamps/sequence numbers.
+Rebind must still repeat independent electrical, protocol, descriptor and
+source checks; a temporary disconnection cannot automatically promote a
+SHUT checksum into proof of physical device identity. Host tests confirm
+a live→offline→requalified live transition with incrementing sequence.

@@ -20,8 +20,11 @@ typedef struct {
     uint8_t cycle_active;
     uint8_t initialized;
     uint8_t clock_started;
+    uint8_t source_lifetime_valid;
     uint32_t last_ms;
     uint32_t last_publish_ms;
+    /* Non-repeating lifetime sequence across revoked/requalified link. */
+    uint32_t sequence_watermark;
     uint32_t published_sets;
     uint32_t failures;
 } ou_ups_monitor;
