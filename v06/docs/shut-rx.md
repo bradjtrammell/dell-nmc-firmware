@@ -86,3 +86,25 @@ The module is compiled and linked in the non-flashable ARM7 research image.
 
 Reference: MGE Simplified SHUT AC, sections 2.2–2.5, pp. 6–8 and
 the published GET REPORT exchange on p. 14.
+
+
+## HID Feature descriptor interpreter
+
+The read-only `board/hid_report.c` module can compile a bounded HID report
+descriptor into Feature fields on USB HID **Power Device (0x84)** and
+**Battery System (0x85)** usage pages. It respects Feature report IDs,
+constant padding, bit offsets and little-endian bit numbering, signed
+logical ranges and per-report layouts. Short-item PUSH/POP and collection
+boundaries are checked. Long items, unsupported ranges, malformed layouts,
+oversized reports and values outside descriptor-declared limits fail closed.
+
+It decodes raw integers without guessing HID unit exponents or physical
+scales. Feature decoding never permits an Output or SET REPORT operation,
+and decoded values always retain `telemetry_verified=0`. A descriptor
+from an independently identified real H910P UPS and a physical read driver
+are required before connecting any field to production telemetry. Current
+tests use a **synthetic** descriptor matching the layout of the published
+MGE example; it is not asserted to be the Dell H910P layout.
+
+Reference: USB HID 1.11 item encoding and HID Power Device usage tables
+(USB-IF), plus MGE 51029473ZA AC p.14 for the example 4-byte report.
