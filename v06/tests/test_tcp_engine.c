@@ -105,7 +105,7 @@ static void test_timeout_and_isolation(void){
  assert(server.slots[0].state==0&&server.slots[1].state==0);
 }
 static void test_peer_mss(void){
- const char *request="GET /api/v1/health HTTP/1.1\\r\\nHost: card\\r\\n\\r\\n";
+ const char *request="GET /api/v1/health HTTP/1.1\r\nHost: card\r\n\r\n";
  uint32_t seq=5000U,reply_seq,client_next;
  initialize();negotiated_mss=256U;
  packet(100,6000,seq,0U,2U,0,0U);
