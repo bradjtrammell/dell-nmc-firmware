@@ -123,6 +123,22 @@ static void response_faults(void){
  assert(packet(0x84U,valid,2U)==1);
  assert(take()==1&&session.state==OU_SHUT_SESSION_COMPLETE);
 }
+static void abort_and_wipe(void) {
+ ou_shut_rx_message result;
+ sync_request(0x31U,0U);
+ assert(ou_shut_session_feed(&session,0x04U,++now)==0);
+ assert(ou_shut_session_feed(&session,0x22U,++now)==0);
+ assert(ou_shut_session_feed(&session,0x31U,++now)==0);
+ assert(session.rx.active);
+ assert(ou_shut_session_abort(&session,OU_SHUT_SESSION_ERR_IO)==-1);
+ assert(session.state==OU_SHUT_SESSION_FAILED);
+ assert(session.error==OU_SHUT_SESSION_ERR_IO&&session.failures==1U);
+ assert(!session.rx.active&&!session.rx.assembled);
+ assert(!session.out_length && !session.result.length);
+ assert(session.out[0]==0U);
+ assert(ou_shut_session_take_report(&session,&result)==0);
+ assert(ou_shut_session_abort(&session,OU_SHUT_SESSION_ERR_NONE)==-1);
+}
 static void framing_clock_and_limits(void) {
  ou_shut_rx_message out;
  reset();assert(ou_shut_session_begin(&session,0x11U,257U,now,1U,1U)==-1);
@@ -140,7 +156,7 @@ static void framing_clock_and_limits(void) {
 }
 int main(void){
  nominal();fragments_and_notify();sync_timeout();command_nak_retry();
- response_faults();framing_clock_and_limits();
+ response_faults();framing_clock_and_limits();abort_and_wipe();
  puts("PASS: SHUT read-only SYNC/GET REPORT/ACK state machine, NAKs, timeout, checksum and replay gates");
  return 0;
 }

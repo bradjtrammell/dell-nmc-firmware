@@ -46,9 +46,11 @@ int ou_shut_uart_bridge_poll(ou_shut_uart_bridge *bridge,uint32_t now_ms){
             zero_pending(bridge);
             /* A damaged physical transaction cannot be reused as a
              * partially verified report. No outgoing writes on failure. */
-            bridge->session->state=OU_SHUT_SESSION_FAILED;
-            bridge->session->out_length=0U;
-            bridge->session->result=(ou_shut_rx_message){0};
+            (void)ou_shut_session_abort(bridge->session,
+                                         OU_SHUT_SESSION_ERR_IO);
+            bridge->uart=(ou_ns7520_serial_rx){0};
+            bridge->session=0;
+            bridge->initialized=0U;
             return -1;
         }
         if(r==0)return 0;
@@ -61,6 +63,9 @@ int ou_shut_uart_bridge_poll(ou_shut_uart_bridge *bridge,uint32_t now_ms){
         if(r<0){
             if(bridge->rejected_polls!=UINT32_MAX)++bridge->rejected_polls;
             zero_pending(bridge);
+            bridge->uart=(ou_ns7520_serial_rx){0};
+            bridge->session=0;
+            bridge->initialized=0U;
             return -1;
         }
         if(bridge->total_bytes!=UINT32_MAX)++bridge->total_bytes;

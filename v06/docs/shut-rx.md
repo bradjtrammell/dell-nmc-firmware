@@ -164,3 +164,13 @@ the target implements **no UART transmitter** and no real UPS electrical
 wiring. This is therefore still **NOT FLASHABLE**. Actual on-card
 serial channel identity, verified UART timing, FIFO wiring, independent
 recovery and physical protocol qualification remain outstanding.
+
+## Loss of UART trust invalidates the complete SHUT session
+
+An MMIO read failure or receive error now calls the central
+`ou_shut_session_abort(..., OU_SHUT_SESSION_ERR_IO)` handler,
+which scrubs raw SHUT fragments, pending outbound packet bytes,
+completed-but-unconsumed telemetry, and the parser state. The FIFO
+adapter clears its callback and refuses additional polls until a newly
+qualified hardware port rebinds the session. Tests verify the error
+reason, failure counter, zeroed buffers, and denial of resumed polling.

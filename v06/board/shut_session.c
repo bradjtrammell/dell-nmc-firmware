@@ -7,17 +7,24 @@ static int valid_time(ou_shut_session *s, uint32_t now) {
     s->started=1U;
     return 1;
 }
-static int fail(ou_shut_session *s, uint8_t error) {
-    uint8_t *dst=(uint8_t *)&s->result;
+int ou_shut_session_abort(ou_shut_session *s, uint8_t error) {
+    uint8_t *dst;
     size_t i;
+    if(!s || error==OU_SHUT_SESSION_ERR_NONE || error>OU_SHUT_SESSION_ERR_IO)
+        return -1;
     s->state=OU_SHUT_SESSION_FAILED;
     s->out_length=0U;
     s->after_ack=0U;
     s->error=error;
+    dst=(uint8_t *)&s->result;
     for(i=0U;i<sizeof(s->result);++i)dst[i]=0U;
+    for(i=0U;i<sizeof(s->out);++i)s->out[i]=0U;
     ou_shut_rx_init(&s->rx);
     if(s->failures!=UINT32_MAX)++s->failures;
     return -1;
+}
+static int fail(ou_shut_session *s, uint8_t error) {
+    return ou_shut_session_abort(s,error);
 }
 static int queue_sync(ou_shut_session *s) {
     s->out[0]=0x16U;

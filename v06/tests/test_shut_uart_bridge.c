@@ -105,7 +105,11 @@ static void status_and_link_failures(void){
     wire.fail_fifo=1;
     assert(ou_shut_uart_bridge_poll(&bridge,++now)==-1);
     assert(session.state==OU_SHUT_SESSION_FAILED);
+    assert(session.error==OU_SHUT_SESSION_ERR_IO);
+    assert(session.failures==1U && !session.rx.active);
     assert(!session.result.length && !bridge.pending_count);
+    assert(!bridge.initialized && !bridge.uart.read32);
+    assert(ou_shut_uart_bridge_poll(&bridge,++now)==-1);
     assert(!wire.forbidden);
 }
 int main(void){

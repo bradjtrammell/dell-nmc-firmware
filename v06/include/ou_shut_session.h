@@ -32,6 +32,7 @@
 #define OU_SHUT_SESSION_ERR_BAD_PACKET 3U
 #define OU_SHUT_SESSION_ERR_REPORT_MISMATCH 4U
 #define OU_SHUT_SESSION_ERR_NAK 5U
+#define OU_SHUT_SESSION_ERR_IO 6U
 
 typedef struct {
     ou_shut_rx rx;
@@ -55,6 +56,10 @@ typedef struct {
 } ou_shut_session;
 
 void ou_shut_session_init(ou_shut_session *s);
+/* External physical transport failure: wipe pending TX, RX reassembly,
+ * unconsumed report and staged state; retain a failure counter and reason.
+ * No UART write is attempted. Caller must requalify the hardware binding. */
+int ou_shut_session_abort(ou_shut_session *s, uint8_t reason);
 /* Electrical mapping and protocol qualification must BOTH be exactly 1.
  * These caller assertions do not prove the H910P hardware. They only guard
  * accidental use of research code. The function does not send any bytes. */
