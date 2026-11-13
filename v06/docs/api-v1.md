@@ -276,3 +276,12 @@ workspaces, validating all sections before replacing any in-memory
 draft. Its JSON is a separate review-only representation, not a
 native binary firmware backup and not an active device configuration.
 See `docs/portable-backup.md`.
+
+## Non-secret notification policy journal
+
+`/api/v1/notifications/policy` now advertises
+`policyJournalCompiled:true`, `policyRecordBytes:104` and
+`policyPersistenceQualified:false`. The native service provides
+explicit, BSP-gated notification rule checkpoint and restore,
+not an active on-card persistence channel. All existing HTTP
+writes remain 405 and no secrets are included in the record.

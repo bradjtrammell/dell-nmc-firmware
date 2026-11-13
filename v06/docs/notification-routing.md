@@ -27,3 +27,14 @@ Implement a credential-safe, qualified HTTPS transport; SMTP submission with STA
 ## Verification
 
 The host and native service tests cover typed event routing, email/webhook/trap categories, independent fan-out, replay rejection, cooldown including 32-bit rollover, a full queue, invalid rules and authorization denial, retry/backoff and terminal failures, qualified-versus-unqualified sends, shutdown/reboot clearing, HTTP status reporting, and no mutation endpoints. The Node UI suite covers rule editing, duplicate validation and review export. ARM7 link and AddressSanitizer/UBSan gates remain required. No tests send actual messages.
+
+## Crash-safe routing-rule persistence
+
+The notification routing policy now has a separate O6NR v1
+104-byte canonical encoding and explicit two-slot NOR checkpoint/
+restore. No addresses or credentials are serialized; only event
+masks, destination IDs, transport types and cooldowns. A restored
+policy revokes previously queued jobs for former destinations.
+The service requires an independent NOTIFICATION flash partition
+and authenticated authorization, both unavailable on the live card.
+See `docs/notification-policy-journal.md`.

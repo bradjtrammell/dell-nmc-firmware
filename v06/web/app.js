@@ -890,7 +890,7 @@
       return panel;
     }
     add(panel,notice("Delivery is not connected to the card",
-      "The native queue/router and retry engine are implemented, but outbound transports and recipient credentials are not configured or qualified. These local drafts do not change delivery settings.","info"));
+      "The native queue/router, retry engine and recoverable rule journal are implemented, but physical rule storage, outbound transports and recipient credentials are not qualified. These local drafts do not change delivery settings.","info"));
     if(delivery){
       add(panel,properties([
         ["Queued notifications",valueOrDash(delivery.pending)],

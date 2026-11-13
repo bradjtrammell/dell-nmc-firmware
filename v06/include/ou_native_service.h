@@ -6,6 +6,7 @@
 #include "ou_http_wire.h"
 #include "ou_event_archive.h"
 #include "ou_notify.h"
+#include "ou_notify_policy.h"
 #include "ou_snmp.h"
 #include "ou_agents.h"
 #include "ou_time_sync.h"
@@ -40,6 +41,16 @@ int ou_native_service_notify_configure(const ou_notify_rule *rules,
                       size_t count,int (*authorize)(void *),void *context);
 /* Progress one pending outbound event using an explicitly qualified
  * delivery adapter. No sending occurs without all sender qualifications. */
+/* Explicit, authenticated and independently qualified NOTIFICATION
+ * flash partition: never share configuration, event, application, or
+ * bootloader sectors. Restoring active rules is only valid at startup. */
+int ou_native_service_notifications_checkpoint(
+          const ou_journal_io *dedicated_notifications,
+          int (*authorize)(void *),void *context,
+          ou_journal_record *record);
+int ou_native_service_notifications_restore(
+          const ou_journal_io *dedicated_notifications,
+          ou_journal_record *record);
 int ou_native_service_notify_step(const ou_notify_sender *sender,
                                    uint32_t now_ms);
 

@@ -305,3 +305,14 @@ capped at eight varbinds to prevent request amplification,
 including for huge max-repetitions inputs. No SNMP SET is
 available, source/community requirements are unchanged,
 and stale/unverified UPS telemetry is never substituted.
+
+## Notification rule journal acceptance
+
+The O6NR versioned 104-byte canonical notification-policy codec
+is tested with all eight bounded rules, malicious reserved data,
+wrong transport/masks, deterministic round-trip, authorization
+denial, invalid flash geometry, write-disabled storage, interrupted
+NOR programming, CRC corruption of the newest slot and fallback
+to the previous committed policy. The target engine changes only
+after every byte validates. ARM7 and sanitizers include this model.
+No physical notification flash region is assumed.

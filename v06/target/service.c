@@ -4,6 +4,7 @@
 #include "ou_event_archive.h"
 #include "ou_history.h"
 #include "ou_notify.h"
+#include "ou_notify_policy.h"
 #include "ou_snmp.h"
 #include "ou_agents.h"
 #include "ou_time_sync.h"
@@ -57,6 +58,24 @@ int ou_native_service_notify_configure(const ou_notify_rule *rules,
                       size_t count,int (*authorize)(void *),void *context) {
     if(!authorize || authorize(context)!=1)return -1;
     return ou_notify_set_rules(&notifications,rules,count,1);
+}
+int ou_native_service_notifications_checkpoint(
+          const ou_journal_io *dedicated_notifications,
+          int (*authorize)(void *),void *context,
+          ou_journal_record *record){
+    return ou_notify_policy_checkpoint(&notifications,dedicated_notifications,
+                                       authorize,context,record);
+}
+int ou_native_service_notifications_restore(
+          const ou_journal_io *dedicated_notifications,
+          ou_journal_record *record){
+    /* Restore at service startup, before publishing native UPS events.
+     * A live service must not silently swap alert destinations while
+     * delivering notifications for an existing connection. */
+    if(source.source_seen||history.source_online||
+       ou_notify_pending(&notifications)!=0U)return -1;
+    return ou_notify_policy_restore(&notifications,
+                                    dedicated_notifications,record);
 }
 int ou_native_service_notify_step(const ou_notify_sender *sender,
                                    uint32_t now_ms){

@@ -328,3 +328,12 @@ bounded GETBULK MIB walks over the verified seven UPS-MIB
 objects. Up to eight response varbinds, no power/config
 writes, no live UDP listener, no unqualified community
 provisioning. See `docs/snmp-monitoring.md`.
+
+## Recoverable notification rules
+
+The native 8-rule alert router now has an explicit 104-byte,
+versioned and CRC-journaled policy record and an independently
+authorization-gated checkpoint/restart restore interface.
+No credentials or recipient addresses are persisted, and
+live device flash remains unqualified. See
+`docs/notification-policy-journal.md`.

@@ -43,6 +43,14 @@ int main(void){
     ou_driver_report r;
     int authenticated=0;
     ou_native_service_init();
+    {
+        ou_journal_record record={0};
+        /* Service links the policy journal, but unqualified flash must fail. */
+        assert(ou_native_service_notifications_checkpoint(NULL,NULL,NULL,
+                                                           &record)==-1);
+        assert(ou_native_service_notifications_restore(NULL,&record)==-1);
+    }
+
     request("GET","/api/v1/notifications/status",1U,200,"\"activeRules\":0");
     request("GET","/api/v1/notifications/policy",1U,200,"\"maximumRules\":8");
     assert(ou_native_service_notify_configure(rules,2U,authorize,&authenticated)==-1);

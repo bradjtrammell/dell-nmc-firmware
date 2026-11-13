@@ -574,6 +574,9 @@ int ou_dispatch_managed(const char *method, const char *path,
     } else if (same(path, "/api/v1/notifications/policy")) {
         common(&w,"notifications.policy",snapshot);
         property_bool(&w,"routerCompiled",1U,1);
+        property_bool(&w,"policyJournalCompiled",1U,1);
+        property_bool(&w,"policyPersistenceQualified",0U,1);
+        property_uint(&w,"policyRecordBytes",104U,1);
         property_bool(&w,"deliveryAvailable",0U,1);
         property_bool(&w,"rulesWritable",0U,1);
         property_bool(&w,"destinationsProvisioned",0U,1);

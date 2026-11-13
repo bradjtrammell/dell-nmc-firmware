@@ -209,7 +209,7 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
     };
     if(route==="notifications/policy")return {
       schemaVersion:1,source:"native",simulated:false,
-      routerCompiled:true,deliveryAvailable:false,rulesWritable:false,
+      routerCompiled:true,policyJournalCompiled:true,policyPersistenceQualified:false,policyRecordBytes:104,deliveryAvailable:false,rulesWritable:false,
       destinationsProvisioned:false,transportQualified:false,
       credentialsConfigured:false,maximumRules:8,queueCapacity:24,
       maximumAttempts:5,maximumCooldownSeconds:3600,
