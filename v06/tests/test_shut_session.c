@@ -12,7 +12,7 @@ static void reset(void) {
 static int take(void) {
  return ou_shut_session_take_tx(&session,now,tx,sizeof(tx),&used);
 }
-static void sync_request(uint8_t id,uint16_t requested){
+static void sync_sent_request(uint8_t id,uint16_t requested){
  reset();
  assert(ou_shut_session_begin(&session,id,requested,now,1U,1U)==1);
  assert(session.state==OU_SHUT_SESSION_SYNC_READY);
@@ -23,6 +23,9 @@ static void sync_request(uint8_t id,uint16_t requested){
  assert(take()==1&&used==11U&&tx[0]==0x81U&&tx[1]==0x88U);
  assert(tx[4]==id&&tx[8]==(uint8_t)(requested&255U));
  assert(tx[9]==(uint8_t)(requested>>8));
+}
+static void sync_request(uint8_t id,uint16_t requested){
+ sync_sent_request(id,requested);
  assert(ou_shut_session_feed(&session,0x06U,++now)==0);
  assert(session.state==OU_SHUT_SESSION_RESPONSE_WAIT);
 }
@@ -88,7 +91,7 @@ static void command_nak_retry(void){
  unsigned i;
  reset();assert(ou_shut_session_begin(&session,0x31U,8U,now,0U,1U)==-1);
  assert(session.state==OU_SHUT_SESSION_IDLE);
- sync_request(0x31U,8U);
+ sync_sent_request(0x31U,8U);
  for(i=1U;i<OU_SHUT_SESSION_REQUEST_ATTEMPTS;i++){
   assert(ou_shut_session_feed(&session,0x15U,++now)==1);
   assert(take()==1&&used==11U&&tx[4]==0x31U);
@@ -128,6 +131,10 @@ static void framing_clock_and_limits(void) {
  assert(ou_shut_session_tick(&session,now)==-1);
  assert(session.error==OU_SHUT_SESSION_ERR_CLOCK);
  assert(ou_shut_session_take_report(&session,&out)==0);
+ reset();assert(ou_shut_session_begin(&session,0x11U,8U,now,1U,1U)==1);
+ now+=OU_SHUT_SESSION_ACK_TIMEOUT_MS+1U;
+ assert(ou_shut_session_tick(&session,now)==-1);
+ assert(session.error==OU_SHUT_SESSION_ERR_TIMEOUT);
 }
 int main(void){
  nominal();fragments_and_notify();sync_timeout();command_nak_retry();

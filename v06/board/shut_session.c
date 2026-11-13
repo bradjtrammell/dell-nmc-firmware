@@ -22,6 +22,7 @@ static int fail(ou_shut_session *s, uint8_t error) {
 static int queue_sync(ou_shut_session *s) {
     s->out[0]=0x16U;
     s->out_length=1U;
+    s->queued_ms=s->last_ms;
     s->state=OU_SHUT_SESSION_SYNC_READY;
     return 1;
 }
@@ -31,6 +32,7 @@ static int queue_request(ou_shut_session *s) {
           s->out,sizeof(s->out),&n)!=0 || n!=OU_SHUT_GET_REPORT_FRAME_SIZE)
         return fail(s,OU_SHUT_SESSION_ERR_BAD_PACKET);
     s->out_length=(uint8_t)n;
+    s->queued_ms=s->last_ms;
     s->state=OU_SHUT_SESSION_REQUEST_READY;
     return 1;
 }
@@ -122,6 +124,7 @@ int ou_shut_session_feed(ou_shut_session *s,uint8_t byte,uint32_t now_ms) {
         } else s->after_ack=OU_SHUT_SESSION_RESPONSE_WAIT;
         s->out[0]=0x06U;
         s->out_length=1U;
+        s->queued_ms=now_ms;
         s->state=OU_SHUT_SESSION_ACK_READY;
         s->sent_ms=now_ms;
         return r==1?1:0;
@@ -159,7 +162,7 @@ int ou_shut_session_tick(ou_shut_session *s,uint32_t now_ms) {
     case OU_SHUT_SESSION_ACK_READY:
         /* A board driver that cannot drain a pending outbound frame must
          * abort instead of silently dropping protocol acknowledgements. */
-        if((uint32_t)(now_ms-s->last_ms)>OU_SHUT_SESSION_ACK_TIMEOUT_MS)
+        if((uint32_t)(now_ms-s->queued_ms)>OU_SHUT_SESSION_ACK_TIMEOUT_MS)
             return fail(s,OU_SHUT_SESSION_ERR_TIMEOUT);
         return 0;
     case OU_SHUT_SESSION_IDLE:

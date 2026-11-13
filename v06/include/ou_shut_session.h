@@ -40,6 +40,7 @@ typedef struct {
     uint8_t out[OU_SHUT_GET_REPORT_FRAME_SIZE];
     uint32_t last_ms;
     uint32_t sent_ms;
+    uint32_t queued_ms;
     uint32_t successful_reads;
     uint32_t failures;
     uint16_t requested_bytes;
