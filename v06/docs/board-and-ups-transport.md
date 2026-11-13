@@ -154,3 +154,28 @@ and partial hardware failures.
 Source: https://ftp1.digi.com/support/documentation/90000352_L.pdf
 (printed page 14). This is a **functional correction** to the
 previously committed transmit logic, not a newly qualified card.
+
+## Integrated single-owner UPS transport event loop
+
+`board/shut_uart_link.c` now provides the native read-only transport
+driver that orchestrates the documented NS7520 UART receive FIFO,
+errata-qualified transmit FIFO, SHUT synchronization, HID GET REPORT,
+incoming fragment/packet assembly and required acknowledgments in
+**one nonblocking cooperative step**. TX takes priority over RX so a
+pending fragment ACK cannot be bypassed by another FIFO read. Every
+transaction requires independently qualified physical source, UART
+baud and mode. On RX/TX error, the link revokes both callback bindings,
+discards partial bytes and refuses to publish a report.
+
+The new host test uses a synthetic NS7520 register model (not just an
+in-memory parser) to drive complete sync/request/ACK/response cycles,
+repeat reads, both controller address sets, corrupted checksums and
+physical callback failure. Only an unverified `ou_shut_rx_message` can
+be retrieved. No UPD mutating commands, setting writes, bootloader,
+flash driver, on-card measurements, or operator serial actions are
+required by the software test.
+
+**This is not a connected live H910P driver**: a verified on-card
+BSP must still select the real UPS physical interface and prove that
+its installed electrical transport is in fact this SHUT/UART protocol.
+The research binary must not be flashed.
