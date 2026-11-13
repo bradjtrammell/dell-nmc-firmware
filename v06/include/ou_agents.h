@@ -44,7 +44,7 @@ typedef struct {
     uint32_t transaction;
     uint32_t warning_deadline_ms;
 } ou_agent_notice;
-typedef struct {
+typedef struct ou_agent_status {
     uint32_t enrolled;
     uint32_t online;
     uint32_t waiting;
