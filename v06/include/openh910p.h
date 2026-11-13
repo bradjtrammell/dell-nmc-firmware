@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "ou_events.h"
 
 #define OU_API_VERSION 1U
 #define OU_FIRMWARE_VERSION "0.6.0-alpha.1"
@@ -40,6 +41,12 @@ typedef struct {
  * The snapshot is supplied by a caller, not populated from unverified hardware.
  * Returns -1 on invalid arguments or insufficient response buffer.
  */
+/* Extended native dispatcher uses an independently owned event store.
+ * Existing host simulation remains unchanged through ou_dispatch(). */
+int ou_dispatch_events(const char *method, const char *path,
+                const ou_snapshot *snapshot, const ou_event_log *events,
+                char *body, size_t capacity, ou_reply *reply);
+
 int ou_dispatch(const char *method, const char *path,
                 const ou_snapshot *snapshot, char *body,
                 size_t capacity, ou_reply *reply);

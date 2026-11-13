@@ -12,9 +12,20 @@ The C99 response code has no Dell XML/CGI dependencies. The **only** HTTP listen
 | GET `/api/v1/ups/status` | battery, load, AC, runtime (503 if unavailable) |
 | GET `/api/v1/ups/measurements` | input/output voltage with `dV` unit (503 if unavailable) |
 | GET `/api/v1/ups/outlets` | three outlet summaries; power controls disabled (503 if unavailable) |
-| GET `/api/v1/events` | simulator events (503 on native source without a real event provider) |
+| GET `/api/v1/events` | native typed event history, newest-first, independent of UPS telemetry (simulator retains its synthetic events) |
+| GET `/api/v1/events/{0..3}` | native event pages, 8 records each, strict path validation |
 | GET `/api/v1/configuration/fields` | metadata count 302 and 19 page descriptors |
 | GET `/api/v1/configuration/fields/{0..18}` | exact name, type, group, access, restart/hidden flags, unit; no values |
+
+The native service now records its own service-start, telemetry online/offline,
+rejected-report, utility failure/restoration and low-battery/recovered
+transitions. Events have monotonic sequence IDs and uptime-relative
+`monotonicMs` timestamps, severity, stable event codes and safe fixed
+messages. The native RAM ring retains 32 entries and reports overwritten
+counts, 8 per page. Events remain readable when UPS status returns 503,
+and repeated identical state updates do not spam the log. The history is
+**volatile**, advertises `persistent:false` and is not yet an implemented
+persistent event journal; it is not SNMP/email alert delivery.
 
 HEAD is supported. All mutations return 405, including UPS output commands, configuration changes and firmware upload. Unrecognized paths return 404; XML and Dell CGI paths are absent. Responses use bounded JSON buffers, schema version 1, and an explicit source marker. The server advertises simulator mode and does not accept remote connections.
 

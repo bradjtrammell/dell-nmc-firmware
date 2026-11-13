@@ -8,6 +8,12 @@
 #define OU_HTTP_MAX_RESPONSE (OU_HTTP_PREFIX_RESERVE + OU_JSON_CAPACITY)
 /* One complete bounded request, one read-only HTTP response.
  * No NIC, sockets, heap, TLS, or POSIX dependencies. */
+/* Native service may supply typed event data without modifying the
+ * simulator or allowing unauthenticated mutations. */
+int ou_http_respond_events(const uint8_t *request, size_t size,
+                    const ou_snapshot *snapshot, const ou_event_log *events,
+                    char *output, size_t capacity, size_t *written);
+
 int ou_http_respond(const uint8_t *request, size_t size,
                     const ou_snapshot *snapshot, char *output,
                     size_t capacity, size_t *written);

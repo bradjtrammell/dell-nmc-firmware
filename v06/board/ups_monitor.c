@@ -6,7 +6,7 @@ static int forward_or_equal(uint32_t newer,uint32_t older) {
 void ou_ups_monitor_revoke(ou_ups_monitor *m) {
     if(!m)return;
     if(m->initialized || m->link.initialized || m->hid.initialized)
-        ou_native_service_source_lost();
+        ou_native_service_source_lost_at(m->last_ms);
     if(m->hid.sequence>m->sequence_watermark)
         m->sequence_watermark=m->hid.sequence;
     ou_shut_uart_link_revoke(&m->link);

@@ -101,6 +101,62 @@ static void one_outlet(json_writer *w, uint32_t id,
 
 /* Returns 1 for a valid schema page, -1 for a malformed page, or 0 for
  * unrelated paths. Keep pagination independent of POSIX/HTTP implementations. */
+/* Events use explicit path segments because the strict HTTP parser rejects
+ * query strings. /events shows page 0; /events/0..3 are stable page IDs. */
+static int event_page(const char *path, uint32_t *page) {
+    const char prefix[]="/api/v1/events/";
+    const char *p=prefix;
+    const char *s=path;
+    uint32_t n=0U;
+    if(same(path,"/api/v1/events")) {
+        *page=0U;
+        return 1;
+    }
+    while(*p && *s==*p){++s;++p;}
+    if(*p)return 0;
+    if(!*s||(*s=='0'&&s[1]))return -1;
+    while(*s) {
+        if(*s<'0'||*s>'9'||n>100U)return -1;
+        n=n*10U+(uint32_t)(*s++-'0');
+    }
+    if(n>=OU_EVENTS_CAPACITY/OU_EVENTS_PAGE_SIZE)return -1;
+    *page=n;
+    return 1;
+}
+
+static const char *event_code_string(uint8_t code) {
+    switch(code) {
+        case OU_EVENT_SERVICE_START: return "SERVICE_START";
+        case OU_EVENT_TELEMETRY_ONLINE: return "TELEMETRY_ONLINE";
+        case OU_EVENT_TELEMETRY_OFFLINE: return "TELEMETRY_OFFLINE";
+        case OU_EVENT_REPORT_REJECTED: return "REPORT_REJECTED";
+        case OU_EVENT_UTILITY_LOST: return "UTILITY_LOST";
+        case OU_EVENT_UTILITY_RESTORED: return "UTILITY_RESTORED";
+        case OU_EVENT_BATTERY_LOW: return "BATTERY_LOW";
+        case OU_EVENT_BATTERY_RECOVERED: return "BATTERY_RECOVERED";
+        default: return "UNKNOWN";
+    }
+}
+static const char *event_message(uint8_t code) {
+    switch(code) {
+        case OU_EVENT_SERVICE_START: return "Native service initialized";
+        case OU_EVENT_TELEMETRY_ONLINE: return "Verified UPS measurements available";
+        case OU_EVENT_TELEMETRY_OFFLINE: return "UPS telemetry unavailable";
+        case OU_EVENT_REPORT_REJECTED: return "UPS measurement rejected by validation";
+        case OU_EVENT_UTILITY_LOST: return "Utility power lost";
+        case OU_EVENT_UTILITY_RESTORED: return "Utility power restored";
+        case OU_EVENT_BATTERY_LOW: return "Battery charge below 20 percent";
+        case OU_EVENT_BATTERY_RECOVERED: return "Battery charge recovered above 20 percent";
+        default: return "Unknown event";
+    }
+}
+static const char *event_severity(uint8_t code) {
+    return code==OU_EVENT_UTILITY_LOST || code==OU_EVENT_BATTERY_LOW
+        ? "warning"
+        : code==OU_EVENT_TELEMETRY_OFFLINE || code==OU_EVENT_REPORT_REJECTED
+        ? "error" : "info";
+}
+
 static int parse_schema_page(const char *path, uint32_t *page) {
     const char prefix[] = "/api/v1/configuration/fields/";
     const char *cursor = path;
@@ -144,18 +200,19 @@ ou_snapshot ou_unavailable_snapshot(void) {
     return state;
 }
 
-int ou_dispatch(const char *method, const char *path,
-                const ou_snapshot *snapshot, char *body,
-                size_t capacity, ou_reply *reply) {
+int ou_dispatch_events(const char *method, const char *path,
+                const ou_snapshot *snapshot, const ou_event_log *events,
+                char *body, size_t capacity, ou_reply *reply) {
     json_writer w;
-    uint32_t field_page = 0;
-    int page_status;
+    uint32_t field_page = 0, events_page = 0;
+    int page_status, events_path;
     if (!method || !path || !snapshot || !body || !reply || capacity < 2U)
         return -1;
     if (snapshot->origin > OU_ORIGIN_NATIVE || snapshot->sample_ready > 1U ||
         (snapshot->origin == OU_ORIGIN_UNAVAILABLE && snapshot->sample_ready))
         return -1;
     page_status = parse_schema_page(path, &field_page);
+    events_path = event_page(path, &events_page);
     w.data = body;
     w.capacity = capacity;
     w.length = 0U;
@@ -192,6 +249,42 @@ int ou_dispatch(const char *method, const char *path,
         property_bool(&w, "smtpDelivery", 0, 1);
         property_string(&w, "transport", "native-json-c", 1);
         put_str(&w, ",\"legacyOemInventory\":{\"configurationGroups\":24,\"configurationItems\":302,\"objectNames\":420}");
+    } else if (events && events_path!=0) {
+        if (events_path<0 || events->count>OU_EVENTS_CAPACITY ||
+            events->next_slot>=OU_EVENTS_CAPACITY) {
+            reply->status=404;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","PAGE_NOT_FOUND",1);
+        } else {
+            size_t index = (size_t)events_page*OU_EVENTS_PAGE_SIZE;
+            size_t end = index+OU_EVENTS_PAGE_SIZE, i;
+            if (end>events->count)end=events->count;
+            common(&w,"events",snapshot);
+            property_bool(&w,"persistent",0U,1);
+            property_uint(&w,"capacity",OU_EVENTS_CAPACITY,1);
+            property_uint(&w,"stored",events->count,1);
+            property_uint(&w,"overwritten",events->overwritten,1);
+            property_uint(&w,"page",events_page,1);
+            property_uint(&w,"pageSize",OU_EVENTS_PAGE_SIZE,1);
+            property_uint(&w,"pages",
+                   (uint32_t)((events->count+OU_EVENTS_PAGE_SIZE-1U)/
+                              OU_EVENTS_PAGE_SIZE),1);
+            put_str(&w,",\"events\":[");
+            for(i=index;i<end;++i) {
+                size_t offset = ((size_t)events->next_slot+
+                                 OU_EVENTS_CAPACITY-1U-i)%OU_EVENTS_CAPACITY;
+                const ou_event_record *entry=&events->records[offset];
+                if(i>index)put_char(&w,',');
+                put_char(&w,'{');
+                property_uint(&w,"id",entry->id,0);
+                property_uint(&w,"monotonicMs",entry->monotonic_ms,1);
+                property_string(&w,"code",event_code_string(entry->code),1);
+                property_string(&w,"severity",event_severity(entry->code),1);
+                property_string(&w,"message",event_message(entry->code),1);
+                put_char(&w,'}');
+            }
+            put_char(&w,']');
+        }
     } else if (same(path, "/api/v1/configuration/fields")) {
         common(&w, "configuration.fields", snapshot);
         property_uint(&w, "total", (uint32_t)ou_schema_field_count, 1);
@@ -281,4 +374,10 @@ int ou_dispatch(const char *method, const char *path,
     body[w.length] = '\0';
     reply->body_length = w.length;
     return 0;
+}
+
+int ou_dispatch(const char *method, const char *path,
+                const ou_snapshot *snapshot, char *body,
+                size_t capacity, ou_reply *reply) {
+    return ou_dispatch_events(method,path,snapshot,0,body,capacity,reply);
 }

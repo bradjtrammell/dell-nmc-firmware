@@ -17,6 +17,8 @@ int ou_native_service_driver_report(const ou_driver_report *report, uint32_t now
 /* Called on a qualified UPS transport loss; preserve the replay watermark
  * while immediately withdrawing previously published telemetry. */
 void ou_native_service_source_lost(void);
+/* Precise monotonic event timestamp when transport driver has a clock. */
+void ou_native_service_source_lost_at(uint32_t now_ms);
 
 /* Fail-closed native data; never substitutes simulated UPS measurements. */
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,
