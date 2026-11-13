@@ -278,3 +278,20 @@ Unit and native-service tests exercise 48-byte NTPv4 request generation, secure 
 ## Main/three-outlet shutdown policy and dry-run assessment
 
 The C suite validates original shutdown range/step constraints, main and per-outlet limits, native-only outage/runtime/capacity/restart assessment, fixed-size canonical records, failed writes and journal fallback. The native-service and HTTP tests ensure trusted input/policy binding, offline withdrawal and 405 for all mutation methods. The Node UI tests verify all three outlets and invalid fields disable review exports. ARM7 compilation/link and sanitizers include the module. No physical UPS actions or agent shutdown requests run. See `docs/shutdown-policy.md`.
+
+## Portable backup and local-only recovery staging
+
+The freestanding portable O6BK codec combines previously tested
+canonical network/system, three-outlet shutdown and weekly schedule
+models with strict version/length checks and SHA-256 integrity. Host
+tests check permission gates, round-trip determinism, truncated and
+malformed payloads, invalid inner version despite a rehashed envelope,
+and no mutation of an existing model after a failed import.
+ARM7 link and sanitizer gates include the codec.
+
+System page and HTTP tests verify live-device backup is unavailable,
+the local review workspace rejects unknown credentials/unsafe fields,
+and a valid local import changes browser drafts only. No flash
+partition is touched. Cross-partition atomic restoration is an
+explicit future requirement, not silently omitted.
+See `docs/portable-backup.md`.

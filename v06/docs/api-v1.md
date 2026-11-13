@@ -259,3 +259,20 @@ from the browser. See `docs/github-updater.md`.
 ## Shutdown parameter schema and native advisory
 
 `GET /api/v1/shutdown/schema` describes OEM-range master UPS and outlet 2/3 thresholds, delays and duration bounds. Policy persistence and power control qualifications remain false. `GET /api/v1/shutdown/advisory` returns only verified native policy+telemetry flags (read-only recommendation, never physical execution), and otherwise responds 503 `SHUTDOWN_POLICY_OR_TELEMETRY_UNAVAILABLE`. The Shutdown Parameters page offers a locally validated complete review export. See `docs/shutdown-policy.md`.
+
+## Portable non-secret configuration backup
+
+`GET /api/v1/backup/capabilities` exposes the compiled O6BK v1
+portable backup codec, 1,536-byte bound, and three ordered non-secret
+sections (configuration, shutdown and weekly schedule). It explicitly
+reports `liveDeviceBackupAvailable:false`,
+`restoreAvailable:false`, `multiPartitionCommitQualified:false`,
+`credentialsIncluded:false`, `secretsIncluded:false` and
+`checksumIsSignature:false`. No HTTP backup download/apply is
+implemented; mutations remain 405.
+
+The System page supports export/import of local browser draft
+workspaces, validating all sections before replacing any in-memory
+draft. Its JSON is a separate review-only representation, not a
+native binary firmware backup and not an active device configuration.
+See `docs/portable-backup.md`.

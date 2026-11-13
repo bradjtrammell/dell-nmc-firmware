@@ -186,6 +186,16 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         ["1.3.6.1.2.1.33.1.4.4.1.5.1","Output load (%)"]
       ].map(([oid,label])=>({oid,label}))
     };
+    if(route==="backup/capabilities")return {
+      schemaVersion:1,resource:"backup.capabilities",source:"native",
+      nativePortableCodecCompiled:true,readOnlyPreviewAvailable:true,
+      liveDeviceBackupAvailable:false,restoreAvailable:false,
+      multiPartitionCommitQualified:false,credentialsIncluded:false,
+      secretsIncluded:false,checksumIsSignature:false,
+      formatVersion:1,maximumBytes:1536,
+      sections:["configuration","shutdown","weekly"],
+      mode:"local-workspace-export-import-only"
+    };
     if(route==="firmware/update-policy")return {
       schemaVersion:1,source:"native",simulated:false,
       releaseProvider:"github",repository:"bradjtrammell/dell-nmc-firmware",
@@ -766,4 +776,68 @@ test("All three UPS shutdown and outlet threshold fields validate and export saf
   assert.equal(policy.outlets.length,2);
   assert.equal(policy.outlets[1].outlet,3);
   assert.equal(policy.outlets[1].startupDelay,120);
+});
+
+test("System workspace exports only local drafts, imports atomically and rejects corrupt/secret data",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#system";env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("backup/capabilities"));
+  assert.match(allText(env.named.view),/Configuration backup and recovery/);
+  assert.match(allText(env.named.view),/Not an active device backup/);
+  const exportButton=find(env.named.view,"button",
+    n=>n.textContent==="Export local workspace");
+  const importInput=find(env.named.view,"input",
+    n=>n.attributes["aria-label"]==="Import local workspace JSON");
+  assert.ok(exportButton&&importInput);
+  exportButton.click();
+  assert.equal(env.downloads.length,1);
+  assert.equal(env.downloads[0].filename,"openh910p-local-workspace-review.json");
+  const original=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(original.installable,false);
+  assert.equal(original.applied,false);
+  assert.deepEqual(Object.keys(original.sections).sort(),
+    ["configuration","shutdown","weekly"]);
+  assert.equal(original.sections.weekly.length,7);
+  assert.equal(original.sections.shutdown.segments.length,2);
+  const modified=JSON.parse(JSON.stringify(original));
+  modified.sections.configuration["System.Network.HostName"]="laboratory-ups";
+  modified.sections.weekly[0].offSeconds=28800;
+  modified.sections.weekly[0].onSeconds=64800;
+  modified.sections.shutdown.master.runtimeSeconds=600;
+  importInput.files=[{size:JSON.stringify(modified).length,
+    async text(){return JSON.stringify(modified);}}];
+  importInput.dispatch("change");
+  await settled(env);
+  assert.match(allText(env.named.view),/Validated workspace restored in browser memory/);
+  exportButton.click();
+  assert.equal(env.downloads.length,2);
+  const restored=JSON.parse(await env.downloads[1].blob.text());
+  assert.equal(restored.sections.configuration["System.Network.HostName"],"laboratory-ups");
+  assert.equal(restored.sections.weekly[0].offSeconds,28800);
+  assert.equal(restored.sections.shutdown.master.runtimeSeconds,600);
+  const poisoned=JSON.parse(JSON.stringify(modified));
+  poisoned.sections.configuration["System.Network.Password"]="secret";
+  importInput.files=[{size:JSON.stringify(poisoned).length,
+    async text(){return JSON.stringify(poisoned);}}];
+  importInput.dispatch("change");
+  await settled(env);
+  assert.match(allText(env.named.view),/Import rejected/);
+  exportButton.click();
+  const preserved=JSON.parse(await env.downloads[2].blob.text());
+  assert.equal(preserved.sections.configuration["System.Network.HostName"],"laboratory-ups");
+  assert.equal(preserved.sections.configuration["System.Network.Password"],undefined);
+  const badShutdown=JSON.parse(JSON.stringify(modified));
+  badShutdown.sections.shutdown.segments[1].startupDelay=999999;
+  importInput.files=[{size:JSON.stringify(badShutdown).length,
+    async text(){return JSON.stringify(badShutdown);}}];
+  importInput.dispatch("change");
+  await settled(env);
+  assert.match(allText(env.named.view),/Import rejected/);
+  exportButton.click();
+  const still=JSON.parse(await env.downloads[3].blob.text());
+  assert.equal(still.sections.shutdown.master.runtimeSeconds,600);
+  assert.equal(still.sections.shutdown.segments[1].startupDelay,0);
+  assert.ok(env.calls.every(x=>typeof x==="string"));
 });

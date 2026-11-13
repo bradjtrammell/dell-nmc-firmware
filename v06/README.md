@@ -308,3 +308,15 @@ The Time management page now exposes read-only NTP protocol qualifications, trut
 ## Native UPS shutdown thresholds and outlet policies
 
 The native three-outlet model validates master duration, timed shutdown, low-runtime/battery thresholds, restart level, forced-reboot flag, and the independent timers/charge limits of outlets 2 and 3. Read-only native policy advisories are derived only from qualified telemetry; an authorization-gated 64-byte dedicated journal supports rollback. The Shutdown Parameters page contains the full policy review editor alongside client warning coordination. No UPS power operation is enabled. See `docs/shutdown-policy.md`.
+
+## Portable configuration backup and workspace recovery
+
+The independent C firmware now validates and serializes a bounded,
+versioned and SHA-256 checked *non-secret* three-section backup for
+network/system configuration, shutdown thresholds and weekly schedules.
+The System page can export/import a separate operator-entered
+review-only JSON workspace; invalid imports cannot partially modify
+local drafts. Live card backup and restoration remain disabled pending
+verified secure access, complete field inventory, flash layout and
+cross-partition transaction recovery. Details:
+`docs/portable-backup.md`.

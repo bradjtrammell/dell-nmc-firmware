@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120,timeDraft:{server:'',timezone:'America/New_York',dst:'automatic'},shutdownDraft:null};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120,timeDraft:{server:'',timezone:'America/New_York',dst:'automatic'},shutdownDraft:null,backupNotice:""};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -620,9 +620,8 @@
       default:return false;
     }
   }
-  function configDraftErrors(fields) {
+  function configDraftErrors(fields,draft=state.configDraft) {
     const errors=[];
-    const draft=state.configDraft;
     for(const field of fields) {
       const value=draft[field.name];
       if(value!==undefined&&value!==""&&!validConfigField(field,value))
@@ -1481,10 +1480,184 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus,shutdownSchema,shutdownAdvisory) {
+  /* Local draft workspace, separate from the native O6BK binary backup.
+   * Neither representation is an installable/on-device backup. */
+  function backupWorkspaceFields(){
+    return [
+      ["System.Network.HostName","hostname",49],
+      ["System.Network.DomainName","domain",49],
+      ["System.Network.DHCP","dhcp",0],
+      ["System.Network.IPAddress","ipv4",0],
+      ["System.Network.IPMask","netmask",0],
+      ["System.Network.IPGateway","ipv4",0],
+      ["System.Contact","string",49],
+      ["System.Location","string",31],
+      ["System.Language","language",0]
+    ].map(([name,type,max])=>({name,label:name,type,max}));
+  }
+  function defaultShutdownDraft(){
+    return {master:{duration:120,timerSelected:false,forcedReboot:false,
+      timerSeconds:0,runtimeSeconds:0,capacityPercent:0,restartPercent:0},
+      segments:[{duration:120,shutdownDelay:0,startupDelay:0,capacityPercent:0},
+        {duration:120,shutdownDelay:0,startupDelay:0,capacityPercent:0}]};
+  }
+  function workspaceValidation(data){
+    if(!data||typeof data!=="object"||Array.isArray(data)||
+       data.schemaVersion!==1||
+       data.kind!=="openh910p-local-workspace-review"||
+       data.applied!==false||data.installable!==false||
+       Object.keys(data).some(k=>!["schemaVersion","kind","applied","installable",
+         "sections"].includes(k)))
+      throw new Error("Not a supported non-installable workspace review");
+    const p=data.sections;
+    if(!p||typeof p!=="object"||Array.isArray(p)||
+       Object.keys(p).length!==3||
+       Object.keys(p).some(k=>!["configuration","weekly","shutdown"].includes(k)))
+      throw new Error("Workspace sections are incomplete or unknown");
+    const cfg=p.configuration;
+    const allowed=backupWorkspaceFields();
+    const fieldMap=new Map(allowed.map(f=>[f.name,f]));
+    if(!cfg||typeof cfg!=="object"||Array.isArray(cfg))
+      throw new Error("Configuration section is invalid");
+    const config=Object.create(null);
+    for(const [key,value] of Object.entries(cfg)){
+      if(!fieldMap.has(key)||typeof value!=="string"||
+         !validConfigField(fieldMap.get(key),value))
+        throw new Error("Invalid or unsupported setting: "+key);
+      config[key]=value;
+    }
+    const configErrors=configDraftErrors(allowed,config);
+    if(configErrors.length)throw new Error(configErrors[0]);
+    const days=p.weekly;
+    if(!Array.isArray(days)||days.length!==7)
+      throw new Error("Weekly schedule requires seven days");
+    const weekly=days.map((day,index)=>{
+      if(!day||typeof day!=="object"||Array.isArray(day)||
+         Object.keys(day).length!==2||
+         Object.keys(day).some(k=>!["offSeconds","onSeconds"].includes(k)))
+        throw new Error("Unknown weekday fields at "+index);
+      const pair={offSeconds:day.offSeconds,onSeconds:day.onSeconds};
+      for(const value of [pair.offSeconds,pair.onSeconds])
+        if(!Number.isInteger(value)||
+           !(value===-1||(value>=0&&value<=84600&&value%1800===0)))
+          throw new Error("Invalid half-hour slot at "+index);
+      if(pair.offSeconds>=0&&pair.offSeconds===pair.onSeconds)
+        throw new Error("Conflicting on/off slot at "+index);
+      return pair;
+    });
+    const shutdown=p.shutdown;
+    if(!shutdown||typeof shutdown!=="object"||Array.isArray(shutdown)||
+       Object.keys(shutdown).length!==2 ||
+       Object.keys(shutdown).some(k=>!["master","segments"].includes(k)) ||
+       !shutdown.master||!Array.isArray(shutdown.segments)||
+       shutdown.segments.length!==2)
+      throw new Error("Shutdown policy requires all three outputs");
+    const master=shutdown.master;
+    const masterRanges={
+      duration:[120,9999,1],timerSeconds:[0,5999940,60],
+      runtimeSeconds:[0,99999,1],capacityPercent:[0,100,1],
+      restartPercent:[0,100,1]
+    };
+    const segmentRanges={
+      duration:[120,9999,1],shutdownDelay:[0,99999,1],
+      startupDelay:[0,65535,1],capacityPercent:[0,100,1]
+    };
+    function checkRanges(object,ranges,additional=[]){
+      if(!object||typeof object!=="object"||Array.isArray(object)||
+         Object.keys(object).length!==Object.keys(ranges).length+additional.length||
+         Object.keys(object).some(key=>!(key in ranges)&&!additional.includes(key)))
+        throw new Error("Shutdown policy contains unsupported settings");
+      for(const [key,[low,high,step]] of Object.entries(ranges)){
+        const value=object[key];
+        if(!Number.isInteger(value)||value<low||value>high||value%step!==0)
+          throw new Error("Invalid shutdown setting "+key);
+      }
+      for(const key of additional)if(typeof object[key]!=="boolean")
+        throw new Error("Invalid shutdown switch "+key);
+      return {...object};
+    }
+    const normalizedShutdown={
+      master:checkRanges(master,masterRanges,["timerSelected","forcedReboot"]),
+      segments:shutdown.segments.map(entry=>checkRanges(entry,segmentRanges))
+    };
+    return {configuration:config,weekly,shutdown:normalizedShutdown};
+  }
+  function currentWorkspace(){
+    const cfg=Object.fromEntries(Object.entries(state.configDraft)
+      .filter(([k,v])=>typeof v==="string"&&v.length>0));
+    return {schemaVersion:1,kind:"openh910p-local-workspace-review",
+      applied:false,installable:false,sections:{
+        configuration:cfg,
+        weekly:state.weeklyDraft||Array.from({length:7},
+          ()=>({offSeconds:-1,onSeconds:-1})),
+        shutdown:state.shutdownDraft||defaultShutdownDraft()
+      }};
+  }
+  function renderBackupWorkspace(capabilities){
+    const panel=element("div","backup-workspace");
+    add(panel,section("Configuration backup and recovery",
+      "Review your local Network, System, Weekly Schedule and Shutdown Parameters drafts together."));
+    if(!capabilities||capabilities.nativePortableCodecCompiled!==true||
+       capabilities.restoreAvailable!==false||
+       capabilities.liveDeviceBackupAvailable!==false ||
+       capabilities.credentialsIncluded!==false){
+      add(panel,notice("Backup capabilities unavailable",
+        "The device has not advertised the non-destructive portable backup contract.","error"));
+      return panel;
+    }
+    add(panel,notice("Not an active device backup",
+      "Native binary integrity verification is implemented. This browser workspace contains only drafts entered here, not live H910P settings, accounts or passwords. Import never writes to the card.","info"));
+    const actions=element("div","config-actions");
+    const exportButton=button("Export local workspace",null,false);
+    const importLabel=element("label","","Import local workspace JSON");
+    const importInput=element("input","config-input");
+    importInput.type="file";importInput.accept=".json,application/json";
+    importInput.setAttribute("aria-label","Import local workspace JSON");
+    const status=element("p","label",state.backupNotice||"No device backup has been applied.");
+    add(importLabel,importInput);
+    add(actions,exportButton,importLabel);
+    add(panel,actions,status);
+    exportButton.addEventListener("click",()=>{
+      try{
+        const candidate=currentWorkspace();
+        workspaceValidation(candidate);
+        saveEventFile("openh910p-local-workspace-review.json",
+          JSON.stringify(candidate,null,2)+"\n","application/json;charset=utf-8");
+        status.textContent="Local draft review exported. No device settings changed.";
+      }catch(error){
+        status.textContent="Export blocked: "+String(error.message||error);
+      }
+    });
+    importInput.addEventListener("change",async()=>{
+      const file=importInput.files&&importInput.files[0];
+      if(!file)return;
+      if(!Number.isInteger(file.size)||file.size<1||file.size>16384 ||
+         typeof file.text!=="function"){
+        status.textContent="Import blocked: file must be valid JSON under 16 KB.";
+        return;
+      }
+      try{
+        const raw=await file.text();
+        if(raw.length>16384)throw new Error("File exceeds size limit");
+        const normalized=workspaceValidation(JSON.parse(raw));
+        /* Atomic local replacement AFTER all three models validate. */
+        state.configDraft=normalized.configuration;
+        state.weeklyDraft=normalized.weekly;
+        state.shutdownDraft=normalized.shutdown;
+        state.backupNotice="Validated workspace restored in browser memory. No card writes.";
+        status.textContent=state.backupNotice;
+      }catch(error){
+        status.textContent="Import rejected: "+String(error.message||error);
+      }
+    });
+    return panel;
+  }
+
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus,shutdownSchema,shutdownAdvisory,backupCapabilities) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
+    if(key==="system")container.appendChild(renderBackupWorkspace(backupCapabilities));
     if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
     if(key==="firmware")container.appendChild(renderFirmwareUpdate(updatePolicy));
     if(key==="snmp")container.appendChild(renderSnmpAgent(snmpPolicy));
@@ -1647,8 +1820,13 @@
           try{shutdownAdvisory=await request("shutdown/advisory",signal);}
           catch(error){if(error.httpStatus!==503)throw error;}
         }
+        let backupCapabilities=null;
+        if(page==="system"){
+          try{backupCapabilities=await request("backup/capabilities",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus,shutdownSchema,shutdownAdvisory);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus,shutdownSchema,shutdownAdvisory,backupCapabilities);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

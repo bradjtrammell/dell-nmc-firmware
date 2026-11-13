@@ -538,6 +538,20 @@ int ou_dispatch_managed(const char *method, const char *path,
         put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.4.1.0\",\"label\":\"Output power source\"},");
         put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.4.4.1.2.1\",\"label\":\"Output voltage (V)\"},");
         put_str(&w,"{\"oid\":\"1.3.6.1.2.1.33.1.4.4.1.5.1\",\"label\":\"Output load (%)\"}]");
+    } else if (same(path, "/api/v1/backup/capabilities")) {
+        common(&w,"backup.capabilities",snapshot);
+        property_bool(&w,"nativePortableCodecCompiled",1U,1);
+        property_bool(&w,"readOnlyPreviewAvailable",1U,1);
+        property_bool(&w,"liveDeviceBackupAvailable",0U,1);
+        property_bool(&w,"restoreAvailable",0U,1);
+        property_bool(&w,"multiPartitionCommitQualified",0U,1);
+        property_bool(&w,"credentialsIncluded",0U,1);
+        property_bool(&w,"secretsIncluded",0U,1);
+        property_bool(&w,"checksumIsSignature",0U,1);
+        property_uint(&w,"formatVersion",1U,1);
+        property_uint(&w,"maximumBytes",1536U,1);
+        put_str(&w,",\"sections\":[\"configuration\",\"shutdown\",\"weekly\"]");
+        property_string(&w,"mode","local-workspace-export-import-only",1);
     } else if (same(path, "/api/v1/firmware/update-policy")) {
         common(&w,"firmware.update-policy",snapshot);
         property_string(&w,"releaseProvider","github",1);

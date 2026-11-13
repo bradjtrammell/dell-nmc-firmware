@@ -124,6 +124,11 @@ tbody tr:nth-child(even){background:#f8fafb}
 .agent-warning-field label{font-weight:650;font-size:13px}
 @media(max-width:950px){.agent-draft-row{grid-template-columns:90px 1fr 1fr}.agent-draft-row strong{grid-row:1;grid-column:1}.agent-draft-row input{grid-row:2}.agent-draft-row button{grid-row:1;grid-column:3;justify-self:end}.agent-warning-field{grid-template-columns:1fr 140px}.agent-warning-field button{grid-column:1}.agent-warning-field .label{grid-column:2}}
 @media(max-width:600px){.agent-draft-row{grid-template-columns:1fr 1fr}.agent-draft-row input:nth-of-type(2){grid-column:1/-1}.agent-warning-field{grid-template-columns:1fr}.agent-warning-field button,.agent-warning-field .label{grid-column:1}}
+.backup-workspace{margin:18px 0 28px}
+.backup-workspace .config-actions{display:flex;align-items:center;flex-wrap:wrap;gap:16px;margin:14px 0}
+.backup-workspace .config-actions label{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-weight:650;font-size:13px}
+.backup-workspace input[type="file"]{max-width:100%;font-size:12px;border:1px solid #9bb1b9;padding:8px;background:#fff}
+.backup-workspace input[type="file"]:focus-visible{outline:3px solid #0879b6;outline-offset:2px}
 .firmware-update{margin:17px 0 28px}
 .firmware-results{margin:12px 0 20px}
 .firmware-results .table-wrap a{font-weight:700;white-space:nowrap}

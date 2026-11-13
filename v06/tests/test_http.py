@@ -206,6 +206,37 @@ class SimulatorHttpTests(unittest.TestCase):
             self.assertEqual(code,405)
             self.assertEqual(json.loads(packet)["error"],"READ_ONLY")
 
+    def test_backup_integrity_capabilities_and_read_only_access(self):
+        code, headers, raw = self.request("GET", "/api/v1/backup/capabilities")
+        self.assertEqual(code, 200)
+        obj = json.loads(raw)
+        self.assertEqual(obj["resource"], "backup.capabilities")
+        self.assertEqual(obj["sections"],
+                         ["configuration", "shutdown", "weekly"])
+        self.assertEqual(obj["formatVersion"], 1)
+        self.assertEqual(obj["maximumBytes"], 1536)
+        self.assertEqual(obj["mode"], "local-workspace-export-import-only")
+        self.assertIs(obj["nativePortableCodecCompiled"], True)
+        self.assertIs(obj["readOnlyPreviewAvailable"], True)
+        for field in ("liveDeviceBackupAvailable", "restoreAvailable",
+                      "multiPartitionCommitQualified", "credentialsIncluded",
+                      "secretsIncluded", "checksumIsSignature"):
+            self.assertIs(obj[field], False)
+        self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+        code, _, raw = self.request("HEAD", "/api/v1/backup/capabilities")
+        self.assertEqual(code, 200)
+        self.assertEqual(raw, b"")
+        for path in ("/api/v1/backup/capabilities", "/api/v1/backup/apply",
+                     "/api/v1/backup/restore", "/api/v1/backup/export"):
+            for method in ("POST", "PUT", "PATCH", "DELETE"):
+                with self.subTest(path=path, method=method):
+                    code, _, raw = self.request(method, path, "{}")
+                    self.assertEqual(code, 405)
+                    self.assertEqual(json.loads(raw)["error"], "READ_ONLY")
+        code, _, raw = self.request("GET", "/api/v1/backup/restore")
+        self.assertEqual(code, 404)
+        self.assertEqual(json.loads(raw)["code"], "NOT_FOUND")
+
     def test_custom_github_update_policy_and_read_only_release_check(self):
         status, headers, raw = self.request("GET", "/api/v1/firmware/update-policy")
         self.assertEqual(status, 200)
