@@ -33,6 +33,9 @@ $(BUILD)/test_hid_report: board/hid_report.c tests/test_hid_report.c include/ou_
 $(BUILD)/test_shut_session: board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_session.c include/ou_shut_session.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_session.c -o $@
 
+$(BUILD)/test_shut_uart_bridge: board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_uart_bridge.c include/ou_shut_uart_bridge.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_uart_bridge.c -o $@
+
 $(BUILD)/test_ns7520_serial_rx: board/ns7520_serial_rx.c tests/test_ns7520_serial_rx.c include/ou_ns7520_serial_rx.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_serial_rx.c tests/test_ns7520_serial_rx.c -o $@
 
@@ -117,7 +120,7 @@ $(BUILD)/test_telemetry_guard: src/core.c src/schema.c src/provider.c src/teleme
 $(BUILD)/test_journal: board/config_journal.c tests/test_config_journal.c include/ou_config_journal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/config_journal.c tests/test_config_journal.c -o $@
 
-test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_board_mmio $(BUILD)/test_ns7520_serial_rx $(BUILD)/test_shut_rx $(BUILD)/test_shut_request $(BUILD)/test_shut_session $(BUILD)/test_hid_report $(BUILD)/test_hid_telemetry $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex $(BUILD)/test_hal_timer $(BUILD)/test_phy_link
+test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_board_mmio $(BUILD)/test_ns7520_serial_rx $(BUILD)/test_shut_uart_bridge $(BUILD)/test_shut_rx $(BUILD)/test_shut_request $(BUILD)/test_shut_session $(BUILD)/test_hid_report $(BUILD)/test_hid_telemetry $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex $(BUILD)/test_hal_timer $(BUILD)/test_phy_link
 	./$(BUILD)/test_core
 	./$(BUILD)/test_provider
 	./$(BUILD)/test_board
@@ -126,6 +129,7 @@ test: all $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)
 	./$(BUILD)/test_board_probe
 	./$(BUILD)/test_board_mmio
 	./$(BUILD)/test_ns7520_serial_rx
+	./$(BUILD)/test_shut_uart_bridge
 	./$(BUILD)/test_shut_rx
 	./$(BUILD)/test_shut_request
 	./$(BUILD)/test_shut_session
@@ -173,6 +177,8 @@ arm-check: | $(BUILD)
 	python3 tools/verify_arm.py $(BUILD)/shut-rx-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/ns7520_serial_rx.c -o $(BUILD)/serial-rx-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/serial-rx-armeb.o
+	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/shut_uart_bridge.c -o $(BUILD)/shut-uart-bridge-armeb.o
+	python3 tools/verify_arm.py $(BUILD)/shut-uart-bridge-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/shut_request.c -o $(BUILD)/shut-request-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/shut-request-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/shut_session.c -o $(BUILD)/shut-session-armeb.o
@@ -229,7 +235,7 @@ arm-link-check: arm-check
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/runtime.c -o $(BUILD)/runtime-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/reset.S -o $(BUILD)/reset-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -c target/compiler_rt.c -o $(BUILD)/compiler-rt-armeb.o
-	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/shut-rx-armeb.o $(BUILD)/serial-rx-armeb.o $(BUILD)/shut-request-armeb.o $(BUILD)/shut-session-armeb.o $(BUILD)/hid-report-armeb.o $(BUILD)/hid-telemetry-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/board-mmio-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/ns7520-hal-armeb.o $(BUILD)/board-runtime-armeb.o $(BUILD)/ns7520-timer-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
+	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/shut-rx-armeb.o $(BUILD)/serial-rx-armeb.o $(BUILD)/shut-uart-bridge-armeb.o $(BUILD)/shut-request-armeb.o $(BUILD)/shut-session-armeb.o $(BUILD)/hid-report-armeb.o $(BUILD)/hid-telemetry-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/board-mmio-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/ns7520-hal-armeb.o $(BUILD)/board-runtime-armeb.o $(BUILD)/ns7520-timer-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
 	llvm-objcopy -O binary $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 	python3 tools/verify_native_image.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 
@@ -253,6 +259,8 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_rx_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_serial_rx.c tests/test_ns7520_serial_rx.c -o $(BUILD)/test_serial_rx_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_serial_rx_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_uart_bridge.c -o $(BUILD)/test_shut_uart_bridge_sanitized
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_uart_bridge_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/shut_request.c tests/test_shut_request.c -o $(BUILD)/test_shut_request_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_request_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_session.c -o $(BUILD)/test_shut_session_sanitized

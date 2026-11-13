@@ -142,3 +142,25 @@ known MAC address, string matches, generic SHUT checksum or wishful test
 fixture. The weak native H910P port still refuses physical startup until
 electrical routing, actual descriptor, source identity and recovery
 have been independently established. No power-control or write path exists.
+
+## Qualified NS7520 FIFO to SHUT session adapter
+
+`board/shut_uart_bridge.c` connects the new documented NS7520 UART
+receive path to the existing bounded SHUT transaction state machine.
+When a single 32-bit FIFO read crosses a SHUT fragment boundary and
+the receiver must emit an ACK before continuing, the adapter **retains
+the unread bytes locally** and resumes after the external transaction
+owner has drained the pending ACK. It never drains additional FIFO data
+while SYNC, ACK, or GET REPORT transmit is waiting. It also rejects
+physical receive errors without returning a stale verified report.
+
+The integration test uses a synthetic register/byte-sequence backend
+to exercise the real Status A/FIFO register addresses, a SYNC/GET REPORT
+exchange, two checksum-verified fragmented SHUT packets crossing FIFO
+word boundaries, inter-fragment ACK gating, preserved bytes, matched
+report ID, and failure after a missing physical-source qualification.
+All outgoing frames are **only returned to the host test**;
+the target implements **no UART transmitter** and no real UPS electrical
+wiring. This is therefore still **NOT FLASHABLE**. Actual on-card
+serial channel identity, verified UART timing, FIFO wiring, independent
+recovery and physical protocol qualification remain outstanding.
