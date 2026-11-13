@@ -15,6 +15,19 @@ static uint32_t now=10;
 static int fail_clock=0, fail_poll=0;
 static uint16_t phy_bmcr=0U;static int fail_phy_link=0;static unsigned phyaddr=0,phyreg=0;
 static unsigned stops=0,starts=0,iterations=0;
+static ou_ups_monitor mock_monitor;
+static unsigned ups_ticks=0U,ups_revokes=0U;
+static int ups_failed=0;
+int ou_ups_monitor_step(ou_ups_monitor *monitor,uint32_t ms){
+    (void)ms;assert(monitor==&mock_monitor);
+    ++ups_ticks;
+    return ups_failed?-1:1;
+}
+void ou_ups_monitor_revoke(ou_ups_monitor *monitor){
+    assert(monitor==&mock_monitor);
+    ++ups_revokes;
+    monitor->initialized=0U;
+}
 static int readreg(void*ctx,uint32_t a,uint32_t*v){(void)ctx;
  if(a==OU_PHY_MIND){*v=0;return 0;}
  if(a==OU_PHY_MRDD){
@@ -148,6 +161,30 @@ int main(void){
     assert(ou_board_runtime_step(&runner)==-1);
     assert(!runner.running && stops==2 && runner.failed_polls==2);
     assert(ou_board_runtime_stop(&runner)==-1);
+    /* An optional, verified UPS monitor is now part of the native board
+     * loop. Its failure cannot take HTTP/management off the network. */
+    now=2000U;fail_poll=0;ups_failed=0;
+    mock_monitor=(ou_ups_monitor){0};
+    c=cfg();c.ups_monitor=&mock_monitor;
+    assert(ou_board_runtime_start(&runner,&c)==-1);
+    mock_monitor.initialized=1U;
+    assert(ou_board_runtime_start(&runner,&c)==-1);
+    mock_monitor.link.initialized=1U;
+    mock_monitor.hid.initialized=1U;
+    mock_monitor.report_count=1U;
+    assert(ou_board_runtime_start(&runner,&c)==0);
+    assert(runner.running==1 && runner.ups_monitor==&mock_monitor);
+    assert(ou_board_runtime_step(&runner)==1);
+    assert(runner.ups_polls==1U && ups_ticks==1U && ups_revokes==0U);
+    ups_failed=1;
+    now=2001U;
+    assert(ou_board_runtime_step(&runner)==1);
+    assert(runner.running==1 && runner.ups_failures==1U);
+    assert(ups_ticks==2U && ups_revokes==1U && !runner.ups_monitor);
+    now=2002U;
+    assert(ou_board_runtime_step(&runner)==1 && ups_ticks==2U);
+    assert(ou_board_runtime_stop(&runner)==0);
+    assert(!runner.running && ups_revokes==1U);
     puts("PASS: native runtime fail-closed startup, DMA bounds, monotonic clock and stop");
     return 0;
 }

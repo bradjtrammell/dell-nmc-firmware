@@ -6,6 +6,7 @@
 #include "ou_ns7520_hal.h"
 #include "ou_ns7520_phy.h"
 #include "ou_board_probe.h"
+#include "ou_ups_monitor.h"
 
 typedef int (*ou_runtime_clock_ms)(void *opaque, uint32_t *monotonic_ms);
 /* The physical BSP must prove each CPU pointer resolves to its DMA address.
@@ -26,6 +27,9 @@ typedef struct {
     uint32_t last_ms;
     uint32_t successful_polls;
     uint32_t failed_polls;
+    uint32_t ups_polls;
+    uint32_t ups_failures;
+    ou_ups_monitor *ups_monitor; /* Optional, verified physical source. */
     uint8_t running;
 } ou_board_runtime;
 
@@ -50,6 +54,9 @@ typedef struct {
     ou_tcp_app http_application;
     void *http_context;
     uint8_t enable_tcp_http;
+    /* Optional until actual H910P wiring is qualified. UART loss must
+     * NOT take down Ethernet management or convert stale UPS data to 200. */
+    ou_ups_monitor *ups_monitor;
 } ou_board_boot_config;
 
 /* Start the real polling RX/TX runtime after board preflight. There is no

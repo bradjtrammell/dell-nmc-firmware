@@ -40,6 +40,11 @@ static int validate(const ou_board_boot_config *cfg) {
         !cfg->mac || cfg->mac->link_confirmed!=1U || !cfg->clock_ms || !cfg->rx_descriptor ||
         !cfg->tx_descriptor || !cfg->rx_data || !cfg->tx_data ||
         cfg->enable_tcp_http>1U ||
+        (cfg->ups_monitor &&
+         (cfg->ups_monitor->initialized!=1U ||
+          cfg->ups_monitor->link.initialized!=1U ||
+          cfg->ups_monitor->hid.initialized!=1U ||
+          cfg->ups_monitor->report_count==0U)) ||
         (cfg->enable_tcp_http && (!cfg->tcp_boot_seed || !cfg->http_application)) ||
         !ou_vlan_validate(cfg->vlans) ||
         !mapped(cfg->hal,cfg->rx_descriptor_bus,sizeof(ou_dma_bd)) ||
@@ -83,6 +88,9 @@ int ou_board_runtime_start(ou_board_runtime *runtime,
     runtime->clock_context=cfg->clock_context;
     runtime->last_ms=now_ms;
     runtime->last_link_check_ms=now_ms;
+    runtime->ups_monitor=cfg->ups_monitor;
+    runtime->ups_polls=0U;
+    runtime->ups_failures=0U;
     runtime->running=1U;
     return 0;
 }
@@ -123,12 +131,31 @@ int ou_board_runtime_step(ou_board_runtime *runtime) {
         (void)ou_board_runtime_stop(runtime);
         return -1;
     }
+    if(runtime->ups_monitor) {
+        int ups_result=ou_ups_monitor_step(runtime->ups_monitor,now_ms);
+        if(runtime->ups_polls!=UINT32_MAX)++runtime->ups_polls;
+        if(ups_result<0) {
+            /* Never take the management network offline because UPS
+             * telemetry is unavailable. Revoke the failed UART owner and
+             * immediately hide UPS measurements; preserve the service's
+             * anti-replay history. */
+            ou_ups_monitor_revoke(runtime->ups_monitor);
+            runtime->ups_monitor=0;
+            if(runtime->ups_failures!=UINT32_MAX)++runtime->ups_failures;
+        }
+    }
     if(runtime->successful_polls!=UINT32_MAX)++runtime->successful_polls;
     return status;
 }
 int ou_board_runtime_stop(ou_board_runtime *runtime) {
     int result;
     if(!runtime || !runtime->running)return -1;
+    /* Network/link loss also withdraws any UPS value obtained through
+     * this boot session. It never resets physical anti-replay history. */
+    if(runtime->ups_monitor) {
+        ou_ups_monitor_revoke(runtime->ups_monitor);
+        runtime->ups_monitor=0;
+    }
     result=ou_ethernet_manager_stop(&runtime->ethernet,&runtime->bus,
                                     &runtime->mac);
     runtime->running=0U;
