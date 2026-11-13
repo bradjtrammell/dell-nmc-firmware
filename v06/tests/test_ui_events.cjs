@@ -11,6 +11,7 @@ const {test}=require("node:test");
 class Element {
   constructor(tag) {
     this.tagName=tag.toLowerCase();
+    this.nodeType=1;
     this.children=[];
     this.events={};
     this.dataset={};
