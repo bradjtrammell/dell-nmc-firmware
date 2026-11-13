@@ -270,3 +270,7 @@ The protocol unit suite checks strict bounded BER GET/GETNEXT parsing, OID order
 ## Shutdown-agent lifecycle and warning coordination
 
 Host and native-service tests verify 12-client capacity, ID validation, authenticated heartbeat replay protection, stale/missing agents, advance warnings, per-client send and ACK states, denied/unqualified sends, deadline rollover and fail-closed completion. The native API and UI expose capabilities and status without offering unqualified agent registration or UPS power operations. ARM7 link and sanitizer checks are included. See `docs/shutdown-agents.md`.
+
+## Trusted-LAN NTP client and monotonic UTC
+
+Unit and native-service tests exercise 48-byte NTPv4 request generation, secure nonce callbacks, source qualification, originate/response pairing, leap/stratum/mode rejection, root dispersion, RTT cutoff, NTP era 0/1 conversion, monotonic rollover, stale time withdrawal and no invented UTC. Browser and host tests assert the Time page's local review contract, 503 unsynchronized status and rejection of mutations. ARM7 and sanitizer checks include the implementation. See `docs/time-sync.md`.

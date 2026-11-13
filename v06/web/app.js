@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120,timeDraft:{server:'',timezone:'America/New_York',dst:'automatic'}};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -1001,6 +1001,104 @@
     return panel;
   }
 
+  function renderTimeService(policy,status){
+    const panel=element("div","time-service");
+    add(panel,section("Clock and time synchronization",
+      "Trusted network time, device time zone, daylight saving behavior and synchronization health."));
+    if(!policy||policy.ntpWireClientCompiled!==true||
+       policy.maximumResponseDelayMs!==5000||
+       policy.maximumSampleAgeSeconds!==3600){
+      add(panel,notice("Time service capabilities unavailable",
+        "The management service returned an unrecognized time synchronization contract.","error"));
+      return panel;
+    }
+    if(status&&status.resource==="time.status"&&status.sourceVerified===true){
+      add(panel,properties([
+        ["UTC timestamp",valueOrDash(status.utcUnixSeconds)+" seconds since 1970"],
+        ["Milliseconds",valueOrDash(status.utcMilliseconds)],
+        ["Network response delay",valueOrDash(status.roundTripMs," ms")],
+        ["Estimated time uncertainty",valueOrDash(status.uncertaintyMs," ms")],
+        ["Hardware real-time clock",status.rtcSet?"Set":"Not set"]
+      ]));
+    }else add(panel,notice("No qualified clock synchronization",
+      "The card has not received a validated time response. Timestamps and scheduling cannot rely on a synchronized wall clock yet.","info"));
+    add(panel,notice("Network time is not yet enabled on this card",
+      "The native NTP client validates request nonces, response timing, trust boundaries and clock rollover. An isolated trusted NTP source, verified network adapter, device RTC and time-zone rules are still required.","info"));
+    add(panel,section("Local time settings review",
+      "Prepare an NTP server and time-zone policy for later authenticated provisioning. This does not set the clock."));
+    const editor=element("form","time-form");
+    editor.addEventListener("submit",event=>event.preventDefault());
+    const makeField=(label,id,control)=>{
+      const wrap=element("div","config-field");
+      const l=element("label","",label);l.htmlFor=id;control.id=id;
+      add(wrap,l,control);editor.appendChild(wrap);
+      return control;
+    };
+    const server=element("input","config-input");
+    server.type="text";server.maxLength=253;server.autocomplete="off";
+    server.spellcheck=false;
+    server.value=state.timeDraft.server;
+    makeField("Trusted NTP server name or IPv4 address","time-ntp-server",server);
+    const zone=element("input","config-input");
+    zone.type="text";zone.maxLength=64;zone.autocomplete="off";
+    zone.spellcheck=false;
+    zone.value=state.timeDraft.timezone;
+    makeField("IANA time zone (for example America/New_York)","time-zone",zone);
+    const dst=element("select","config-input");
+    [["automatic","Use regional daylight saving rules"],
+     ["standard","Standard time only"],["utc","UTC without DST"]].forEach(([value,label])=>{
+      const option=element("option","",label);option.value=value;dst.appendChild(option);
+    });
+    dst.value=state.timeDraft.dst;
+    makeField("Daylight saving behavior","time-dst",dst);
+    const hint=node("p","Time zone and daylight saving rules require a qualified device timezone database before they can be activated.","label");
+    const errors=element("div","config-errors");
+    errors.setAttribute("role","status");errors.setAttribute("aria-live","polite");
+    const actions=element("div","config-actions");
+    const exportButton=button("Export time-settings review",null,true);
+    add(actions,exportButton);
+    add(panel,editor,hint,errors,actions);
+    function validate(){
+      const issues=[];
+      const name=state.timeDraft.server;
+      if(!name||name.length>253||name.includes("://")||
+         !name.split(".").every(segment=>/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(segment)))
+        issues.push("Enter a valid NTP server hostname or IPv4 address.");
+      const timezone=state.timeDraft.timezone;
+      if(!/^(UTC|[A-Za-z_+-]+(?:\/[A-Za-z_+-]+){1,2})$/.test(timezone))
+        issues.push("Enter UTC or a valid IANA-style region/city time zone.");
+      if(!["automatic","standard","utc"].includes(state.timeDraft.dst))
+        issues.push("Choose a daylight saving policy.");
+      if(state.timeDraft.dst==="utc"&&timezone!=="UTC")
+        issues.push("Select UTC as the time zone when disabling regional time offsets.");
+      return issues;
+    }
+    function update(){
+      state.timeDraft.server=server.value.trim();
+      state.timeDraft.timezone=zone.value.trim();
+      state.timeDraft.dst=dst.value;
+      const issues=validate();
+      errors.replaceChildren(...issues.map(issue=>node("p",issue)));
+      exportButton.disabled=issues.length>0;
+    }
+    server.addEventListener("input",update);
+    zone.addEventListener("input",update);
+    dst.addEventListener("change",update);
+    exportButton.addEventListener("click",()=>{
+      update();if(exportButton.disabled)return;
+      saveEventFile("openh910p-time-settings-review.json",JSON.stringify({
+        schemaVersion:1,kind:"openh910p-time-settings-review",
+        applied:false,installable:false,
+        server:state.timeDraft.server,
+        timezone:state.timeDraft.timezone,
+        dst:state.timeDraft.dst,
+        rtcQualified:false,networkTimeSecurityQualified:false
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    update();
+    return panel;
+  }
+
   function renderShutdownAgents(policy,status,page){
     const panel=element("div","agents-panel");
     if(!policy||policy.coordinatorCompiled!==true||
@@ -1249,13 +1347,14 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus) {
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
     if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
     if(key==="firmware")container.appendChild(renderFirmwareUpdate(updatePolicy));
     if(key==="snmp")container.appendChild(renderSnmpAgent(snmpPolicy));
+    if(key==="time")container.appendChild(renderTimeService(timePolicy,timeStatus));
     if(key==="applications"||key==="shutdown")
       container.appendChild(renderShutdownAgents(agentsPolicy,agentsStatus,key));
     if(key==="email"||key==="snmp")
@@ -1399,8 +1498,15 @@
           try{agentsStatus=await request("agents/status",signal);}
           catch(error){if(error.httpStatus!==503)throw error;}
         }
+        let timePolicy=null,timeStatus=null;
+        if(page==="time"){
+          try{timePolicy=await request("time/capabilities",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+          try{timeStatus=await request("time/status",signal);}
+          catch(error){if(error.httpStatus!==503)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

@@ -300,3 +300,7 @@ A bounded read-only SNMPv2c GET/GETNEXT implementation maps seven RFC 1628 UPS-M
 ## Shutdown-agent coordination
 
 A native 12-client registry now implements authenticated-enrollment boundaries, heartbeats with replay protection, advance-warning transactions, verified outbound notice callbacks, acknowledgements, and expired/disconnected client handling. The Notified Applications and Shutdown Parameters pages expose status and local policy reviews. No real client connection or power operation is enabled. See `docs/shutdown-agents.md`.
+
+## Native UTC synchronization model
+
+The Time management page now exposes read-only NTP protocol qualifications, truthful synchronized/unsynchronized UTC reporting, and a local-only validated NTP server/time-zone/DST review. The native NTPv4 client uses externally supplied secure nonces, validates isolated trusted source replies and supports NTP era-1 timestamps after 2036. The H910P still needs verified network, NTS/clock trust and RTC/timezone integration. See `docs/time-sync.md`.

@@ -251,3 +251,7 @@ from the browser. See `docs/github-updater.md`.
 ## Shutdown application control plane
 
 `GET /api/v1/agents/capabilities` declares a native 12-client, 10–300-second heartbeat lease and 30–1,800-second warning coordination model. It denies live registration, mTLS, verified shutdown intent and physical power operations. `GET /api/v1/agents/status` provides native registry counts and active warning status; the loopback simulator returns 503 rather than inventing registered applications. Both the Notified Applications and Shutdown Parameters pages have local review-only editors. See `docs/shutdown-agents.md`.
+
+## Independent time sync and UTC status
+
+`GET /api/v1/time/capabilities` describes the compiled NTPv4 wire validator, maximum 5-second response time and 1-hour maximum sample age; live network, NTS, RTC, source, timezone and DST qualifications remain false. `GET /api/v1/time/status` returns UTC Unix seconds, millisecond precision, RTT and estimated uncertainty only after a verified native time sample, otherwise 503 `TIME_NOT_SYNCHRONIZED`. The Time UI prepares a review-only server/timezone/DST configuration with no actual set-time operation. See `docs/time-sync.md`.

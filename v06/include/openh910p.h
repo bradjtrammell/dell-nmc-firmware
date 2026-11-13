@@ -46,11 +46,13 @@ struct ou_history_log;
  * samples. Compatibility dispatcher functions remain source-stable. */
 struct ou_notify_engine;
 struct ou_agent_status;
+struct ou_time_sample;
 int ou_dispatch_managed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const struct ou_history_log *history,
                 const struct ou_notify_engine *notifications,
                 const struct ou_agent_status *agents,
+                const struct ou_time_sample *clock,
                 char *body, size_t capacity, ou_reply *reply);
 
 int ou_dispatch_observed(const char *method, const char *path,

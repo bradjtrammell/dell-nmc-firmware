@@ -129,6 +129,18 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="time/capabilities")return {
+      schemaVersion:1,source:"native",simulated:false,
+      ntpWireClientCompiled:true,trustedLocalNtpSourceConfigured:false,
+      secureNonceProviderQualified:false,monotonicTimerQualified:false,
+      ntpSourceAclQualified:false,networkTimeSecurityQualified:false,
+      rtcWritable:false,timezoneConfigured:false,dstPolicyQualified:false,
+      maximumResponseDelayMs:5000,maximumSampleAgeSeconds:3600,
+      timeBasis:"UTC",mode:"trusted-lan-ntp-bootstrap-only"
+    };
+    if(route==="time/status")return {
+      schemaVersion:1,status:503,code:"TIME_NOT_SYNCHRONIZED"
+    };
     if(route==="agents/capabilities")return {
       schemaVersion:1,source:"native",simulated:false,
       coordinatorCompiled:true,registrationWritable:false,
@@ -660,4 +672,41 @@ test("Notified Applications provides validated registration review without sendi
   assert.equal(policy.warningSeconds,120);
   assert.equal(policy.physicalPowerControl,false);
   assert.equal(policy.authenticatedAgentNetworkAvailable,false);
+});
+
+test("Time page reviews trusted NTP, timezone and DST without device writes",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#time";env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("time/capabilities"));
+  assert.ok(env.calls.includes("time/status"));
+  assert.match(allText(env.named.view),/Clock and time synchronization/);
+  assert.match(allText(env.named.view),/No qualified clock synchronization/);
+  const server=find(env.named.view,"input",n=>n.id==="time-ntp-server");
+  const zone=find(env.named.view,"input",n=>n.id==="time-zone");
+  const dst=find(env.named.view,"select",n=>n.id==="time-dst");
+  const save=find(env.named.view,"button",n=>n.textContent==="Export time-settings review");
+  assert.ok(server&&zone&&dst&&save);
+  assert.equal(save.disabled,true);
+  server.value="192.168.0.2";server.dispatch("input");
+  assert.equal(save.disabled,false);
+  zone.value="../etc/passwd";zone.dispatch("input");
+  assert.equal(save.disabled,true);
+  zone.value="America/New_York";zone.dispatch("input");
+  assert.equal(save.disabled,false);
+  dst.value="utc";dst.dispatch("change");
+  assert.equal(save.disabled,true);
+  dst.value="automatic";dst.dispatch("change");
+  assert.equal(save.disabled,false);
+  save.click();
+  assert.equal(env.downloads.length,1);
+  assert.equal(env.downloads[0].filename,"openh910p-time-settings-review.json");
+  const json=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(json.applied,false);
+  assert.equal(json.installable,false);
+  assert.equal(json.networkTimeSecurityQualified,false);
+  assert.equal(json.server,"192.168.0.2");
+  assert.equal(json.timezone,"America/New_York");
+  assert.equal(json.dst,"automatic");
 });

@@ -98,6 +98,13 @@ tbody tr:nth-child(even){background:#f8fafb}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}
 .event-select{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;min-height:43px;color:var(--ink)}
 .event-controls .button{min-height:43px}
+.time-service{margin:18px 0 26px}
+.time-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 18px;margin:16px 0 10px}
+.time-form .config-field{min-width:0}
+.time-form .config-field label{font-size:13px;font-weight:700;color:#27434e}
+.time-form .config-input{width:100%;min-height:43px;border:1px solid #819dab;border-radius:2px;background:#fff;color:#1a3541;padding:9px 11px}
+.time-service .config-errors:empty{display:none}
+@media(max-width:680px){.time-form{grid-template-columns:1fr}}
 .agents-panel{margin:16px 0 26px}
 .agent-draft-list{border-top:2px solid #96b3bf;margin:14px 0}
 .agent-draft-row{display:grid;grid-template-columns:80px minmax(70px,0.65fr) minmax(160px,2fr) minmax(90px,0.8fr) auto;gap:10px;padding:12px;align-items:center;border-bottom:1px solid #cbd9dc;background:#fff}

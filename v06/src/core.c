@@ -3,6 +3,7 @@
 #include "ou_history.h"
 #include "ou_notify.h"
 #include "ou_agents.h"
+#include "ou_time_sync.h"
 
 typedef struct {
     char *data;
@@ -312,6 +313,7 @@ int ou_dispatch_managed(const char *method, const char *path,
                 const ou_history_log *history,
                 const ou_notify_engine *notifications,
                 const ou_agent_status *agents,
+                const ou_time_sample *clock,
                 char *body, size_t capacity, ou_reply *reply) {
     json_writer w;
     uint32_t field_page = 0, events_page = 0, history_index = 0;
@@ -424,6 +426,36 @@ int ou_dispatch_managed(const char *method, const char *path,
                 put_char(&w,'}');
             }
             put_char(&w,']');
+        }
+    } else if (same(path, "/api/v1/time/capabilities")) {
+        common(&w,"time.capabilities",snapshot);
+        property_bool(&w,"ntpWireClientCompiled",1U,1);
+        property_bool(&w,"trustedLocalNtpSourceConfigured",0U,1);
+        property_bool(&w,"secureNonceProviderQualified",0U,1);
+        property_bool(&w,"monotonicTimerQualified",0U,1);
+        property_bool(&w,"ntpSourceAclQualified",0U,1);
+        property_bool(&w,"networkTimeSecurityQualified",0U,1);
+        property_bool(&w,"rtcWritable",0U,1);
+        property_bool(&w,"timezoneConfigured",0U,1);
+        property_bool(&w,"dstPolicyQualified",0U,1);
+        property_uint(&w,"maximumResponseDelayMs",OU_NTP_MAX_RTT_MS,1);
+        property_uint(&w,"maximumSampleAgeSeconds",OU_NTP_MAX_AGE_MS/1000U,1);
+        property_string(&w,"timeBasis","UTC",1);
+        property_string(&w,"mode","trusted-lan-ntp-bootstrap-only",1);
+    } else if (same(path, "/api/v1/time/status")) {
+        if(!clock || clock->source_verified!=1U){
+            reply->status=503;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","TIME_NOT_SYNCHRONIZED",1);
+        }else{
+            common(&w,"time.status",snapshot);
+            property_uint(&w,"utcUnixSeconds",(uint32_t)clock->utc_unix_seconds,1);
+            property_uint(&w,"utcMilliseconds",clock->utc_millisecond,1);
+            property_uint(&w,"roundTripMs",clock->round_trip_ms,1);
+            property_uint(&w,"uncertaintyMs",clock->uncertainty_ms,1);
+            property_bool(&w,"sourceVerified",1U,1);
+            property_bool(&w,"rtcSet",0U,1);
+            property_string(&w,"timezone","UTC",1);
         }
     } else if (same(path, "/api/v1/agents/capabilities")) {
         common(&w,"agents.capabilities",snapshot);
@@ -683,7 +715,7 @@ int ou_dispatch_observed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const ou_history_log *history,
                 char *body, size_t capacity, ou_reply *reply) {
-    return ou_dispatch_managed(method,path,snapshot,events,history,0,0,
+    return ou_dispatch_managed(method,path,snapshot,events,history,0,0,0,
                                body,capacity,reply);
 }
 

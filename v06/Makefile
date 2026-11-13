@@ -24,8 +24,8 @@ $(BUILD)/test_compiler_rt: target/compiler_rt.c tests/test_compiler_rt.c | $(BUI
 $(BUILD)/test_shut_request: board/shut_request.c tests/test_shut_request.c include/ou_shut_request.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/shut_request.c tests/test_shut_request.c -o $@
 
-$(BUILD)/test_hid_telemetry: board/hid_telemetry.c board/hid_report.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_hid_telemetry.c include/ou_hid_telemetry.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) board/hid_telemetry.c board/hid_report.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_hid_telemetry.c -o $@
+$(BUILD)/test_hid_telemetry: board/hid_telemetry.c board/hid_report.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_hid_telemetry.c include/ou_hid_telemetry.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/hid_telemetry.c board/hid_report.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_hid_telemetry.c -o $@
 
 $(BUILD)/test_hid_report: board/hid_report.c tests/test_hid_report.c include/ou_hid_report.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/hid_report.c tests/test_hid_report.c -o $@
@@ -33,8 +33,8 @@ $(BUILD)/test_hid_report: board/hid_report.c tests/test_hid_report.c include/ou_
 $(BUILD)/test_shut_session: board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_session.c include/ou_shut_session.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_session.c -o $@
 
-$(BUILD)/test_ups_monitor: board/ups_monitor.c board/hid_telemetry.c board/hid_report.c board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_ups_monitor.c include/ou_ups_monitor.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) board/ups_monitor.c board/hid_telemetry.c board/hid_report.c board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_ups_monitor.c -o $@
+$(BUILD)/test_ups_monitor: board/ups_monitor.c board/hid_telemetry.c board/hid_report.c board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_ups_monitor.c include/ou_ups_monitor.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) board/ups_monitor.c board/hid_telemetry.c board/hid_report.c board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_ups_monitor.c -o $@
 
 $(BUILD)/test_shut_uart_link: board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_uart_link.c include/ou_shut_uart_link.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_uart_link.c -o $@
@@ -78,8 +78,8 @@ $(BUILD)/test_ns7520_hal: board/ns7520_hal.c tests/test_ns7520_hal.c include/ou_
 $(BUILD)/test_board_runtime: board/ns7520_hal.c board/ns7520_phy.c board/board_probe.c board/ns7520_mem.c board/board_runtime.c tests/test_board_runtime.c include/ou_board_runtime.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/ns7520_hal.c board/ns7520_phy.c board/board_probe.c board/ns7520_mem.c board/board_runtime.c tests/test_board_runtime.c -o $@
 
-$(BUILD)/test_tcp_native_http: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c -o $@
+$(BUILD)/test_tcp_native_http: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c -o $@
 
 $(BUILD)/test_tcp_wire_integration: src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c tests/test_tcp_wire_integration.c include/ou_tcp_engine.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c tests/test_tcp_wire_integration.c -o $@
@@ -123,35 +123,41 @@ $(BUILD)/test_http_wire: src/core.c src/schema.c src/provider.c src/http_wire.c 
 $(BUILD)/test_event_archive: src/event_archive.c src/events.c board/config_journal.c tests/test_event_archive.c include/ou_event_archive.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/event_archive.c src/events.c board/config_journal.c tests/test_event_archive.c -o $@
 
-$(BUILD)/test_native_event_archive: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_event_archive.c include/ou_event_archive.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_event_archive.c -o $@
+$(BUILD)/test_native_event_archive: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_event_archive.c include/ou_event_archive.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_event_archive.c -o $@
 
 $(BUILD)/test_events: src/events.c tests/test_events.c include/ou_events.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/events.c tests/test_events.c -o $@
 
-$(BUILD)/test_native_events: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_events.c include/ou_native_service.h include/ou_events.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_events.c -o $@
+$(BUILD)/test_native_events: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_events.c include/ou_native_service.h include/ou_events.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_events.c -o $@
 
 $(BUILD)/test_history: src/history.c tests/test_history.c include/ou_history.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/history.c tests/test_history.c -o $@
 
-$(BUILD)/test_native_history: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_history.c include/ou_native_service.h include/ou_history.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_history.c -o $@
+$(BUILD)/test_native_history: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_history.c include/ou_native_service.h include/ou_history.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_history.c -o $@
 
-$(BUILD)/test_native_service: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_service.c include/ou_native_service.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_service.c -o $@
+$(BUILD)/test_native_service: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_service.c include/ou_native_service.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_service.c -o $@
 
 $(BUILD)/test_telemetry_guard: src/core.c src/schema.c src/provider.c src/telemetry_guard.c tests/test_telemetry_guard.c include/ou_telemetry_guard.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c tests/test_telemetry_guard.c -o $@
 
-$(BUILD)/test_native_agents: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_agents.c include/ou_agents.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_agents.c -o $@
+$(BUILD)/test_native_time: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_time.c include/ou_time_sync.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_time.c -o $@
+
+$(BUILD)/test_time_sync: src/time_sync.c tests/test_time_sync.c include/ou_time_sync.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/time_sync.c tests/test_time_sync.c -o $@
+
+$(BUILD)/test_native_agents: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_agents.c include/ou_agents.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_agents.c -o $@
 
 $(BUILD)/test_agents: src/agents.c tests/test_agents.c include/ou_agents.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/agents.c tests/test_agents.c -o $@
 
-$(BUILD)/test_native_snmp: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_snmp.c include/ou_snmp.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_snmp.c -o $@
+$(BUILD)/test_native_snmp: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_snmp.c include/ou_snmp.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_snmp.c -o $@
 
 $(BUILD)/test_snmp: src/snmp.c tests/test_snmp.c include/ou_snmp.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/snmp.c tests/test_snmp.c -o $@
@@ -162,8 +168,8 @@ $(BUILD)/test_update_verify: src/update_verify.c tests/test_update_verify.c incl
 $(BUILD)/test_notify: src/notify.c tests/test_notify.c include/ou_notify.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/notify.c tests/test_notify.c -o $@
 
-$(BUILD)/test_native_notifications: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_notifications.c include/ou_notify.h | $(BUILD)
-	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_notifications.c -o $@
+$(BUILD)/test_native_notifications: src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_notifications.c include/ou_notify.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_notifications.c -o $@
 
 $(BUILD)/test_weekly_schedule: src/weekly_schedule.c board/config_journal.c tests/test_weekly_schedule.c include/ou_weekly_schedule.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/weekly_schedule.c board/config_journal.c tests/test_weekly_schedule.c -o $@
@@ -180,7 +186,7 @@ $(BUILD)/test_config_model: src/config_model.c src/schema.c board/config_journal
 $(BUILD)/test_journal: board/config_journal.c tests/test_config_journal.c include/ou_config_journal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/config_journal.c tests/test_config_journal.c -o $@
 
-test: all $(BUILD)/test_native_agents $(BUILD)/test_agents $(BUILD)/test_native_snmp $(BUILD)/test_snmp $(BUILD)/test_update_verify $(BUILD)/test_notify $(BUILD)/test_native_notifications $(BUILD)/test_weekly_schedule $(BUILD)/test_auth $(BUILD)/test_config_activation $(BUILD)/test_config_model $(BUILD)/test_history $(BUILD)/test_native_history $(BUILD)/test_events $(BUILD)/test_native_events $(BUILD)/test_event_archive $(BUILD)/test_native_event_archive $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_board_mmio $(BUILD)/test_ns7520_serial_rx $(BUILD)/test_shut_uart_bridge $(BUILD)/test_shut_uart_tx $(BUILD)/test_shut_uart_link $(BUILD)/test_ups_monitor $(BUILD)/test_shut_rx $(BUILD)/test_shut_request $(BUILD)/test_shut_session $(BUILD)/test_hid_report $(BUILD)/test_hid_telemetry $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex $(BUILD)/test_hal_timer $(BUILD)/test_phy_link
+test: all $(BUILD)/test_native_time $(BUILD)/test_time_sync $(BUILD)/test_native_agents $(BUILD)/test_agents $(BUILD)/test_native_snmp $(BUILD)/test_snmp $(BUILD)/test_update_verify $(BUILD)/test_notify $(BUILD)/test_native_notifications $(BUILD)/test_weekly_schedule $(BUILD)/test_auth $(BUILD)/test_config_activation $(BUILD)/test_config_model $(BUILD)/test_history $(BUILD)/test_native_history $(BUILD)/test_events $(BUILD)/test_native_events $(BUILD)/test_event_archive $(BUILD)/test_native_event_archive $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_board_mmio $(BUILD)/test_ns7520_serial_rx $(BUILD)/test_shut_uart_bridge $(BUILD)/test_shut_uart_tx $(BUILD)/test_shut_uart_link $(BUILD)/test_ups_monitor $(BUILD)/test_shut_rx $(BUILD)/test_shut_request $(BUILD)/test_shut_session $(BUILD)/test_hid_report $(BUILD)/test_hid_telemetry $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex $(BUILD)/test_hal_timer $(BUILD)/test_phy_link
 	./$(BUILD)/test_events
 	./$(BUILD)/test_native_events
 	./$(BUILD)/test_history
@@ -201,6 +207,8 @@ test: all $(BUILD)/test_native_agents $(BUILD)/test_agents $(BUILD)/test_native_
 	./$(BUILD)/test_native_snmp
 	./$(BUILD)/test_agents
 	./$(BUILD)/test_native_agents
+	./$(BUILD)/test_time_sync
+	./$(BUILD)/test_native_time
 	./$(BUILD)/test_native_notifications
 	./$(BUILD)/test_telemetry_guard
 	./$(BUILD)/test_board_probe
@@ -260,6 +268,8 @@ arm-check: | $(BUILD)
 	python3 tools/verify_arm.py $(BUILD)/snmp-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/agents.c -o $(BUILD)/agents-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/agents-armeb.o
+	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/time_sync.c -o $(BUILD)/time-sync-armeb.o
+	python3 tools/verify_arm.py $(BUILD)/time-sync-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/event_archive.c -o $(BUILD)/event-archive-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/event-archive-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/ns7520_mem.c -o $(BUILD)/ns7520-mem-armeb.o
@@ -343,7 +353,7 @@ arm-link-check: arm-check
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/runtime.c -o $(BUILD)/runtime-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/reset.S -o $(BUILD)/reset-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -c target/compiler_rt.c -o $(BUILD)/compiler-rt-armeb.o
-	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/events-armeb.o $(BUILD)/history-armeb.o $(BUILD)/notify-armeb.o $(BUILD)/update-verify-armeb.o $(BUILD)/snmp-armeb.o $(BUILD)/agents-armeb.o $(BUILD)/event-archive-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/shut-rx-armeb.o $(BUILD)/serial-rx-armeb.o $(BUILD)/shut-uart-bridge-armeb.o $(BUILD)/shut-uart-tx-armeb.o $(BUILD)/shut-uart-link-armeb.o $(BUILD)/ups-monitor-armeb.o $(BUILD)/shut-request-armeb.o $(BUILD)/shut-session-armeb.o $(BUILD)/hid-report-armeb.o $(BUILD)/hid-telemetry-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/config-model-armeb.o $(BUILD)/config-activation-armeb.o $(BUILD)/auth-armeb.o $(BUILD)/weekly-schedule-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/board-mmio-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/ns7520-hal-armeb.o $(BUILD)/board-runtime-armeb.o $(BUILD)/ns7520-timer-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
+	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/events-armeb.o $(BUILD)/history-armeb.o $(BUILD)/notify-armeb.o $(BUILD)/update-verify-armeb.o $(BUILD)/snmp-armeb.o $(BUILD)/agents-armeb.o $(BUILD)/time-sync-armeb.o $(BUILD)/event-archive-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/shut-rx-armeb.o $(BUILD)/serial-rx-armeb.o $(BUILD)/shut-uart-bridge-armeb.o $(BUILD)/shut-uart-tx-armeb.o $(BUILD)/shut-uart-link-armeb.o $(BUILD)/ups-monitor-armeb.o $(BUILD)/shut-request-armeb.o $(BUILD)/shut-session-armeb.o $(BUILD)/hid-report-armeb.o $(BUILD)/hid-telemetry-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/config-model-armeb.o $(BUILD)/config-activation-armeb.o $(BUILD)/auth-armeb.o $(BUILD)/weekly-schedule-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/board-mmio-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/ns7520-hal-armeb.o $(BUILD)/board-runtime-armeb.o $(BUILD)/ns7520-timer-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
 	llvm-objcopy -O binary $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 	python3 tools/verify_native_image.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 
@@ -361,11 +371,15 @@ footprint-check: arm-link-check
 # Host-only memory safety instrumentation for native telemetry, NS7520 and UPS link
 # modules. This does not connect to physical hardware or flash firmware.
 board-sanitize: | $(BUILD)
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_agents.c -o $(BUILD)/test_native_agents_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_time.c -o $(BUILD)/test_native_time_sanitized
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_time_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/time_sync.c tests/test_time_sync.c -o $(BUILD)/test_time_sync_sanitized
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_time_sync_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_agents.c -o $(BUILD)/test_native_agents_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_agents_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/agents.c tests/test_agents.c -o $(BUILD)/test_agents_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_agents_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_snmp.c -o $(BUILD)/test_native_snmp_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_snmp.c -o $(BUILD)/test_native_snmp_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_snmp_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/snmp.c tests/test_snmp.c -o $(BUILD)/test_snmp_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_snmp_sanitized
@@ -373,7 +387,7 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_update_verify_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/notify.c tests/test_notify.c -o $(BUILD)/test_notify_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_notify_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_notifications.c -o $(BUILD)/test_native_notifications_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_notifications.c -o $(BUILD)/test_native_notifications_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_notifications_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/weekly_schedule.c board/config_journal.c tests/test_weekly_schedule.c -o $(BUILD)/test_weekly_schedule_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_weekly_schedule_sanitized
@@ -385,15 +399,15 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_config_model_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/history.c tests/test_history.c -o $(BUILD)/test_history_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_history_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_history.c -o $(BUILD)/test_native_history_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_history.c -o $(BUILD)/test_native_history_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_history_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/event_archive.c src/events.c board/config_journal.c tests/test_event_archive.c -o $(BUILD)/test_event_archive_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_event_archive_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_event_archive.c -o $(BUILD)/test_native_event_archive_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_event_archive.c -o $(BUILD)/test_native_event_archive_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_event_archive_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/events.c tests/test_events.c -o $(BUILD)/test_events_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_events_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_events.c -o $(BUILD)/test_native_events_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_events.c -o $(BUILD)/test_native_events_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_events_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_mem.c board/ups_link.c board/flash_policy.c tests/test_board.c -o $(BUILD)/test_board_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_board_sanitized
@@ -407,7 +421,7 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_uart_tx_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c tests/test_shut_uart_link.c -o $(BUILD)/test_shut_uart_link_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_uart_link_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ups_monitor.c board/hid_telemetry.c board/hid_report.c board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_ups_monitor.c -o $(BUILD)/test_ups_monitor_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ups_monitor.c board/hid_telemetry.c board/hid_report.c board/shut_uart_link.c board/shut_uart_tx.c board/shut_uart_bridge.c board/ns7520_serial_rx.c board/shut_session.c board/shut_request.c board/shut_rx.c board/ups_link.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_ups_monitor.c -o $(BUILD)/test_ups_monitor_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ups_monitor_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/shut_request.c tests/test_shut_request.c -o $(BUILD)/test_shut_request_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_request_sanitized
@@ -415,7 +429,7 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_shut_session_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/hid_report.c tests/test_hid_report.c -o $(BUILD)/test_hid_report_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_hid_report_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/hid_telemetry.c board/hid_report.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_hid_telemetry.c -o $(BUILD)/test_hid_telemetry_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/hid_telemetry.c board/hid_report.c src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_hid_telemetry.c -o $(BUILD)/test_hid_telemetry_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_hid_telemetry_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/config_journal.c tests/test_config_journal.c -o $(BUILD)/test_journal_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_journal_sanitized
@@ -427,7 +441,7 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_board_mmio_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/http_wire.c tests/test_http_wire.c -o $(BUILD)/test_http_wire_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_http_wire_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c tests/test_native_service.c -o $(BUILD)/test_native_service_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c tests/test_native_service.c -o $(BUILD)/test_native_service_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_native_service_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined target/compiler_rt.c tests/test_compiler_rt.c -o $(BUILD)/test_compiler_rt_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_compiler_rt_sanitized
@@ -453,7 +467,7 @@ board-sanitize: | $(BUILD)
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_tcp_engine_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c tests/test_tcp_wire_integration.c -o $(BUILD)/test_tcp_wire_integration_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_tcp_wire_integration_sanitized
-	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c -o $(BUILD)/test_tcp_native_http_sanitized
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/core.c src/schema.c src/provider.c src/telemetry_guard.c src/http_wire.c src/tcp_engine.c src/tcp_ingress.c src/vlan.c src/ipv4_wire.c src/events.c src/event_archive.c board/config_journal.c src/history.c src/notify.c src/snmp.c src/agents.c src/time_sync.c target/service.c target/tcp_adapter.c tests/test_tcp_native_http.c -o $(BUILD)/test_tcp_native_http_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_tcp_native_http_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined board/ns7520_hal.c tests/test_ns7520_hal.c -o $(BUILD)/test_ns7520_hal_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_ns7520_hal_sanitized

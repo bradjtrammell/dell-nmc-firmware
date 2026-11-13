@@ -100,6 +100,32 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_ntp_bootstrap_contract_is_strictly_read_only(self):
+        code,headers,raw=self.request("GET","/api/v1/time/capabilities")
+        self.assertEqual(code,200)
+        data=json.loads(raw)
+        self.assertEqual(data["resource"],"time.capabilities")
+        self.assertIs(data["ntpWireClientCompiled"],True)
+        self.assertEqual(data["maximumResponseDelayMs"],5000)
+        self.assertEqual(data["maximumSampleAgeSeconds"],3600)
+        self.assertEqual(data["timeBasis"],"UTC")
+        for key in ("trustedLocalNtpSourceConfigured","secureNonceProviderQualified",
+                    "monotonicTimerQualified","ntpSourceAclQualified",
+                    "networkTimeSecurityQualified","rtcWritable",
+                    "timezoneConfigured","dstPolicyQualified"):
+            self.assertIs(data[key],False)
+        code,_,raw=self.request("GET","/api/v1/time/status")
+        self.assertEqual(code,503)
+        self.assertEqual(json.loads(raw)["code"],"TIME_NOT_SYNCHRONIZED")
+        code,_,raw=self.request("HEAD","/api/v1/time/status")
+        self.assertEqual(code,503)
+        self.assertEqual(raw,b"")
+        for path in ("/api/v1/time/capabilities","/api/v1/time/status"):
+            for verb in ("POST","PUT","PATCH","DELETE"):
+                code,_,raw=self.request(verb,path,"{}")
+                self.assertEqual(code,405)
+                self.assertEqual(json.loads(raw)["error"],"READ_ONLY")
+
     def test_shutdown_agent_capabilities_and_host_unavailability(self):
         code, hdr, raw = self.request("GET","/api/v1/agents/capabilities")
         self.assertEqual(code,200)
