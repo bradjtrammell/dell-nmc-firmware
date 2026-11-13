@@ -2,6 +2,7 @@
 
 #define OU_TX_READY UINT32_C(0x8)
 #define OU_TX_BUFFER_COMPLETE UINT32_C(0x2)
+#define OU_TX_EMPTY UINT32_C(0x1)
 #define OU_UART_CTRL_A_ENABLED_8N1 UINT32_C(0x83000000)
 #define OU_UART_CTRL_A_FORBIDDEN UINT32_C(0x4c300101)
 #define OU_UART_CTRL_B_FORBIDDEN UINT32_C(0x003801c0)
@@ -20,6 +21,9 @@ static void clear_frame(ou_shut_uart_tx *tx) {
     for(i=0U;i<sizeof(tx->frame);++i)tx->frame[i]=0U;
     tx->length=0U;
     tx->offset=0U;
+    tx->waiting_for_empty=0U;
+    tx->last_fifo_write_ms=0U;
+    tx->empty_seen_ms=0U;
 }
 void ou_shut_uart_tx_revoke(ou_shut_uart_tx *tx) {
     if(!tx)return;
@@ -30,6 +34,7 @@ void ou_shut_uart_tx_revoke(ou_shut_uart_tx *tx) {
     tx->write32=0;
     tx->context=0;
     tx->initialized=0U;
+    tx->character_guard_ms=0U;
 }
 static int fault(ou_shut_uart_tx *tx) {
     if(!tx)return -1;
@@ -47,12 +52,14 @@ int ou_shut_uart_tx_bind(ou_shut_uart_tx *tx,
                          void *context,
                          uint8_t tx_pin_verified,
                          uint8_t bit_rate_verified,
-                         uint8_t read_only_shut_protocol_verified) {
+                         uint8_t read_only_shut_protocol_verified,
+                         uint32_t measured_baud) {
     if(!tx)return -1;
     *tx=(ou_shut_uart_tx){0};
     if(!source || !session || !write8 || !write32 ||
        tx_pin_verified!=1U || bit_rate_verified!=1U ||
        read_only_shut_protocol_verified!=1U ||
+       measured_baud<300U || measured_baud>115200U ||
        !source->read32 ||
        (source->channel!=1U && source->channel!=2U) ||
        source->peripheral_mapping_verified!=1U ||
@@ -65,6 +72,11 @@ int ou_shut_uart_tx_bind(ou_shut_uart_tx *tx,
     tx->write8=write8;
     tx->write32=write32;
     tx->context=context;
+    /* 8N1 = 10 bits; 11 bit-times allows a full character plus
+     * the inter-character margin specified by Digi's NS7520 errata.
+     * Ceiling division; minimum 1ms for a millisecond board timer. */
+    tx->character_guard_ms=(uint16_t)((UINT32_C(11000)+
+                                measured_baud-1U)/measured_baud);
     tx->initialized=1U;
     return 0;
 }
@@ -109,11 +121,9 @@ int ou_shut_uart_tx_step(ou_shut_uart_tx *tx,uint32_t now_ms) {
     int r;
     uint32_t status=0U,base;
     if(!ready(tx))return -1;
-    if(ou_shut_session_tick(tx->session,now_ms)!=0) {
-        if(tx->session->state==OU_SHUT_SESSION_FAILED)return fault(tx);
-        /* A session waiting for response is handled by its receive owner. */
-    }
-    if(tx->session->state==OU_SHUT_SESSION_FAILED)return fault(tx);
+    r=ou_shut_session_tick(tx->session,now_ms);
+    if(r<0 || tx->session->state==OU_SHUT_SESSION_FAILED)
+        return fault(tx);
     if(!tx->length) {
         r=ou_shut_session_peek_tx(tx->session,now_ms,
                                    tx->frame,sizeof(tx->frame),&n);
@@ -130,28 +140,52 @@ int ou_shut_uart_tx_step(ou_shut_uart_tx *tx,uint32_t now_ms) {
     base=tx->uart.channel==1U?OU_NS7520_SER1_STATUS_A:
                               OU_NS7520_SER2_STATUS_A;
     if(status&OU_TX_BUFFER_COMPLETE) {
-        /* W1C only the documented TBC bit, no other status or control
-         * register writes. The next step will re-check TRDY. */
-        if(tx->offset!=0U ||
-           tx->write32(tx->context,base,OU_TX_BUFFER_COMPLETE)!=0)
+        /* TXBC/TBC is unreliable on NS7520 (Digi Errata Rev L p.14).
+         * Clear a stuck W1C flag to unblock TXRDY, but NEVER use it
+         * to establish physical completion or transition SHUT state.
+         * May occur in the middle of a multi-byte frame. */
+        if(tx->write32(tx->context,base,OU_TX_BUFFER_COMPLETE)!=0)
             return fault(tx);
         if(tx->tbc_acks!=UINT32_MAX)++tx->tbc_acks;
         return 0;
     }
-    if(!(status&OU_TX_READY)) {
+    if(tx->offset==tx->length) {
+        /* The final byte was merely queued in FIFO. Wait until TXEMPTY
+         * is actually observed and then a FULL character guard has
+         * elapsed. This protects the shift register still sending. */
+        if(!(status&OU_TX_EMPTY)){
+            tx->waiting_for_empty=0U;
+            if(tx->blocked_polls!=UINT32_MAX)++tx->blocked_polls;
+            return 0;
+        }
+        if(!tx->waiting_for_empty){
+            tx->waiting_for_empty=1U;
+            tx->empty_seen_ms=now_ms;
+            return 0;
+        }
+        if((uint32_t)(now_ms-tx->empty_seen_ms)<tx->character_guard_ms)
+            return 0;
+        if(ou_shut_session_confirm_tx(tx->session,now_ms)!=0)
+            return fault(tx);
+        clear_frame(tx);
+        return 0;
+    }
+    /* TXEMPTY is safer than TXRDY alone: the NS7520 errata warns
+     * consecutive byte writes can corrupt the next character's
+     * first bit. Keep one byte in flight and wait >= 11 bit-times. */
+    if(!(status&OU_TX_READY) || !(status&OU_TX_EMPTY) ||
+       (tx->offset!=0U &&
+        (uint32_t)(now_ms-tx->last_fifo_write_ms) <
+            tx->character_guard_ms)) {
         if(tx->blocked_polls!=UINT32_MAX)++tx->blocked_polls;
         return 0;
     }
     if(tx->offset>=tx->length)return fault(tx);
     if(tx->write8(tx->context,base+UINT32_C(8),
                   tx->frame[tx->offset])!=0)return fault(tx);
+    tx->last_fifo_write_ms=now_ms;
     if(tx->sent_bytes!=UINT32_MAX)++tx->sent_bytes;
     ++tx->offset;
-    if(tx->offset==tx->length) {
-        if(ou_shut_session_confirm_tx(tx->session,now_ms)!=0)
-            return fault(tx);
-        clear_frame(tx);
-    }
     return 1;
 }
 int ou_ns7520_arm_uart_fifo_write8(void *context,

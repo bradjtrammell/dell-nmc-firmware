@@ -21,6 +21,10 @@ typedef struct {
     uint8_t length;
     uint8_t offset;
     uint8_t initialized;
+    uint8_t waiting_for_empty;
+    uint16_t character_guard_ms;
+    uint32_t last_fifo_write_ms;
+    uint32_t empty_seen_ms;
     uint32_t sent_bytes;
     uint32_t blocked_polls;
     uint32_t tbc_acks;
@@ -38,14 +42,20 @@ int ou_shut_uart_tx_bind(ou_shut_uart_tx *tx,
                          void *context,
                          uint8_t tx_pin_verified,
                          uint8_t bit_rate_verified,
-                         uint8_t read_only_shut_protocol_verified);
+                         uint8_t read_only_shut_protocol_verified,
+                         uint32_t measured_baud);
 
 /* One bounded transaction step, no wait loops and at most ONE STRB.
  * Frames can be only SYNC=0x16, ACK=0x06, or validated 11-byte
  * HID Feature GET REPORT (A1 01); never SET REPORT or UPS control.
- * The SHUT session enters RX state only after the last byte succeeds.
- * 1=byte written, 0=no data or TRDY off, -1=terminal failure.
- * Status TBC acknowledgement writes ONLY bit 1 (0x2) to Status A. */
+ * Per NS7520 Errata Rev L p.14, TXBC/TBC is NOT a reliable completion
+ * indication. Require actual TXEMPTY and at least 11 bit-times between
+ * byte writes; after the final byte observe TXEMPTY then allow a further
+ * full character time before committing SHUT state. A verified real baud
+ * rate must be supplied by the qualified H910P board port.
+ * 1=one FIFO byte written, 0=pending/no data, -1=terminal failure.
+ * Unexpected TBC is acknowledged via its exact W1C bit but never treated
+ * as proof that transmission completed. */
 int ou_shut_uart_tx_step(ou_shut_uart_tx *tx,uint32_t now_ms);
 
 /* Permanently revoke until independently re-bound after failure. */

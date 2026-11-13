@@ -122,3 +122,35 @@ bitrate, physical source identity and recovery remain unqualified.
 It is still impossible to deploy the research image safely.
 
 Reference: [Digi NS7520 Hardware Reference, Rev G](https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/).
+
+## NS7520 hardware errata: TXBC is not a completion signal
+
+**Digi NS7520 Errata Rev L (February 2006), printed page 14**, identifies
+two UART issues missed by the basic hardware register specification:
+
+- The Serial Status A TXBC/TBC bit (D01) is unreliable and **cannot
+  establish that the final byte left the shift register**.
+- Closely spaced FIFO writes can corrupt the next character's first bit.
+  Digi recommends checking TXEMPTY (D00) and adding a character-time
+  guard (and an extra bit time when the FIFO was empty).
+
+The native SHUT FIFO transmitter now checks **both TRDY and TXEMPTY**
+and adds a conservative **11-bit character interval** between its
+single-byte FIFO writes. It will only enter the SHUT response-wait
+state after it has **observed TXEMPTY after the final byte and waited
+one full calibrated guard interval beyond that observation**. TBC
+can still be W1C-acknowledged to unblock the FIFO, but it is never
+accepted as evidence of wire completion, even if asserted midframe.
+
+The baud rate is supplied by the future, independently verified H910P
+BSP as a numeric value. Unknown, zero or out-of-range baud is rejected.
+The UART code does not discover a physical channel or set a speculative
+baud register. The timing uses the board's monotonic millisecond clock
+and is still gated on physical-link verification. Tests cover missing
+TXEMPTY, sticky/spurious TBC, both channels, exact completion ordering,
+normal read-only reports, no TX readiness, rejected control frames,
+and partial hardware failures.
+
+Source: https://ftp1.digi.com/support/documentation/90000352_L.pdf
+(printed page 14). This is a **functional correction** to the
+previously committed transmit logic, not a newly qualified card.
