@@ -14,6 +14,10 @@ void ou_native_service_init(void);
  * checksum and report authenticity may set report->verified. No UPS TX. */
 int ou_native_service_driver_report(const ou_driver_report *report, uint32_t now_ms);
 
+/* Called on a qualified UPS transport loss; preserve the replay watermark
+ * while immediately withdrawing previously published telemetry. */
+void ou_native_service_source_lost(void);
+
 /* Fail-closed native data; never substitutes simulated UPS measurements. */
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,
                            char *response, size_t capacity, size_t *response_len);

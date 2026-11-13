@@ -31,6 +31,11 @@ int ou_telemetry_guard_accept(ou_telemetry_guard *guard,
                               const ou_driver_report *report,
                               uint32_t now_monotonic_ms);
 
+/* Transport/source loss immediately hides the last good sample without
+ * resetting replay sequence, timing, or source history. No arbitrary
+ * revalidation of a previously failed physical link is implied. */
+void ou_telemetry_guard_source_lost(ou_telemetry_guard *guard);
+
 /* Return a verified fresh snapshot or an unavailable one. Never expose a
  * previous snapshot after a failed, replayed, or expired frame. */
 int ou_telemetry_guard_read(ou_telemetry_guard *guard,

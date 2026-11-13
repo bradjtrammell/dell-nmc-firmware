@@ -11,6 +11,10 @@ int ou_native_service_driver_report(const ou_driver_report *report, uint32_t now
     return ou_telemetry_guard_accept(&source, report, now_ms);
 }
 
+void ou_native_service_source_lost(void) {
+    ou_telemetry_guard_source_lost(&source);
+}
+
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,
                            char *response, size_t capacity, size_t *response_len) {
     ou_snapshot sample = ou_unavailable_snapshot();

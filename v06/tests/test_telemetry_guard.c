@@ -126,7 +126,35 @@ static void test_null_and_counter_saturation(void) {
     assert(gate.accepted_count == UINT32_MAX);
 }
 
+static void loss_preserves_replay_history(void) {
+    ou_telemetry_guard guard;
+    ou_driver_report frame = {0};
+    ou_snapshot snapshot;
+    frame.version=OU_REPORT_VERSION;
+    frame.verified=1U;
+    frame.sequence=11U;
+    frame.received_monotonic_ms=4000U;
+    frame.uptime_seconds=4U;
+    frame.battery_percent=85U;
+    frame.runtime_seconds=1800U;
+    frame.load_percent=30U;
+    frame.input_decivolts=1190U;
+    frame.output_decivolts=1200U;
+    frame.utility_present=1U;
+    frame.battery_present=1U;
+    ou_telemetry_guard_reset(&guard);
+    assert(ou_telemetry_guard_accept(&guard,&frame,4000U)==0);
+    assert(ou_telemetry_guard_read(&guard,4001U,&snapshot)==0);
+    ou_telemetry_guard_source_lost(&guard);
+    assert(ou_telemetry_guard_read(&guard,4001U,&snapshot)==-1);
+    assert(guard.last_sequence==11U&&guard.source_seen==1U);
+    assert(ou_telemetry_guard_accept(&guard,&frame,4002U)==-1);
+    frame.sequence=12U;
+    frame.received_monotonic_ms=4003U;
+    assert(ou_telemetry_guard_accept(&guard,&frame,4003U)==0);
+}
 int main(void) {
+    loss_preserves_replay_history();
     test_valid_freshness_and_timeout();
     test_duplicates_rewind_and_recovery();
     test_invalid_and_future_frames();

@@ -37,8 +37,17 @@ int main(void) {
     frame.sequence=2U;frame.received_monotonic_ms=203U;
     assert(ou_native_service_driver_report(&frame,203U)==0);
     expect(5203U,200,"\"batteryPercent\":89");
+    /* A serial fault must hide an otherwise fresh sample immediately, not
+     * leave a stale 200 response until the 5-second expiry. */
+    ou_native_service_source_lost();
+    expect(5203U,503,"TELEMETRY_UNAVAILABLE");
+    assert(ou_native_service_driver_report(&frame,5203U)==-1);
+    expect(5203U,503,"TELEMETRY_UNAVAILABLE");
+    frame.sequence=3U;frame.received_monotonic_ms=5203U;
+    assert(ou_native_service_driver_report(&frame,5203U)==0);
+    expect(5203U,200,"\"batteryPercent\":89");
     expect(5204U,503,"TELEMETRY_UNAVAILABLE");
-    frame.sequence=3U;frame.received_monotonic_ms=5300U;frame.verified=0U;
+    frame.sequence=4U;frame.received_monotonic_ms=5300U;frame.verified=0U;
     assert(ou_native_service_driver_report(&frame,5300U)==-1);
     expect(5300U,503,"TELEMETRY_UNAVAILABLE");
     ou_native_service_init();

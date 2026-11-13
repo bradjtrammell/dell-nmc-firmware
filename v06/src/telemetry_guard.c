@@ -49,6 +49,11 @@ int ou_telemetry_guard_accept(ou_telemetry_guard *guard,
     return 0;
 }
 
+void ou_telemetry_guard_source_lost(ou_telemetry_guard *guard) {
+    if (!guard) return;
+    invalidate(guard);
+}
+
 int ou_telemetry_guard_read(ou_telemetry_guard *guard,
                             uint32_t now_monotonic_ms,
                             ou_snapshot *output) {
