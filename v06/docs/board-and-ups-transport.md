@@ -87,3 +87,38 @@ factory Settings jack remains untouched.
 
 References: Digi NS7520 Hardware Reference Rev G, Table 85 pp.223–227,
 Table 88 pp.229–231, Table 89 pp.233–238.
+
+## Bounded NS7520 UART FIFO transmission for read-only SHUT (new)
+
+`board/shut_uart_tx.c` now implements the **hardware-specific byte-width
+FIFO transmit path** documented by Digi's NS7520 Hardware Reference
+Rev G, printed pp. 212–213, 240–241 and 250. It writes one byte per
+poll using an ARM7 `STRB`-equivalent callback at the selected channel's
+FIFO address, `0xFFD00010` or `0xFFD00050`. Before **each**
+byte it checks Control A/B UART 8N1 mode, disables DMA/loopback,
+reads Status A `TRDY` (D03) and `TBC` (D01), and never writes
+to a FIFO while the controller reports not-ready. A stuck TBC is
+acknowledged by writing exactly `0x2` to the correct Status A
+write-one-to-clear register; no other status/control writes are allowed.
+The module has no clock, pinmux, GPIO, reset, firmware-update, or
+UPS power-control writes.
+
+The public transmit path does **not** accept arbitrary commands: it
+can emit only the session's `SYNC=0x16`, `ACK=0x06`, and checksum-
+validated, report-ID-matched 11-byte HID Feature `GET REPORT`
+`81 88 A1 01 ...`. Non-read requests (including `SET REPORT`)
+fail before any hardware write. Transmit is two-phase: the session
+enters receive mode **only after the final byte** has been accepted.
+Each step is bounded (at most one FIFO write), with timeout, TBC,
+bad UART mode, callback error, partial-transmission abort and explicit
+hardware requalification. A host register mock tests both channels
+and no-write failure modes. ARM7 compile/link and sanitizer checks
+are required by CI.
+
+**No verified on-card H910P BSP is linked.** This is a usable,
+hardware-address-level implementation but not proof that the installed
+UPS transport is UART or SHUT; the H910P's electrical channel, real
+bitrate, physical source identity and recovery remain unqualified.
+It is still impossible to deploy the research image safely.
+
+Reference: [Digi NS7520 Hardware Reference, Rev G](https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/).
