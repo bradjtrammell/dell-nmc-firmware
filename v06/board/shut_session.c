@@ -64,33 +64,62 @@ int ou_shut_session_begin(ou_shut_session *s,uint8_t report_id,
     s->started=1U;
     return queue_sync(s);
 }
-int ou_shut_session_take_tx(ou_shut_session *s,uint32_t now_ms,
+int ou_shut_session_peek_tx(ou_shut_session *s,uint32_t now_ms,
                             uint8_t *frame,size_t capacity,size_t *written) {
     size_t i;
-    uint8_t next;
     if(!written)return -1;
     *written=0U;
     if(!s || !frame)return -1;
     if(!valid_time(s,now_ms))return fail(s,OU_SHUT_SESSION_ERR_CLOCK);
-    if(s->out_length==0U)return 0;
+    if(s->state==OU_SHUT_SESSION_FAILED)return -1;
+    if(!s->out_length)return 0;
+    if(s->state!=OU_SHUT_SESSION_SYNC_READY &&
+       s->state!=OU_SHUT_SESSION_REQUEST_READY &&
+       s->state!=OU_SHUT_SESSION_ACK_READY)
+       return fail(s,OU_SHUT_SESSION_ERR_BAD_PACKET);
     if(capacity<s->out_length)return -1;
     for(i=0U;i<s->out_length;++i)frame[i]=s->out[i];
     *written=s->out_length;
-    next=s->state;
+    return 1;
+}
+int ou_shut_session_confirm_tx(ou_shut_session *s,uint32_t now_ms) {
+    uint8_t previous;
+    size_t i;
+    if(!s)return -1;
+    if(!valid_time(s,now_ms))return fail(s,OU_SHUT_SESSION_ERR_CLOCK);
+    if(!s->out_length)return -1;
+    previous=s->state;
+    if(previous!=OU_SHUT_SESSION_SYNC_READY &&
+       previous!=OU_SHUT_SESSION_REQUEST_READY &&
+       previous!=OU_SHUT_SESSION_ACK_READY)
+        return fail(s,OU_SHUT_SESSION_ERR_BAD_PACKET);
+    if((uint32_t)(now_ms-s->queued_ms)>OU_SHUT_SESSION_ACK_TIMEOUT_MS)
+        return fail(s,OU_SHUT_SESSION_ERR_TIMEOUT);
+    for(i=0U;i<sizeof(s->out);++i)s->out[i]=0U;
     s->out_length=0U;
     s->sent_ms=now_ms;
-    if(next==OU_SHUT_SESSION_SYNC_READY) {
+    if(previous==OU_SHUT_SESSION_SYNC_READY) {
         ++s->sync_attempts;
         s->state=OU_SHUT_SESSION_SYNC_WAIT;
-    } else if(next==OU_SHUT_SESSION_REQUEST_READY) {
+    } else if(previous==OU_SHUT_SESSION_REQUEST_READY) {
         ++s->request_attempts;
         s->state=OU_SHUT_SESSION_REQUEST_WAIT;
-    } else if(next==OU_SHUT_SESSION_ACK_READY) {
+    } else {
         s->state=s->after_ack;
         s->after_ack=0U;
         if(s->state==OU_SHUT_SESSION_COMPLETE &&
            s->successful_reads!=UINT32_MAX)++s->successful_reads;
-    } else return fail(s,OU_SHUT_SESSION_ERR_BAD_PACKET);
+    }
+    return 0;
+}
+int ou_shut_session_take_tx(ou_shut_session *s,uint32_t now_ms,
+                            uint8_t *frame,size_t capacity,size_t *written) {
+    int r=ou_shut_session_peek_tx(s,now_ms,frame,capacity,written);
+    if(r!=1)return r;
+    if(ou_shut_session_confirm_tx(s,now_ms)!=0) {
+        *written=0U;
+        return -1;
+    }
     return 1;
 }
 int ou_shut_session_feed(ou_shut_session *s,uint8_t byte,uint32_t now_ms) {

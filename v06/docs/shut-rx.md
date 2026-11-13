@@ -174,3 +174,10 @@ completed-but-unconsumed telemetry, and the parser state. The FIFO
 adapter clears its callback and refuses additional polls until a newly
 qualified hardware port rebinds the session. Tests verify the error
 reason, failure counter, zeroed buffers, and denial of resumed polling.
+
+## Two-phase physical TX handoff
+
+The SHUT state machine now provides `peek_tx` and `confirm_tx` to avoid
+entering receive mode before all pending wire bytes are physically sent.
+A partial transmission must abort, not confirm. The existing synchronous
+`take_tx` API uses these primitives and remains backward compatible.

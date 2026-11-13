@@ -67,6 +67,11 @@ int ou_shut_session_begin(ou_shut_session *s, uint8_t report_id,
                           uint16_t requested_bytes, uint32_t now_ms,
                           uint8_t physical_link_verified,
                           uint8_t protocol_verified);
+/* Peek queues no state transition; confirm only after all bytes are physically
+ * written. Any partial send must abort. This is the hardware TX boundary. */
+int ou_shut_session_peek_tx(ou_shut_session *s, uint32_t now_ms,
+                           uint8_t *frame, size_t capacity, size_t *written);
+int ou_shut_session_confirm_tx(ou_shut_session *s, uint32_t now_ms);
 /* Return a complete outbound frame to a separately qualified UART owner.
  * 1=frame available, 0=nothing, -1=invalid or non-monotonic clock.
  * Only SYNC, feature GET REPORT, and per-packet ACK can be emitted. */
