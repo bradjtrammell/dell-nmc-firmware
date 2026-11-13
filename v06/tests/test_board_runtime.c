@@ -94,6 +94,16 @@ int main(void){
     assert(starts==0);
     assert(ou_ns7520_hal_init(&hal,readreg,writereg,barr,0,
              0x08000000U,0x100000U,1,1,1,1)==0);
+    c=cfg();
+    /* These fields are intentionally zero for passive MMIO capture.
+     * A real H910P BSP must qualify the installed card AND its rescue
+     * path independently of the generic NS7520 chip revision. */
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    snapshot.h910p_board_verified=1U;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    snapshot.ethernet_phy_verified=1U;
+    assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
+    snapshot.recovery_verified=1U;
     c=cfg();c.rx_descriptor_bus=0x09002000U;
     assert(ou_board_runtime_start(&runner,&c)==-1 && starts==0);
     c=cfg();c.rx_data=tx; /* Same bus value but wrong CPU buffer. */

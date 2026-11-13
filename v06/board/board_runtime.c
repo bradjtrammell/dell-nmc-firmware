@@ -21,6 +21,13 @@ static int validate(const ou_board_boot_config *cfg) {
     if (!cfg || !cfg->hal || !cfg->hal->configured || !cfg->vlans ||
         !cfg->board_snapshot ||
         cfg->board_snapshot->registers_observed!=1U ||
+        /* A decoded address aperture is not installed board evidence.
+         * Require independent BSP proof of H910P identity, PHY and rescue
+         * before any MAC/DMA register writes. The passive snapshot sets
+         * none of these; production startup cannot opt in accidentally. */
+        cfg->board_snapshot->h910p_board_verified!=1U ||
+        cfg->board_snapshot->ethernet_phy_verified!=1U ||
+        cfg->board_snapshot->recovery_verified!=1U ||
         cfg->board_snapshot->soc_revision_matches_reference!=1U ||
         cfg->board_snapshot->application_load_window_decoded!=1U ||
         cfg->board_snapshot->memory.decoded!=1U ||

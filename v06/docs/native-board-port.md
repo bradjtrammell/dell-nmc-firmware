@@ -44,3 +44,17 @@ qualification remain necessary. `main` remains the existing stable code.
 Register addresses: Digi NS7520 Hardware Reference Rev G Ethernet,
 DMA, GEN, and Memory Controller chapters.
 https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/
+
+## Physical startup evidence is mandatory (new gate)
+
+`ou_board_runtime_start` now requires independent evidence of the
+**actual installed H910P board**, the actual Ethernet/PHY wiring,
+and an **independently recoverable boot path** before activating the
+NIC or DMA. A passive register snapshot deliberately initializes these
+fields to zero, even if the SoC revision and DRAM decode look correct.
+
+The future board adapter must supply genuine verified evidence after
+board qualification. Do **not** set these flags merely because generic
+NS7520 registers read successfully; a real flash/install approval remains
+separate. The runtime still defaults to refusing the unqualified port.
+Host tests check missing evidence independently and verify no NIC startup.
