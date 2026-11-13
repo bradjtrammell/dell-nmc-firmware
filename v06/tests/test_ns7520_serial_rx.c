@@ -60,7 +60,8 @@ static void fields(unsigned channel){
     assert(ou_ns7520_serial_rx_read_whitelisted(&s,
               selected_status-4U,&value)==-1&&value==0U);
     assert(ou_ns7520_serial_rx_read_whitelisted(&s,
-              OU_NS7520_SER1_FIFO+UINT32_C(0x40),&value)==-1);
+              channel==1U?OU_NS7520_SER2_FIFO:OU_NS7520_SER1_FIFO,
+              &value)==-1&&value==0U);
 }
 static void errors(void){
     ou_ns7520_serial_rx s=qualified(1U);

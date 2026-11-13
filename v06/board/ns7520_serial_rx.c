@@ -36,10 +36,11 @@ int ou_ns7520_serial_rx_poll(const ou_ns7520_serial_rx *source,
     /* Status A RBRK/RFE/RPE/ROVER bits 15..12. These are sticky error
      * flags: never clear them here (that would be a register write).
      * RBC and RRDY must not both be active per Digi Rev G p.238. */
-    if(status & (OU_NS7520_SER_RX_ERRORS|
-                   (OU_NS7520_SER_RX_READY&
-                    ((status&OU_NS7520_SER_RX_BUFFER_CLOSED)?
-                     UINT32_MAX:0U))))return -1;
+    if((status & OU_NS7520_SER_RX_ERRORS)!=0U ||
+       ((status & (OU_NS7520_SER_RX_READY|
+                    OU_NS7520_SER_RX_BUFFER_CLOSED))==
+                  (OU_NS7520_SER_RX_READY|
+                   OU_NS7520_SER_RX_BUFFER_CLOSED)))return -1;
     if(!(status&OU_NS7520_SER_RX_READY))return 0;
     /* RXFDB bits 21:20: 00=>4, 01=>1, 10=>2, 11=>3 valid bytes. */
     available=(unsigned)((status>>20U)&3U);
