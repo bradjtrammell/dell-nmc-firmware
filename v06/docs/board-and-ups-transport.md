@@ -36,3 +36,35 @@ Before a **physical** test image: verify controller values and bank/erase geomet
 - [Digi NS7520 Hardware Reference, Rev G](https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/), especially memory controller chapter, Table 35 and the BAR/OR bit descriptions.
 - [Digi NET+OS Programmer's Guide](https://hub.digi.com/dp/path%3D/support/asset/net-plus-os-programmers-guide/), DMA hardware dependencies, Chapter 5 bootloader.
 - Original vendor archives supplied by the hardware owner, their SHA-256 pinned in the sanitized evidence report (not redistributed).
+
+## NS7520 dual-channel serial UART FIFO receiver (new native component)
+
+`board/ns7520_serial_rx.c` implements the **actual documented CPU register
+read path** for both NS7520 serial channels, not an abstract byte queue:
+Status A at `0xFFD00008` or `0xFFD00048`; receive FIFO at
+`0xFFD00010` or `0xFFD00050`. It observes RRDY (bit 11), RXFDB
+(bits 21:20; 00=4, 01=1, 10=2, 11=3 valid bytes), rejects RBRK/RFE/
+RPE/ROVER (bits 15:12) and inconsistent receive-buffer closure. It
+**never drains** the FIFO if the caller has inadequate output capacity,
+and never reads FIFO before checking receiver status and source gates.
+No UART/SPI clock or pinmux configuration, register writes, resets,
+interrupt ACKs, DMA or power commands exist.
+
+Before *any* read, the H910P BSP must independently qualify: peripheral
+memory mapping, the specific channel (1 or 2), UART FIFO rather than
+SPI/DMA mode, FIFO byte-lane convention, exclusive UART ownership, and
+**measured physical connection of that channel to the UPS**. The user-facing
+RJ45 Settings console is not presumed to be the internal UPS bus. The
+SHUT specification suggests **2400 baud** for a SHUT interface, while
+Dell's *external Settings console* operates at **9600 baud**; neither
+speed is evidence of the internal link configuration.
+
+The guarded receive-only code is linked in the ARM7 research image and
+tested for both channel register maps, 1–4-byte FIFO transfer lengths,
+read failures, serial overrun/framing errors and refused unqualified
+access. This does **not** establish which H910P channel is connected to
+the UPS or certify its voltage levels.
+
+Sources: Digi NS7520 Hardware Reference Rev G, chapter 10, pp. 221–222,
+233–238, 250, https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/
+and MGE SHUT general specification section 2.1.
