@@ -231,3 +231,14 @@ configuration journal. The browser development preview offers a local
 Network/System draft editor and an explicitly non-installable JSON review
 export. All actual configuration writes, network activation and
 on-card authenticated editing remain disabled until verified.
+
+## Network configuration activation, dry-run only
+
+`v06/src/config_activation.c` provides a confirmed, timeout-bounded,
+rollback-first network configuration transaction over the typed model
+and qualified two-slot configuration journal. It has no bound H910P
+hardware adapters, so the development UI remains local-draft-only
+and every HTTP write remains disabled. The controller is verified by
+host simulations of interrupted writes, reconnect/timeout, rollback
+and fatal restoration. These checks do not imply a working on-card
+network configuration or completed firmware.

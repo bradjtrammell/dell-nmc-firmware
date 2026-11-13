@@ -154,3 +154,32 @@ suite tests local form validation, blocking invalid exports, exact field
 content in the review-only JSON, and retention of unrelated
 management navigation. No environment deployment or hardware writes
 are performed by these tests.
+
+## Network activation transaction acceptance
+
+The new `ou_config_activation` state machine is a pure, freestanding
+ARM7-compatible model for confirmed network-profile changes. It refuses
+to start without explicitly bound and separately qualified
+authorization, network-apply/restore/probe adapters, a validated
+committed baseline and a fully write-qualified independent CONFIG
+journal. No unchecked flags from HTTP can invoke the controller.
+Every candidate is checked against the nine-field typed configuration
+model; stale journal generations, no-op requests and concurrent
+operations are rejected.
+
+A new profile is applied provisionally and cannot be persisted until
+an authorized reconnect succeeds within its bounded confirmation
+window. Outages, hardware errors, operator cancellation and timeouts
+restore the old network profile. Interrupted commits preserve the
+prior record; a post-marker failure is examined carefully and
+repaired when safe. Failure to prove restoration yields a fatal state
+requiring independent recovery, not a false success. Simulated NOR,
+network, connectivity, authorization and recovery tests are part of
+the normal host and sanitized CI suite. The module is cross-compiled
+and linked into the non-flashable ARM7 research image.
+
+**Not implemented:** a qualified H910P network adapter, live
+authentication, HTTPS session, independent recovery channel, actual
+configuration flash partition, and device-resident confirmation UI.
+The existing read-only simulator remains read-only, without hidden
+power/network operations.

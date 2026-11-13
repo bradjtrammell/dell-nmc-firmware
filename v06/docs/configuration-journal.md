@@ -85,3 +85,41 @@ the entire decoded state is swapped only after validation.
 This remains **offline engineering only**. On-card credentials, signed
 updates, physical flash mapping, safe network reconfiguration with rollback,
 activation, and a verified configuration migration path remain unfinished.
+
+## Two-phase management-network activation (offline model)
+
+`src/config_activation.c` and `include/ou_config_activation.h` implement
+a bounded, cooperative **apply → reconnect → confirm or rollback** transaction.
+The model first loads an independently CRC-verified, committed baseline from
+the qualified two-slot CONFIG journal. Before an apply callback can run,
+it requires the complete validated candidate, a different active profile,
+live authorization, existing-management reachability, a physically
+qualified network adapter and rollback channel, a verified dedicated
+configuration partition, and write-enabled storage. A stale or
+concurrently changed journal generation rejects the attempt.
+
+Applying a candidate **does not persist it**. The operator gets a
+10–180-second confirm window; transient lost connectivity can recover during
+that window. A hard link failure, timeout or explicit cancel restores the
+previous physical profile while leaving its disk record unchanged. A
+confirmation requires the authorized operator and proven reconnect, then
+commits the new profile atomically. Failed commits trigger restoration.
+An interrupted commit that actually wrote its final commit marker is
+detected and, if possible, rolled back with a new verified journal entry;
+an unexpected third-party journal modification is never overwritten
+silently. If hardware restoration or persistence verification fails, the
+controller reports `FAILED_ROLLBACK` instead of pretending the network
+is accessible.
+
+This code **does not** provide real H910P Ethernet reconfiguration,
+remote authentication, recovery boot, TLS, or storage partitions. All
+callbacks in the automated tests are simulated. The development HTTP
+server still refuses all writes (405) and no browser control can invoke
+`ou_config_activation_begin`. The physical adapter is deliberately
+unbound until actual card support and independent recovery are proven.
+
+Tests cover authorization denial, unverified network/rollback gates,
+write-disabled storage, stale candidate rejection, reentrancy,
+connectivity interruptions, bounded confirmation, 32-bit clock wrap,
+manual cancel, incomplete apply, write interruption, ambiguous
+post-commit readback, prior-record retention and fatal restoration errors.
