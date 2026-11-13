@@ -76,6 +76,7 @@ static int send_chunk(ou_tcp_engine*e,const ou_vlan_table*t,ou_tcp_slot*s,
  if(len){
   if(s->peer_window==0U)return 0;
   if(len>OU_TCP_SEGMENT_MSS)len=OU_TCP_SEGMENT_MSS;
+  if(len>s->peer_mss)len=s->peer_mss;
   if(len>s->peer_window)len=s->peer_window;
   ret=encode(e,t,s,ACK|PSH,(const uint8_t*)s->response+s->response_offset,
              len,now_ms,out,cap,written);
@@ -108,6 +109,7 @@ int ou_tcp_engine_receive(ou_tcp_engine*e,ou_vlan_table*t,const uint8_t*frame,
   s->tagged=in.vlan.tagged;s->priority_tag=(uint8_t)(in.vlan.tagged&&
      (r16(frame+14U)&UINT16_C(0x0fff))==0U);
   s->remote_port=in.source_port;s->peer_window=in.advertised_window;
+  s->peer_mss=in.peer_mss?in.peer_mss:536U;
   cp(s->remote_mac,in.source_mac,6U);cp(s->remote_ip,in.source_ipv4,4U);
   cp(s->local_ip,in.destination_ipv4,4U);
   s->receive_next=in.sequence+1U;

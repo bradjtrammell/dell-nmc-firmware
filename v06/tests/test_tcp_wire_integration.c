@@ -117,8 +117,40 @@ static void test_denials(void){
     packet(100U,peer1,ip1,50000U,500U,0U,2U,0,0U);
     assert(receive(16U)==1);verify_reply(0x12U);
 }
+static void syn_mss_option(uint16_t mss,uint8_t kind,uint8_t length){
+ uint8_t *ip=rx+18U,*tcp=ip+20U;uint32_t pseudo;
+ assert(rx_size==64U && (tcp[13U]&0x02U));
+ w16(ip+2U,44U);tcp[12U]=0x60U;
+ tcp[20U]=kind;tcp[21U]=length;w16(tcp+22U,mss);
+ w16(ip+10U,0U);w16(ip+10U,csum(sum(0U,ip,20U)));
+ w16(tcp+16U,0U);
+ pseudo=sum(0U,ip+12U,8U)+6U+24U;
+ w16(tcp+16U,csum(sum(pseudo,tcp,24U)));
+}
+static void test_syn_mss(void){
+ init();
+ packet(100U,peer1,ip1,53000U,1000U,0U,2U,0,0U);
+ syn_mss_option(256U,2U,4U);
+ assert(receive(20U)==1);
+ assert(engine.slots[0].peer_mss==256U);
+ verify_reply(0x12U);
+
+ init();
+ packet(100U,peer1,ip1,53000U,1000U,0U,2U,0,0U);
+ assert(receive(21U)==1 && engine.slots[0].peer_mss==536U);
+
+ init();
+ packet(100U,peer1,ip1,53000U,1000U,0U,2U,0,0U);
+ syn_mss_option(0U,2U,4U);
+ assert(receive(22U)==0 && engine.slots[0].state==0U);
+
+ init();
+ packet(100U,peer1,ip1,53000U,1000U,0U,2U,0,0U);
+ syn_mss_option(256U,2U,3U);
+ assert(receive(23U)==0 && engine.slots[0].state==0U);
+}
 int main(void){
-    test_http();test_denials();
+    test_http();test_syn_mss();test_denials();
     puts("PASS: real VLAN/IP/TCP ingress, split HTTP request, checksums, ACL isolation");
     return 0;
 }

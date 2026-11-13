@@ -7,6 +7,7 @@ static ou_vlan_table vlans;
 static uint8_t input[1518], output[1518];
 static size_t out_len;
 static uint32_t peerseq=40000U,serverseq;
+static uint16_t negotiated_mss=1024U;
 static uint16_t v16(const uint8_t *p){return (uint16_t)(((uint16_t)p[0]<<8)|p[1]);}
 static uint32_t v32(const uint8_t*p){return ((uint32_t)p[0]<<24)|((uint32_t)p[1]<<16)|((uint32_t)p[2]<<8)|p[3];}
 static void w16(uint8_t*p,uint16_t v){p[0]=(uint8_t)(v>>8);p[1]=(uint8_t)v;}
@@ -36,6 +37,7 @@ int ou_tcp_ingress_check(const ou_vlan_table*t,const uint8_t *f,size_t n,ou_tcp_
  memset(in,0,sizeof(*in));in->vlan.vlan_id=v16(f+14);in->vlan.tagged=1;
  in->vlan.interface_index=(uint8_t)idx;in->source_port=v16(tcp);
  in->destination_port=v16(tcp+2);in->advertised_window=4096U;
+ in->peer_mss=negotiated_mss;
  in->sequence=v32(tcp+4);in->acknowledgment=v32(tcp+8);in->flags=tcp[13];
  memcpy(in->source_mac,f+6,6);memcpy(in->source_ipv4,ip+12,4);
  memcpy(in->destination_ipv4,ip+16,4);
@@ -56,6 +58,7 @@ static void initialize(void){
  vlans.interfaces[0].vid=100;vlans.interfaces[0].tx_pcp=5;
  vlans.interfaces[1].vid=200;vlans.interfaces[1].tx_pcp=2;
  assert(ou_tcp_engine_init(&server,123456U)==0);
+ negotiated_mss=1024U;
 }
 static int send(uint32_t t){return ou_tcp_engine_receive(&server,&vlans,input,in_len,t,app,0,output,sizeof(output),&out_len);}
 static void test_normal(void){
@@ -101,4 +104,19 @@ static void test_timeout_and_isolation(void){
  assert(ou_tcp_engine_tick(&server,22000,output,sizeof(output),&n)==0);
  assert(server.slots[0].state==0&&server.slots[1].state==0);
 }
-int main(void){test_normal();test_timeout_and_isolation();puts("PASS: TCP handshake, segmented HTTP response, FIN, retransmission, 4-slot VLAN isolation");return 0;}
+static void test_peer_mss(void){
+ const char *request="GET /api/v1/health HTTP/1.1\\r\\nHost: card\\r\\n\\r\\n";
+ uint32_t seq=5000U,reply_seq,client_next;
+ initialize();negotiated_mss=256U;
+ packet(100,6000,seq,0U,2U,0,0U);
+ assert(send(100U)==1);reply_seq=v32(output+38+4);
+ assert(server.slots[0].peer_mss==256U);
+ packet(100,6000,seq+1U,reply_seq+1U,0x10U,0,0U);
+ assert(send(110U)==0);
+ packet(100,6000,seq+1U,reply_seq+1U,0x18U,request,strlen(request));
+ assert(send(120U)==1);assert(v16(output+18+2)==40U+256U);
+ client_next=seq+1U+(uint32_t)strlen(request);
+ packet(100,6000,client_next,reply_seq+257U,0x10U,0,0U);
+ assert(send(130U)==1);assert(v16(output+18+2)==40U+256U);
+}
+int main(void){test_normal();test_peer_mss();test_timeout_and_isolation();puts("PASS: TCP handshake, segmented HTTP response, FIN, retransmission, 4-slot VLAN isolation");return 0;}

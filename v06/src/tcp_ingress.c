@@ -22,11 +22,37 @@ static int checksum_good(uint32_t sum) {
     while (sum > UINT32_C(0xffff)) sum = (sum & UINT32_C(0xffff)) + (sum >> 16);
     return sum == UINT32_C(0xffff);
 }
+/* Bound peer MSS to the actual SYN option, not an assumed Ethernet MTU.
+ * IPv4's default receive MSS is 536 when the peer sends no MSS option. */
+static int peer_mss_option(const uint8_t *tcp, size_t header_length,
+                           uint16_t *mss) {
+    size_t pos = 20U;
+    uint8_t seen = 0U;
+    *mss = 536U;
+    while (pos < header_length) {
+        uint8_t kind = tcp[pos], option_length;
+        if (kind == 0U) break; /* End of option list. */
+        if (kind == 1U) { ++pos; continue; } /* NOP. */
+        if (pos + 1U >= header_length) return 0;
+        option_length = tcp[pos + 1U];
+        if (option_length < 2U ||
+            (size_t)option_length > header_length - pos) return 0;
+        if (kind == 2U) {
+            if ((tcp[13] & UINT8_C(0x02)) == 0U ||
+                option_length != 4U || seen) return 0;
+            *mss = rd16(tcp + pos + 2U);
+            if (*mss == 0U) return 0;
+            seen = 1U;
+        }
+        pos += option_length;
+    }
+    return 1;
+}
 int ou_tcp_ingress_check(const ou_vlan_table *vlans, const uint8_t *frame,
                          size_t length, ou_tcp_ingress *result) {
     ou_vlan_rx_context vlan;
     size_t ip_offset, ip_len, tcp_offset, tcp_len, tcp_header;
-    uint16_t tcp_port;
+    uint16_t tcp_port, peer_mss;
     uint32_t pseudo;
     const uint8_t *ip, *tcp;
     int classified;
@@ -63,6 +89,7 @@ int ou_tcp_ingress_check(const ou_vlan_table *vlans, const uint8_t *frame,
         (tcp[12] & 15U) != 0U ||
         (tcp[13] & UINT8_C(0x3f)) == 0U ||
         ((tcp[13] & UINT8_C(0x03)) == UINT8_C(0x03))) return 0;
+    if (!peer_mss_option(tcp, tcp_header, &peer_mss)) return 0;
     /* RFC 9293 checksum covers TCP header, payload and IPv4 pseudoheader. */
     pseudo = add16(0U, ip + 12U, 8U);
     pseudo += OU_TCP_IPV4_PROTOCOL;
@@ -78,6 +105,7 @@ int ou_tcp_ingress_check(const ou_vlan_table *vlans, const uint8_t *frame,
     result->source_port = rd16(tcp);
     result->destination_port = tcp_port;
     result->advertised_window = rd16(tcp + 14U);
+    result->peer_mss = peer_mss;
     result->sequence = rd32(tcp + 4U);
     result->acknowledgment = rd32(tcp + 8U);
     result->flags = tcp[13];

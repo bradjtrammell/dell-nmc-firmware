@@ -13,6 +13,7 @@ typedef struct {
     uint16_t source_port;
     uint16_t destination_port;
     uint16_t advertised_window;
+    uint16_t peer_mss; /* Validated SYN MSS, or IPv4 default 536. */
     uint32_t sequence;
     uint32_t acknowledgment;
     uint8_t flags;

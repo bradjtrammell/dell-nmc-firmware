@@ -21,6 +21,7 @@ typedef struct {
     uint16_t vid;
     uint16_t remote_port;
     uint16_t peer_window;
+    uint16_t peer_mss;
     uint8_t remote_mac[6];
     uint8_t remote_ip[4];
     uint8_t local_ip[4];
