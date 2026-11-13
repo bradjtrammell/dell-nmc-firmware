@@ -13,6 +13,8 @@ static uint32_t now=100U;
 static int mmio(void *ctx,uint32_t addr,uint32_t *value){
     fake_fifo *w=ctx;
     size_t count;
+    if(addr==OU_NS7520_SER1_CTRL_A){*value=UINT32_C(0x83000000);return 0;}
+    if(addr==OU_NS7520_SER1_CTRL_B){*value=0U;return 0;}
     if(addr==OU_NS7520_SER1_STATUS_A){
         ++w->reads;
         if(w->position==w->length){*value=0U;return 0;}

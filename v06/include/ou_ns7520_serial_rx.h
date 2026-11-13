@@ -8,8 +8,12 @@
  * This is receive-only. It NEVER configures clocks, pinmux, DMA, interrupts,
  * control registers, FIFO writes, Settings jack, or UPS power outputs.
  * The H910P's internal UPS channel and electrical wiring are unverified. */
+#define OU_NS7520_SER1_CTRL_A UINT32_C(0xffd00000)
+#define OU_NS7520_SER1_CTRL_B UINT32_C(0xffd00004)
 #define OU_NS7520_SER1_STATUS_A UINT32_C(0xffd00008)
 #define OU_NS7520_SER1_FIFO UINT32_C(0xffd00010)
+#define OU_NS7520_SER2_CTRL_A UINT32_C(0xffd00040)
+#define OU_NS7520_SER2_CTRL_B UINT32_C(0xffd00044)
 #define OU_NS7520_SER2_STATUS_A UINT32_C(0xffd00048)
 #define OU_NS7520_SER2_FIFO UINT32_C(0xffd00050)
 #define OU_NS7520_SER_RX_READY UINT32_C(0x00000800)
@@ -30,7 +34,9 @@ typedef struct {
 } ou_ns7520_serial_rx;
 
 /* Zero, no FIFO data; positive, 1..4 bytes; -1, invalid/error.
- * The first callback reads Status A; only when RRDY and no error exists may
+ * Read and validate actual Serial Control A/B state before Status A:
+ * enabled UART, 8N1, no loopback or RX DMA, normal NRZ and bit ordering.
+ * Only when RRDY and no serial error exists may
  * it read the FIFO once. No serial MMIO writes are possible in this module.
  * Output is unchanged and *written=0 on refusal or callback failure. */
 int ou_ns7520_serial_rx_poll(const ou_ns7520_serial_rx *source,
@@ -38,7 +44,7 @@ int ou_ns7520_serial_rx_poll(const ou_ns7520_serial_rx *source,
                               size_t *written);
 
 /* CPU read primitive: same qualified read implementation as the existing
- * NS7520 HAL, but this wrapper permits ONLY Status A and FIFO of the
+ * NS7520 HAL, but this wrapper permits ONLY Control A/B, Status A and FIFO of the
  * independently chosen channel. It cannot access other SoC registers. */
 int ou_ns7520_serial_rx_read_whitelisted(const ou_ns7520_serial_rx *source,
                                           uint32_t address, uint32_t *value);

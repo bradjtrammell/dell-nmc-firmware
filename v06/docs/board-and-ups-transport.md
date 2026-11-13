@@ -68,3 +68,22 @@ the UPS or certify its voltage levels.
 Sources: Digi NS7520 Hardware Reference Rev G, chapter 10, pp. 221–222,
 233–238, 250, https://hub.digi.com/dp/path%3D/support/asset/ns7520-hardware-reference-manual/
 and MGE SHUT general specification section 2.1.
+
+## Dynamic NS7520 UART mode verification
+
+The UART FIFO adapter now reads the **actual** Serial Control A/B registers
+before every FIFO poll. It refuses to drain bytes unless the controller is
+enabled, in 8N1 format (WLS=11, parity/extra stop disabled), not in serial
+DMA or local/remote loopback, with UART (rather than SPI) mode, normal bit
+ordering and NRZ receiver encoding. These conditions are decoded from
+the documented NS7520 register bits, not copied from an assumed H910P
+pinout or hardcoded baud rate. All four accesses remain read-only,
+whitelisted and independently gated on a qualified board connection.
+
+A known SHUT UART format does **not** establish which serial channel
+the H910P uses or that its onboard UPS bus is even UART-based. The
+component still refuses use without separate electrical proof; the
+factory Settings jack remains untouched.
+
+References: Digi NS7520 Hardware Reference Rev G, Table 85 pp.223–227,
+Table 88 pp.229–231, Table 89 pp.233–238.
