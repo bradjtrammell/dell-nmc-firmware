@@ -42,3 +42,23 @@ OU_EABI_NO_OPT
 void __aeabi_memclr8(void *dest, size_t bytes) {
     __aeabi_memclr4(dest, bytes);
 }
+
+/* The ARM7TDMI has no hardware integer divide. Clang emits __aeabi_uidiv
+ * for unsigned 32-bit divisions in the native telemetry/unit-calibration
+ * path. Constant 32-iteration binary long division, no libc or recursive
+ * division helper calls. All callers must reject a zero denominator. */
+OU_EABI_NO_OPT
+uint32_t __aeabi_uidiv(uint32_t numerator, uint32_t denominator) {
+    uint32_t quotient=0U,remainder=0U;
+    unsigned i;
+    if(denominator==0U)return 0U; /* Defensive ABI fallback; caller validates. */
+    for(i=32U;i>0U;--i) {
+        uint32_t carry=remainder>>31U;
+        remainder=(remainder<<1U)|((numerator>>(i-1U))&1U);
+        if(carry||remainder>=denominator) {
+            remainder-=denominator;
+            quotient|=UINT32_C(1)<<(i-1U);
+        }
+    }
+    return quotient;
+}

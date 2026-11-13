@@ -62,3 +62,15 @@ It intentionally does **not** generate a `.bin` with Dell's `bootHdr` or a flash
 6. Prove signed updates, flash sector boundaries, interrupted installation recovery and successful rollback before live test.
 
 **Hardware test status: BLOCKED, not an implementation-complete release.** This is the maximum tested **offline** firmware substrate, not an excuse to flash an unknown image on a live UPS.
+
+## Freestanding ARM7 division runtime
+
+Calibrating native HID measurements requires general 32-bit unsigned
+division. ARM7TDMI has no hardware division instruction, and the research
+ELF previously lacked Clang's `__aeabi_uidiv` helper. A bounded
+32-iteration restoring unsigned long division helper is now linked without
+libc or recursion. Its host regression compares against native C division
+for all edge combinations and 10,000 deterministic pseudorandom operands.
+The helper's zero-divisor fallback is not an application success condition;
+all callers validate divisors before invoking it. ARM7 linking and full
+sanitizer tests remain mandatory.
