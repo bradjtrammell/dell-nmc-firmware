@@ -131,7 +131,8 @@ function createEnvironment({inconsistent=false}={}){
     assert.equal(opts.method,"GET");
     assert.equal(opts.credentials,"same-origin");
     const info=respond(route);
-    return {ok:!info.status,status:info.status||200,
+    const httpStatus=typeof info.status==="number"?info.status:200;
+    return {ok:httpStatus>=200&&httpStatus<300,status:httpStatus,
       async json(){return info;}};
   }
   const source=readFileSync(path.join(__dirname,"..","web","app.js"),"utf8");
