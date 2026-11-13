@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120,timeDraft:{server:'',timezone:'America/New_York',dst:'automatic'}};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120,timeDraft:{server:'',timezone:'America/New_York',dst:'automatic'},shutdownDraft:null};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -1001,6 +1001,140 @@
     return panel;
   }
 
+  function renderShutdownPolicy(schema,advisory){
+    const panel=element("div","shutdown-policy");
+    if(!schema||schema.policyModelCompiled!==true||
+       schema.minimumShutdownDurationSeconds!==120 ||
+       schema.maximumShutdownDurationSeconds!==9999 ||
+       schema.outlets!==3 || schema.policyWritable!==false){
+      add(panel,notice("UPS shutdown settings unavailable",
+        "The server did not provide the complete validated three-outlet shutdown policy schema.","error"));
+      return panel;
+    }
+    add(panel,section("UPS and outlet shutdown thresholds",
+      "Shutdown duration, battery limits, restart level, and independent outlet timing for all three UPS outputs."));
+    if(advisory&&advisory.resource==="shutdown.advisory"){
+      add(panel,properties([
+        ["Battery or runtime threshold reached",advisory.recommendAgentWarning?"Yes":"No"],
+        ["Power commands",advisory.powerCommandsEnabled?"Enabled":"Disabled"],
+        ["Physical shutdown executed",advisory.physicalShutdownExecuted?"Yes":"No"]
+      ]));
+    }else{
+      add(panel,notice("No validated active shutdown policy",
+        "The native card has not supplied a protected policy with verified UPS telemetry. The settings below are a local review only.","info"));
+    }
+    if(!state.shutdownDraft){
+      state.shutdownDraft={
+        master:{duration:120,timerSelected:false,forcedReboot:false,
+          timerSeconds:0,runtimeSeconds:0,capacityPercent:0,restartPercent:0},
+        segments:[{duration:120,shutdownDelay:0,startupDelay:0,capacityPercent:0},
+                  {duration:120,shutdownDelay:0,startupDelay:0,capacityPercent:0}]
+      };
+    }
+    const draft=state.shutdownDraft;
+    const fields=element("div","shutdown-fields");
+    const warnings=element("div","config-errors");
+    warnings.setAttribute("role","status");warnings.setAttribute("aria-live","polite");
+    const buttonExport=button("Export shutdown-policy review",null,true);
+    const footer=element("div","config-actions");
+    const summary=node("span","Local draft only; no changes applied.","label");
+    add(footer,buttonExport,summary);
+    function entry(host,key,label,min,max,step){
+      const wrap=element("div","config-field");
+      const id="shutdown-"+(host===draft.master?"master":host===draft.segments[0]?"outlet-2":"outlet-3")+"-"+key;
+      const text=element("label","",label);text.htmlFor=id;
+      const input=element("input","config-input");
+      input.type="number";input.id=id;input.min=String(min);
+      input.max=String(max);input.step=String(step);
+      input.value=String(host[key]);
+      input.addEventListener("input",()=>{
+        host[key]=input.value.trim()===""?NaN:Number(input.value);
+        update();
+      });
+      add(wrap,text,input);return wrap;
+    }
+    function toggle(host,key,label){
+      const wrap=element("div","config-field");
+      const text=element("label","",label);
+      const id="shutdown-"+key;text.htmlFor=id;
+      const select=element("select","config-input");select.id=id;
+      [["false","Disabled"],["true","Enabled"]].forEach(([value,name])=>{
+        const option=element("option","",name);option.value=value;
+        select.appendChild(option);
+      });
+      select.value=String(host[key]);
+      select.addEventListener("change",()=>{host[key]=select.value==="true";update();});
+      add(wrap,text,select);return wrap;
+    }
+    const sectionMaster=element("fieldset","shutdown-outlet");
+    sectionMaster.appendChild(element("legend","","Main UPS"));
+    const masterFields=element("div","shutdown-grid");
+    add(masterFields,
+      entry(draft.master,"duration","Shutdown duration (seconds)",120,9999,1),
+      toggle(draft.master,"timerSelected","Use timed shutdown"),
+      entry(draft.master,"timerSeconds","Shutdown timer (seconds, 60-second steps)",0,5999940,60),
+      entry(draft.master,"runtimeSeconds","Minimum remaining runtime (seconds)",0,99999,1),
+      entry(draft.master,"capacityPercent","Minimum battery charge (%)",0,100,1),
+      entry(draft.master,"restartPercent","Battery charge required for restart (%)",0,100,1),
+      toggle(draft.master,"forcedReboot","Forced reboot after shutdown"));
+    sectionMaster.appendChild(masterFields);
+    fields.appendChild(sectionMaster);
+    draft.segments.forEach((segment,index)=>{
+      const outlet=element("fieldset","shutdown-outlet");
+      outlet.appendChild(element("legend","","Outlet "+(index+2)));
+      const grid=element("div","shutdown-grid");
+      add(grid,
+        entry(segment,"duration","Shutdown duration (seconds)",120,9999,1),
+        entry(segment,"shutdownDelay","Shutdown delay (seconds)",0,99999,1),
+        entry(segment,"startupDelay","Startup delay (seconds)",0,65535,1),
+        entry(segment,"capacityPercent","Minimum battery charge (%)",0,100,1));
+      outlet.appendChild(grid);fields.appendChild(outlet);
+    });
+    function validNumber(value,min,max,step){
+      return Number.isInteger(value)&&value>=min&&value<=max&&value%step===0;
+    }
+    function validate(){
+      const err=[],m=draft.master;
+      const check=(value,min,max,step,label)=>{
+        if(!validNumber(value,min,max,step))err.push(label+" must be within the supported range.");
+      };
+      check(m.duration,120,9999,1,"Main shutdown duration");
+      check(m.timerSeconds,0,5999940,60,"Main shutdown timer");
+      check(m.runtimeSeconds,0,99999,1,"Runtime limit");
+      check(m.capacityPercent,0,100,1,"Battery charge threshold");
+      check(m.restartPercent,0,100,1,"Restart battery threshold");
+      if(typeof m.timerSelected!=="boolean"||typeof m.forcedReboot!=="boolean")
+        err.push("The main UPS switches must be enabled or disabled.");
+      draft.segments.forEach((o,i)=>{
+        const name="Outlet "+(i+2);
+        check(o.duration,120,9999,1,name+" shutdown duration");
+        check(o.shutdownDelay,0,99999,1,name+" shutdown delay");
+        check(o.startupDelay,0,65535,1,name+" startup delay");
+        check(o.capacityPercent,0,100,1,name+" battery threshold");
+      });
+      return err;
+    }
+    function update(){
+      const issues=validate();
+      warnings.replaceChildren(...issues.map(message=>node("p",message)));
+      buttonExport.disabled=issues.length>0;
+      summary.textContent=issues.length?
+        issues.length+" invalid setting(s)":
+        "All 3 outlets validated; local draft only";
+    }
+    buttonExport.addEventListener("click",()=>{
+      update();if(buttonExport.disabled)return;
+      saveEventFile("openh910p-shutdown-policy-review.json",JSON.stringify({
+        schemaVersion:1,kind:"openh910p-shutdown-policy-review",
+        applied:false,installable:false,physicalPowerControl:false,
+        master:{...draft.master},
+        outlets:draft.segments.map((s,i)=>({outlet:i+2,...s}))
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    add(panel,fields,warnings,footer);
+    update();return panel;
+  }
+
   function renderTimeService(policy,status){
     const panel=element("div","time-service");
     add(panel,section("Clock and time synchronization",
@@ -1347,7 +1481,7 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus) {
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus,shutdownSchema,shutdownAdvisory) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
@@ -1355,6 +1489,7 @@
     if(key==="firmware")container.appendChild(renderFirmwareUpdate(updatePolicy));
     if(key==="snmp")container.appendChild(renderSnmpAgent(snmpPolicy));
     if(key==="time")container.appendChild(renderTimeService(timePolicy,timeStatus));
+    if(key==="shutdown")container.appendChild(renderShutdownPolicy(shutdownSchema,shutdownAdvisory));
     if(key==="applications"||key==="shutdown")
       container.appendChild(renderShutdownAgents(agentsPolicy,agentsStatus,key));
     if(key==="email"||key==="snmp")
@@ -1505,8 +1640,15 @@
           try{timeStatus=await request("time/status",signal);}
           catch(error){if(error.httpStatus!==503)throw error;}
         }
+        let shutdownSchema=null,shutdownAdvisory=null;
+        if(page==="shutdown"){
+          try{shutdownSchema=await request("shutdown/schema",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+          try{shutdownAdvisory=await request("shutdown/advisory",signal);}
+          catch(error){if(error.httpStatus!==503)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus,timePolicy,timeStatus,shutdownSchema,shutdownAdvisory);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

@@ -255,3 +255,7 @@ from the browser. See `docs/github-updater.md`.
 ## Independent time sync and UTC status
 
 `GET /api/v1/time/capabilities` describes the compiled NTPv4 wire validator, maximum 5-second response time and 1-hour maximum sample age; live network, NTS, RTC, source, timezone and DST qualifications remain false. `GET /api/v1/time/status` returns UTC Unix seconds, millisecond precision, RTT and estimated uncertainty only after a verified native time sample, otherwise 503 `TIME_NOT_SYNCHRONIZED`. The Time UI prepares a review-only server/timezone/DST configuration with no actual set-time operation. See `docs/time-sync.md`.
+
+## Shutdown parameter schema and native advisory
+
+`GET /api/v1/shutdown/schema` describes OEM-range master UPS and outlet 2/3 thresholds, delays and duration bounds. Policy persistence and power control qualifications remain false. `GET /api/v1/shutdown/advisory` returns only verified native policy+telemetry flags (read-only recommendation, never physical execution), and otherwise responds 503 `SHUTDOWN_POLICY_OR_TELEMETRY_UNAVAILABLE`. The Shutdown Parameters page offers a locally validated complete review export. See `docs/shutdown-policy.md`.

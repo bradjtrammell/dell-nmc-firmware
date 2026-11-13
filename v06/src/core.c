@@ -4,6 +4,7 @@
 #include "ou_notify.h"
 #include "ou_agents.h"
 #include "ou_time_sync.h"
+#include "ou_shutdown_policy.h"
 
 typedef struct {
     char *data;
@@ -314,6 +315,7 @@ int ou_dispatch_managed(const char *method, const char *path,
                 const ou_notify_engine *notifications,
                 const ou_agent_status *agents,
                 const ou_time_sample *clock,
+                const ou_shutdown_advisory *shutdown,
                 char *body, size_t capacity, ou_reply *reply) {
     json_writer w;
     uint32_t field_page = 0, events_page = 0, history_index = 0;
@@ -426,6 +428,35 @@ int ou_dispatch_managed(const char *method, const char *path,
                 put_char(&w,'}');
             }
             put_char(&w,']');
+        }
+    } else if (same(path, "/api/v1/shutdown/schema")) {
+        common(&w,"shutdown.schema",snapshot);
+        property_bool(&w,"policyModelCompiled",1U,1);
+        property_bool(&w,"policyWritable",0U,1);
+        property_bool(&w,"activePolicyAvailable",0U,1);
+        property_bool(&w,"outputControlQualified",0U,1);
+        property_uint(&w,"outlets",3U,1);
+        property_uint(&w,"minimumShutdownDurationSeconds",120U,1);
+        property_uint(&w,"maximumShutdownDurationSeconds",9999U,1);
+        property_uint(&w,"maximumMasterTimerSeconds",5999940U,1);
+        property_uint(&w,"masterTimerStepSeconds",60U,1);
+        property_uint(&w,"maximumRuntimeThresholdSeconds",99999U,1);
+        property_uint(&w,"maximumOutletTimerSeconds",99999U,1);
+        property_uint(&w,"maximumOutletStartupSeconds",65535U,1);
+        property_uint(&w,"maximumCapacityPercent",100U,1);
+        property_string(&w,"mode","local-review-only",1);
+    } else if (same(path, "/api/v1/shutdown/advisory")) {
+        if(!shutdown){
+            reply->status=503;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","SHUTDOWN_POLICY_OR_TELEMETRY_UNAVAILABLE",1);
+        }else {
+            common(&w,"shutdown.advisory",snapshot);
+            property_uint(&w,"flags",shutdown->flags,1);
+            property_bool(&w,"recommendAgentWarning",shutdown->recommend_agent_warning,1);
+            property_bool(&w,"powerCommandsEnabled",0U,1);
+            property_bool(&w,"physicalShutdownExecuted",0U,1);
+            property_string(&w,"basis","verified-native-telemetry-and-qualified-policy",1);
         }
     } else if (same(path, "/api/v1/time/capabilities")) {
         common(&w,"time.capabilities",snapshot);
@@ -715,7 +746,7 @@ int ou_dispatch_observed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const ou_history_log *history,
                 char *body, size_t capacity, ou_reply *reply) {
-    return ou_dispatch_managed(method,path,snapshot,events,history,0,0,0,
+    return ou_dispatch_managed(method,path,snapshot,events,history,0,0,0,0,
                                body,capacity,reply);
 }
 

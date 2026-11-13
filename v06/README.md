@@ -304,3 +304,7 @@ A native 12-client registry now implements authenticated-enrollment boundaries, 
 ## Native UTC synchronization model
 
 The Time management page now exposes read-only NTP protocol qualifications, truthful synchronized/unsynchronized UTC reporting, and a local-only validated NTP server/time-zone/DST review. The native NTPv4 client uses externally supplied secure nonces, validates isolated trusted source replies and supports NTP era-1 timestamps after 2036. The H910P still needs verified network, NTS/clock trust and RTC/timezone integration. See `docs/time-sync.md`.
+
+## Native UPS shutdown thresholds and outlet policies
+
+The native three-outlet model validates master duration, timed shutdown, low-runtime/battery thresholds, restart level, forced-reboot flag, and the independent timers/charge limits of outlets 2 and 3. Read-only native policy advisories are derived only from qualified telemetry; an authorization-gated 64-byte dedicated journal supports rollback. The Shutdown Parameters page contains the full policy review editor alongside client warning coordination. No UPS power operation is enabled. See `docs/shutdown-policy.md`.

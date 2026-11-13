@@ -274,3 +274,7 @@ Host and native-service tests verify 12-client capacity, ID validation, authenti
 ## Trusted-LAN NTP client and monotonic UTC
 
 Unit and native-service tests exercise 48-byte NTPv4 request generation, secure nonce callbacks, source qualification, originate/response pairing, leap/stratum/mode rejection, root dispersion, RTT cutoff, NTP era 0/1 conversion, monotonic rollover, stale time withdrawal and no invented UTC. Browser and host tests assert the Time page's local review contract, 503 unsynchronized status and rejection of mutations. ARM7 and sanitizer checks include the implementation. See `docs/time-sync.md`.
+
+## Main/three-outlet shutdown policy and dry-run assessment
+
+The C suite validates original shutdown range/step constraints, main and per-outlet limits, native-only outage/runtime/capacity/restart assessment, fixed-size canonical records, failed writes and journal fallback. The native-service and HTTP tests ensure trusted input/policy binding, offline withdrawal and 405 for all mutation methods. The Node UI tests verify all three outlets and invalid fields disable review exports. ARM7 compilation/link and sanitizers include the module. No physical UPS actions or agent shutdown requests run. See `docs/shutdown-policy.md`.

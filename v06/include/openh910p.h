@@ -47,12 +47,14 @@ struct ou_history_log;
 struct ou_notify_engine;
 struct ou_agent_status;
 struct ou_time_sample;
+struct ou_shutdown_advisory;
 int ou_dispatch_managed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const struct ou_history_log *history,
                 const struct ou_notify_engine *notifications,
                 const struct ou_agent_status *agents,
                 const struct ou_time_sample *clock,
+                const struct ou_shutdown_advisory *shutdown,
                 char *body, size_t capacity, ou_reply *reply);
 
 int ou_dispatch_observed(const char *method, const char *path,

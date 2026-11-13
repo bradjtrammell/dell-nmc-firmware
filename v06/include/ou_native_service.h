@@ -9,6 +9,7 @@
 #include "ou_snmp.h"
 #include "ou_agents.h"
 #include "ou_time_sync.h"
+#include "ou_shutdown_policy.h"
 
 /* Single-threaded, zero-heap native application service. The future verified
  * MAC/TCP adapter submits ONE complete bounded request at a time.
@@ -66,6 +67,11 @@ int ou_native_service_time_bind(const ou_time_source *source);
 int ou_native_service_time_request(uint32_t now_ms,uint8_t wire[OU_NTP_WIRE_BYTES]);
 int ou_native_service_time_response(const uint8_t *wire,size_t length,
                             uint32_t now_ms,int source_address_verified);
+/* Bind independently provisioned validated shutdown policy; admin and
+ * separate physical config partition attestations are prerequisites.
+ * Advisory only. NEVER a UPS power command or OS shutdown. */
+int ou_native_service_shutdown_bind(const ou_shutdown_policy *policy,
+                             int admin_authorized,int qualified_storage);
 /* Fail-closed native data; never substitutes simulated UPS measurements. */
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,
                            char *response, size_t capacity, size_t *response_len);

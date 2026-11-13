@@ -129,6 +129,21 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="shutdown/schema")return {
+      schemaVersion:1,source:"native",simulated:false,
+      policyModelCompiled:true,policyWritable:false,
+      activePolicyAvailable:false,outputControlQualified:false,
+      outlets:3,minimumShutdownDurationSeconds:120,
+      maximumShutdownDurationSeconds:9999,
+      maximumMasterTimerSeconds:5999940,masterTimerStepSeconds:60,
+      maximumRuntimeThresholdSeconds:99999,
+      maximumOutletTimerSeconds:99999,
+      maximumOutletStartupSeconds:65535,maximumCapacityPercent:100,
+      mode:"local-review-only"
+    };
+    if(route==="shutdown/advisory")return {
+      schemaVersion:1,status:503,code:"SHUTDOWN_POLICY_OR_TELEMETRY_UNAVAILABLE"
+    };
     if(route==="time/capabilities")return {
       schemaVersion:1,source:"native",simulated:false,
       ntpWireClientCompiled:true,trustedLocalNtpSourceConfigured:false,
@@ -709,4 +724,46 @@ test("Time page reviews trusted NTP, timezone and DST without device writes",asy
   assert.equal(json.server,"192.168.0.2");
   assert.equal(json.timezone,"America/New_York");
   assert.equal(json.dst,"automatic");
+});
+
+test("All three UPS shutdown and outlet threshold fields validate and export safely",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#shutdown";env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("shutdown/schema"));
+  assert.ok(env.calls.includes("shutdown/advisory"));
+  assert.match(allText(env.named.view),/UPS and outlet shutdown thresholds/);
+  assert.match(allText(env.named.view),/No validated active shutdown policy/);
+  assert.match(allText(env.named.view),/Outlet 3/);
+  const fields=descendants(env.named.view).filter(n=>n.tagName==="fieldset"&&n.className==="shutdown-outlet");
+  assert.equal(fields.length,3);
+  const save=find(env.named.view,"button",n=>n.textContent==="Export shutdown-policy review");
+  const timer=find(env.named.view,"input",n=>n.id==="shutdown-master-timerSeconds");
+  const runtime=find(env.named.view,"input",n=>n.id==="shutdown-master-runtimeSeconds");
+  const outlet=find(env.named.view,"input",n=>n.id==="shutdown-outlet-3-startupDelay");
+  const forced=find(env.named.view,"select",n=>n.id==="shutdown-forcedReboot");
+  assert.ok(save&&timer&&runtime&&outlet&&forced);
+  assert.equal(save.disabled,false);
+  timer.value="61";timer.dispatch("input");
+  assert.equal(save.disabled,true);
+  timer.value="120";timer.dispatch("input");
+  assert.equal(save.disabled,false);
+  runtime.value="1200";runtime.dispatch("input");
+  outlet.value="120";outlet.dispatch("input");
+  forced.value="true";forced.dispatch("change");
+  assert.equal(save.disabled,false);
+  save.click();
+  assert.equal(env.downloads.length,1);
+  assert.equal(env.downloads[0].filename,"openh910p-shutdown-policy-review.json");
+  const policy=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(policy.applied,false);
+  assert.equal(policy.installable,false);
+  assert.equal(policy.physicalPowerControl,false);
+  assert.equal(policy.master.timerSeconds,120);
+  assert.equal(policy.master.runtimeSeconds,1200);
+  assert.equal(policy.master.forcedReboot,true);
+  assert.equal(policy.outlets.length,2);
+  assert.equal(policy.outlets[1].outlet,3);
+  assert.equal(policy.outlets[1].startupDelay,120);
 });

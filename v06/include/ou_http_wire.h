@@ -20,6 +20,7 @@ int ou_http_respond_managed(const uint8_t *request, size_t size,
                     const struct ou_notify_engine *notifications,
                     const struct ou_agent_status *agents,
                     const struct ou_time_sample *clock,
+                    const struct ou_shutdown_advisory *shutdown,
                     char *output, size_t capacity, size_t *written);
 
 int ou_http_respond_observed(const uint8_t *request, size_t size,

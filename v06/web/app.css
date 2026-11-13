@@ -98,6 +98,16 @@ tbody tr:nth-child(even){background:#f8fafb}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}
 .event-select{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;min-height:43px;color:var(--ink)}
 .event-controls .button{min-height:43px}
+.shutdown-policy{margin:16px 0 28px}
+.shutdown-fields{display:flex;flex-direction:column;gap:15px;margin:17px 0}
+.shutdown-outlet{border:1px solid #bfd1d8;border-radius:2px;padding:14px;background:#fff;min-width:0}
+.shutdown-outlet legend{font-size:14px;font-weight:750;color:#294450;padding:0 7px}
+.shutdown-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 18px}
+.shutdown-grid .config-field{min-width:0}
+.shutdown-grid .config-field label{font-weight:650;font-size:12px;color:#314d5b}
+.shutdown-grid .config-input{width:100%;min-width:0;min-height:43px;border:1px solid #849eac;border-radius:2px;background:#fff;color:#163341;padding:9px 10px}
+@media(max-width:980px){.shutdown-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.shutdown-grid{grid-template-columns:1fr}}
 .time-service{margin:18px 0 26px}
 .time-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 18px;margin:16px 0 10px}
 .time-form .config-field{min-width:0}

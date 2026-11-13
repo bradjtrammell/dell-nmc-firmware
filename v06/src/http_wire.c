@@ -131,6 +131,7 @@ int ou_http_respond_managed(const uint8_t *request, size_t size,
                     const struct ou_notify_engine *notifications,
                     const struct ou_agent_status *agents,
                     const struct ou_time_sample *clock,
+                    const struct ou_shutdown_advisory *shutdown,
                     char *output, size_t capacity, size_t *written) {
     char method[9] = {0}, path[193] = {0};
     writer w;
@@ -154,7 +155,7 @@ int ou_http_respond_managed(const uint8_t *request, size_t size,
                    path[6] != '1' || path[7] != '/') {
             status = 404;
             error = errjson(404);
-        } else if (ou_dispatch_managed(method,path,snapshot,events,history,notifications,agents,clock,output+OU_HTTP_PREFIX_RESERVE,
+        } else if (ou_dispatch_managed(method,path,snapshot,events,history,notifications,agents,clock,shutdown,output+OU_HTTP_PREFIX_RESERVE,
                                capacity-OU_HTTP_PREFIX_RESERVE,&reply) != 0) {
             status = 500;
             error = errjson(500);
@@ -188,7 +189,7 @@ int ou_http_respond_observed(const uint8_t *request, size_t size,
                     const ou_snapshot *snapshot, const ou_event_log *events,
                     const struct ou_history_log *history,
                     char *output, size_t capacity, size_t *written) {
-    return ou_http_respond_managed(request,size,snapshot,events,history,0,0,0,
+    return ou_http_respond_managed(request,size,snapshot,events,history,0,0,0,0,
                                    output,capacity,written);
 }
 

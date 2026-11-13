@@ -100,6 +100,35 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_shutdown_threshold_schema_and_no_unverified_advisory(self):
+        code,headers,raw=self.request("GET","/api/v1/shutdown/schema")
+        self.assertEqual(code,200)
+        body=json.loads(raw)
+        self.assertEqual(body["resource"],"shutdown.schema")
+        self.assertIs(body["policyModelCompiled"],True)
+        self.assertEqual(body["outlets"],3)
+        self.assertEqual(body["minimumShutdownDurationSeconds"],120)
+        self.assertEqual(body["maximumShutdownDurationSeconds"],9999)
+        self.assertEqual(body["maximumMasterTimerSeconds"],5999940)
+        self.assertEqual(body["masterTimerStepSeconds"],60)
+        self.assertEqual(body["maximumRuntimeThresholdSeconds"],99999)
+        self.assertEqual(body["maximumOutletTimerSeconds"],99999)
+        self.assertEqual(body["maximumOutletStartupSeconds"],65535)
+        self.assertEqual(body["maximumCapacityPercent"],100)
+        for key in ("policyWritable","activePolicyAvailable","outputControlQualified"):
+            self.assertIs(body[key],False)
+        code,_,raw=self.request("GET","/api/v1/shutdown/advisory")
+        self.assertEqual(code,503)
+        self.assertEqual(json.loads(raw)["code"],"SHUTDOWN_POLICY_OR_TELEMETRY_UNAVAILABLE")
+        code,_,raw=self.request("HEAD","/api/v1/shutdown/advisory")
+        self.assertEqual(code,503)
+        self.assertEqual(raw,b"")
+        for url in ("/api/v1/shutdown/schema","/api/v1/shutdown/advisory"):
+            for method in ("POST","PUT","PATCH","DELETE"):
+                code,_,raw=self.request(method,url,"{}")
+                self.assertEqual(code,405)
+                self.assertEqual(json.loads(raw)["error"],"READ_ONLY")
+
     def test_ntp_bootstrap_contract_is_strictly_read_only(self):
         code,headers,raw=self.request("GET","/api/v1/time/capabilities")
         self.assertEqual(code,200)
