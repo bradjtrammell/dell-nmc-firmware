@@ -108,11 +108,13 @@ static void response_faults(void){
  assert(session.error==OU_SHUT_SESSION_ERR_REPORT_MISMATCH);
  sync_request(0x31U,0U);
  assert(ou_shut_session_feed(&session,0x84U,++now)==0);
- assert(ou_shut_session_feed(&session,0x22U,++now)==-1);
+ assert(ou_shut_session_feed(&session,0x23U,++now)==-1);
  assert(session.error==OU_SHUT_SESSION_ERR_BAD_PACKET);
  sync_request(0x31U,0U);
  assert(ou_shut_session_feed(&session,0x84U,++now)==0);
- assert(ou_shut_session_feed(&session,0x22U,++now)==-1);
+ assert(ou_shut_session_feed(&session,0x11U,++now)==0);
+ assert(ou_shut_session_feed(&session,0x31U,++now)==0);
+ assert(ou_shut_session_feed(&session,0x00U,++now)==-1);
  sync_request(0x31U,0U);
  for(i=0U;i<2U;++i)assert(ou_shut_session_tick(&session,now+1000U)==0);
  now+=1600U;
