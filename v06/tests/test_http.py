@@ -337,7 +337,9 @@ class SimulatorHttpTests(unittest.TestCase):
         self.assertIn("app.js", html)
         self.assertNotIn("<script>", html)
         self.assertNotIn("http://", script)
-        self.assertNotIn("https://", script)
+        self.assertEqual(script.count("https://"), 2)
+        self.assertIn("https://api.github.com/repos/bradjtrammell/dell-nmc-firmware/releases?per_page=12", script)
+        self.assertIn("https://github.com/bradjtrammell/dell-nmc-firmware/releases/tag/", script)
 
     def test_head_and_bad_routes(self):
         code, headers, body = self.request("HEAD", "/api/v1/device")

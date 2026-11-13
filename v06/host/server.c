@@ -78,12 +78,15 @@ static void error_reply(int fd, int code, const char *message, int head) {
 
 /* Fixed allowlist only. Never derive a disk path from untrusted URL input.
  * This is the loopback development frontend, NOT the on-card web server. */
+/* Exact fixed asset allowlist, streamed in bounded chunks rather than
+ * depending on the ever-growing frontend fitting into a 64KiB stack buffer.
+ * Host-only, loopback-only; this is NOT the card's HTTP server. */
 static int serve_asset(int fd,const char *path,int head) {
     const char *filename=NULL,*mime=NULL;
-    unsigned char payload[65536U];
-    size_t length=0U;
-    ssize_t size;
+    unsigned char chunk[8192U];
+    size_t remaining;
     int file;
+    ssize_t size;
     struct stat statbuf;
     if(!strcmp(path,"/") || !strcmp(path,"/index.html")) {
         filename="web/index.html";mime="text/html; charset=utf-8";
@@ -98,23 +101,25 @@ static int serve_asset(int fd,const char *path,int head) {
         return 1;
     }
     if(fstat(file,&statbuf)!=0 || !S_ISREG(statbuf.st_mode) ||
-       statbuf.st_size<0 || statbuf.st_size>(off_t)sizeof(payload)) {
+       statbuf.st_size<0 || statbuf.st_size>(off_t)(1024U*1024U)) {
         close(file);
         error_reply(fd,500,"UI_ASSET_UNAVAILABLE",head);
         return 1;
     }
-    while(length<(size_t)statbuf.st_size) {
-        size=read(file,payload+length,(size_t)statbuf.st_size-length);
-        if(size<0 && errno==EINTR)continue;
-        if(size<=0){
-            close(file);
-            error_reply(fd,500,"UI_ASSET_UNAVAILABLE",head);
-            return 1;
+    remaining=(size_t)statbuf.st_size;
+    /* HEAD and GET use the same accurate file length and security headers.
+     * The body is sent separately only for GET. */
+    respond(fd,200,mime,NULL,remaining,1);
+    if(!head){
+        while(remaining){
+            size_t wanted=remaining<sizeof(chunk)?remaining:sizeof(chunk);
+            size=read(file,chunk,wanted);
+            if(size<0 && errno==EINTR)continue;
+            if(size<=0 || send_full(fd,chunk,(size_t)size)!=0)break;
+            remaining-=(size_t)size;
         }
-        length+=(size_t)size;
     }
     close(file);
-    respond(fd,200,mime,payload,length,head);
     return 1;
 }
 
