@@ -59,3 +59,30 @@ Encoding a documented read-only SHUT command is NOT permission to send
 it to an unverified UPS physical interface. Initial synchronization,
 ACK/NAK scheduling, report descriptors, actual physical mapping and
 recovery tests still remain.
+
+
+## Bounded read-only SHUT polling state machine
+
+`board/shut_session.c` and `include/ou_shut_session.h` add a **pure frame
+orchestrator**: four-attempt `SYNC` spaced at least 600 ms, a typed feature
+`GET REPORT` (never `SET REPORT`), bounded ACK/NAK retransmissions, a
+checksum-verified per-fragment ACK, report-ID matching, notification
+acknowledgment, explicit timeouts, 32-bit monotonic clock wrap handling, and
+one-use result retrieval. Every result remains **telemetry_verified=0**.
+
+The component has **no serial read/write routines or physical UART binding**.
+`begin` requires both independently established physical-bus and protocol
+qualification flags before it can even queue a logical frame. Those flags
+are not hardware proofs by themselves. The only possible outgoing bytes
+are `SYNC=0x16`, `ACK=0x06`, and the validated 11-byte `GET REPORT`
+packet. It neither controls UPS power nor touches the NMC Settings port.
+
+The actual H910P electrical interface, synchronization interoperability,
+HID descriptors, device identity, real report meaning, and NMC watchdog/
+recovery remain unverified. Host unit tests exercise the published handshake,
+complete and fragmented replies, unsolicited notification, NAK exhaustion,
+unexpected report IDs, corrupted data, clock regression, and timeout.
+The module is compiled and linked in the non-flashable ARM7 research image.
+
+Reference: MGE Simplified SHUT AC, sections 2.2–2.5, pp. 6–8 and
+the published GET REPORT exchange on p. 14.
