@@ -252,7 +252,7 @@ arm-check: | $(BUILD)
 	python3 tools/verify_arm.py $(BUILD)/ethernet-manager-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/http_wire.c -o $(BUILD)/http-wire-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/http-wire-armeb.o
-	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/events.c target/service.c -o $(BUILD)/native-service-armeb.o
+	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/service.c -o $(BUILD)/native-service-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/native-service-armeb.o
 
 clean:
