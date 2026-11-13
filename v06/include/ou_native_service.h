@@ -5,6 +5,7 @@
 #include "ou_provider.h"
 #include "ou_http_wire.h"
 #include "ou_event_archive.h"
+#include "ou_notify.h"
 
 /* Single-threaded, zero-heap native application service. The future verified
  * MAC/TCP adapter submits ONE complete bounded request at a time.
@@ -28,6 +29,15 @@ int ou_native_service_driver_report(const ou_driver_report *report, uint32_t now
 void ou_native_service_source_lost(void);
 /* Precise monotonic event timestamp when transport driver has a clock. */
 void ou_native_service_source_lost_at(uint32_t now_ms);
+
+/* Bind up to 8 notification rules through a separately authenticated
+ * device-side caller. NEVER exposed as a write-capable HTTP endpoint. */
+int ou_native_service_notify_configure(const ou_notify_rule *rules,
+                      size_t count,int (*authorize)(void *),void *context);
+/* Progress one pending outbound event using an explicitly qualified
+ * delivery adapter. No sending occurs without all sender qualifications. */
+int ou_native_service_notify_step(const ou_notify_sender *sender,
+                                   uint32_t now_ms);
 
 /* Fail-closed native data; never substitutes simulated UPS measurements. */
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,

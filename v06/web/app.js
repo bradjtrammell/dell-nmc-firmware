@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null)};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[]};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -878,11 +878,136 @@
       "No default user is created and no browser password is transmitted. Configure users, roles, certificates and sessions only after the real TLS/credential providers and device-side storage are accepted.","info"));
     return panel;
   }
-  function renderGeneral(summary,key,items,staging,security,weekly) {
+  function renderNotificationRules(policy,delivery,key){
+    const panel=element("div","notification-rules");
+    add(panel,section("Event notification routing",
+      "Eight typed events, destination slots, cooldown protection, and bounded retry delivery."));
+    if(!policy||policy.routerCompiled!==true||
+       policy.maximumRules!==8||policy.queueCapacity!==24 ||
+       policy.deliveryAvailable!==false||
+       !Array.isArray(policy.events)||policy.events.length!==8){
+      add(panel,notice("Notification policy unavailable",
+        "The native server did not return a supported notification policy. No routing changes can be prepared.","error"));
+      return panel;
+    }
+    add(panel,notice("Delivery is not connected to the card",
+      "The native queue/router and retry engine are implemented, but outbound transports and recipient credentials are not configured or qualified. These local drafts do not change delivery settings.","info"));
+    if(delivery){
+      add(panel,properties([
+        ["Queued notifications",valueOrDash(delivery.pending)],
+        ["Delivered",valueOrDash(delivery.delivered)],
+        ["Retries",valueOrDash(delivery.retried)],
+        ["Dropped",valueOrDash(delivery.dropped)],
+        ["Failed",valueOrDash(delivery.failed)]
+      ]));
+    }
+    const controls=element("div","notification-controls");
+    const rulesMount=element("div","notification-rule-list");
+    const footer=element("div","config-actions");
+    const addRule=button("Add rule",()=>{
+      if(state.notifyDraft.length>=8)return;
+      state.notifyDraft.push({event:"UTILITY_LOST",
+        transport:key==="snmp"?"snmp-trap":"email",destination:0,cooldownSeconds:60});
+      draw();
+    },false);
+    const exportRule=button("Export routing review",null,true);
+    const summary=element("span","label");
+    add(controls,addRule);
+    add(footer,exportRule,summary);
+    add(panel,controls,rulesMount,footer);
+    const events=policy.events;
+    const transports=["email","webhook","snmp-trap"];
+    function selector(options,value,label,change){
+      const select=element("select","config-input");
+      select.setAttribute("aria-label",label);
+      for(const option of options){
+        const entry=element("option","",String(option));
+        entry.value=String(option);
+        select.appendChild(entry);
+      }
+      select.value=String(value);
+      select.addEventListener("change",()=>change(select.value));
+      return select;
+    }
+    function valid(){
+      const errors=[];
+      const signatures=new Set();
+      state.notifyDraft.forEach((rule,i)=>{
+        if(!events.includes(rule.event)||!transports.includes(rule.transport)||
+           !Number.isInteger(rule.destination)||rule.destination<0||rule.destination>7||
+           !Number.isInteger(rule.cooldownSeconds)||
+           rule.cooldownSeconds<0||rule.cooldownSeconds>3600)
+          errors.push("Rule "+(i+1)+" has invalid values.");
+        const signature=[rule.event,rule.transport,rule.destination].join(":");
+        if(signatures.has(signature))errors.push("Rule "+(i+1)+" duplicates another destination and event.");
+        signatures.add(signature);
+      });
+      return errors;
+    }
+    function draw(){
+      rulesMount.replaceChildren();
+      state.notifyDraft.forEach((rule,i)=>{
+        const row=element("div","notification-rule");
+        const heading=element("strong","", "Rule "+(i+1));
+        const fields=element("div","notification-fields");
+        const event=selector(events,rule.event,"Rule "+(i+1)+" event",value=>{
+          rule.event=value;update();
+        });
+        const transport=selector(transports,rule.transport,"Rule "+(i+1)+" transport",value=>{
+          rule.transport=value;update();
+        });
+        const slots=Array.from({length:8},(_,index)=>index);
+        const destination=selector(slots,rule.destination,"Rule "+(i+1)+" destination slot",value=>{
+          rule.destination=Number(value);update();
+        });
+        const cooldown=element("input","config-input");
+        cooldown.type="number";cooldown.min="0";cooldown.max="3600";cooldown.step="1";
+        cooldown.value=String(rule.cooldownSeconds);
+        cooldown.setAttribute("aria-label","Rule "+(i+1)+" cooldown in seconds");
+        cooldown.addEventListener("input",()=>{
+          rule.cooldownSeconds=cooldown.value.trim()===""?NaN:Number(cooldown.value);
+          update();
+        });
+        const remove=button("Remove",()=>{
+          state.notifyDraft.splice(i,1);draw();
+        });
+        add(fields,event,transport,destination,cooldown);
+        add(row,heading,fields,remove);
+        rulesMount.appendChild(row);
+      });
+      addRule.disabled=state.notifyDraft.length>=8;
+      update();
+    }
+    function update(){
+      const issues=valid();
+      exportRule.disabled=state.notifyDraft.length===0||issues.length>0;
+      summary.textContent=issues.length?issues.join(" "):
+        state.notifyDraft.length+" local rule(s) staged · none applied";
+    }
+    exportRule.addEventListener("click",()=>{
+      update();
+      if(exportRule.disabled)return;
+      saveEventFile("openh910p-notification-rules-review.json",JSON.stringify({
+        schemaVersion:1,kind:"openh910p-notification-routing-review",
+        applied:false,installable:false,destinationsProvisioned:false,
+        deliveryEnabled:false,
+        rules:state.notifyDraft.map(r=>({
+          event:r.event,transport:r.transport,
+          destinationSlot:r.destination,cooldownSeconds:r.cooldownSeconds
+        }))
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    draw();
+    return panel;
+  }
+
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
     if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
+    if(key==="email"||key==="snmp")
+      container.appendChild(renderNotificationRules(notifyPolicy,notifyStatus,key));
     if(key==="network"||key==="system")
       container.appendChild(renderConfigDraft(staging,key));
     add(container,readOnlyMessage());
@@ -998,8 +1123,15 @@
           try{weekly=await request("schedule/schema",signal);}
           catch(error){if(error.httpStatus!==404)throw error;}
         }
+        let notifyPolicy=null,notifyStatus=null;
+        if(page==="email"||page==="snmp"){
+          try{notifyPolicy=await request("notifications/policy",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+          try{notifyStatus=await request("notifications/status",signal);}
+          catch(error){if(error.httpStatus!==503)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

@@ -199,3 +199,27 @@ file explicitly marked `applied:false` and
 or HTTP schedule execution route. The native planner and dedicated
 schedule journal are separately tested and are not a field-qualified
 UPS driver. See `docs/weekly-schedule.md`.
+
+## Native event-notification routing (read-only control plane)
+
+The native service now forwards its validated typed events into
+a fixed-memory delivery queue (24 jobs, eight configurable rule slots)
+for email, webhook and SNMP trap destinations, using event ID/boot
+generation de-duplication, per-rule cooldown and retry/backoff. The
+engine only invokes an externally qualified authenticated outbound
+sender; none is installed on the real H910P.
+
+`GET /api/v1/notifications/policy` returns exact supported event
+codes, transports and capacity limits, with `deliveryAvailable:false`,
+`rulesWritable:false`, `transportQualified:false` and
+`destinationsProvisioned:false`. The native-only
+`GET /api/v1/notifications/status` returns queue and delivery
+counters; the host simulator returns 503 rather than inventing
+delivery. All HTTP methods other than GET/HEAD remain denied.
+
+The Email Notification and SNMP management pages expose a local
+rule review editor, eight-rule ceiling, duplicate detection,
+cooldown limits and a JSON export marked
+`applied:false`/`installable:false`. This is not actual alert
+sending or recipient provisioning. See
+`docs/notification-routing.md`.

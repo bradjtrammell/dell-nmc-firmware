@@ -3,21 +3,28 @@
 #include "ou_events.h"
 #include "ou_event_archive.h"
 #include "ou_history.h"
+#include "ou_notify.h"
 
 /* One service instance, zero allocation; native events remain available
  * independently of UPS telemetry and are intentionally volatile for now. */
 static ou_telemetry_guard source;
 static ou_event_log history;
 static ou_history_log measurements;
+static ou_notify_engine notifications;
 
 static void record(uint8_t code,uint32_t now_ms) {
-    (void)ou_events_add(&history,code,now_ms);
+    if(ou_events_add(&history,code,now_ms)==0){
+        ou_event_record observed;
+        if(ou_events_recent(&history,0U,&observed)==0)
+            (void)ou_notify_route(&notifications,&observed,now_ms);
+    }
 }
 
 void ou_native_service_init(void) {
     ou_telemetry_guard_reset(&source);
     ou_events_init(&history);
     ou_history_init(&measurements);
+    ou_notify_init(&notifications);
     record(OU_EVENT_SERVICE_START,0U);
 }
 
@@ -32,6 +39,16 @@ int ou_native_service_events_restore(const ou_journal_io *dedicated_events) {
 int ou_native_service_events_checkpoint(const ou_journal_io *dedicated_events,
                                          ou_journal_record *record) {
     return ou_event_archive_checkpoint(&history,dedicated_events,record);
+}
+
+int ou_native_service_notify_configure(const ou_notify_rule *rules,
+                      size_t count,int (*authorize)(void *),void *context) {
+    if(!authorize || authorize(context)!=1)return -1;
+    return ou_notify_set_rules(&notifications,rules,count,1);
+}
+int ou_native_service_notify_step(const ou_notify_sender *sender,
+                                   uint32_t now_ms){
+    return ou_notify_step(&notifications,sender,now_ms);
 }
 
 int ou_native_service_driver_report(const ou_driver_report *report,uint32_t now_ms) {
@@ -98,6 +115,7 @@ int ou_native_service_http(const uint8_t *req,size_t req_len,uint32_t now_ms,
                            char *response,size_t capacity,size_t *response_len) {
     ou_snapshot sample=ou_unavailable_snapshot();
     (void)ou_telemetry_guard_read(&source,now_ms,&sample);
-    return ou_http_respond_observed(req,req_len,&sample,&history,
-                                   &measurements,response,capacity,response_len);
+    return ou_http_respond_managed(req,req_len,&sample,&history,
+                                   &measurements,&notifications,
+                                   response,capacity,response_len);
 }

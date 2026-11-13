@@ -44,6 +44,13 @@ typedef struct {
 struct ou_history_log;
 /* Native-only history is optional; simulator never manufactures prior UPS
  * samples. Compatibility dispatcher functions remain source-stable. */
+struct ou_notify_engine;
+int ou_dispatch_managed(const char *method, const char *path,
+                const ou_snapshot *snapshot, const ou_event_log *events,
+                const struct ou_history_log *history,
+                const struct ou_notify_engine *notifications,
+                char *body, size_t capacity, ou_reply *reply);
+
 int ou_dispatch_observed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const struct ou_history_log *history,

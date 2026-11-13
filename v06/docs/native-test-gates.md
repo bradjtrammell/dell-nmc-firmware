@@ -226,3 +226,21 @@ power-operation routes, and that navigation preserves the local draft.
 The ARM7 compile/link and sanitizers remain mandatory. Hardware
 RTC/timezone, output-control authorization, persistent execution
 and scheduler de-duplication are **not complete**.
+
+## Notification queue and event-driven delivery
+
+`ou_notify_engine` is a freestanding, fixed-memory multi-transport
+routing and delivery model. It is integrated with native event
+capture and native-only queue statistics, not with unqualified
+physical network output. Tests exercise typed event fan-out,
+source-event replay suppression, cooldown, backoff, bounded queue
+overflow, terminal failure, authorization denial, reset behavior,
+and refusal to transmit through unqualified sinks. Host GET/HEAD
+tests verify read-only routing capabilities while POST/PUT/PATCH/
+DELETE remain 405. The Email/SNMP browser rule editor is tested
+for eight-rule limits, duplicate routes and review-only exports.
+
+The engine's sender interface explicitly requires separately
+qualified transport, destination store and authenticated transport
+security (TLS or SNMPv3 USM). No physical SMTP, webhook, SNMP agent
+or trap sender is available. See `docs/notification-routing.md`.

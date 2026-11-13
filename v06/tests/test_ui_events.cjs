@@ -128,6 +128,21 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="notifications/policy")return {
+      schemaVersion:1,source:"native",simulated:false,
+      routerCompiled:true,deliveryAvailable:false,rulesWritable:false,
+      destinationsProvisioned:false,transportQualified:false,
+      credentialsConfigured:false,maximumRules:8,queueCapacity:24,
+      maximumAttempts:5,maximumCooldownSeconds:3600,
+      mode:"local-draft-export-only",
+      transports:["email","webhook","snmp-trap"],
+      events:["SERVICE_START","TELEMETRY_ONLINE","TELEMETRY_OFFLINE",
+        "REPORT_REJECTED","UTILITY_LOST","UTILITY_RESTORED",
+        "BATTERY_LOW","BATTERY_RECOVERED"]
+    };
+    if(route==="notifications/status")return {
+      error:"NOTIFICATION_ENGINE_UNAVAILABLE",status:503
+    };
     if(route==="schedule/schema")return {
       schemaVersion:1,source:"native",simulated:false,
       weeklyPlannerCompiled:true,scheduleWritable:false,
@@ -443,4 +458,44 @@ test("Weekly Schedule enforces seven days, 30-minute slots and safe draft export
   await settled(env);
   const storedOff=find(env.named.view,"select",x=>x.id==="schedule-0-offSeconds");
   assert.equal(storedOff.value,"28800");
+});
+
+test("Notification rules editor validates unique event/destination and exports review only",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#email";env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("notifications/policy"));
+  assert.ok(env.calls.includes("notifications/status"));
+  assert.match(allText(env.named.view),/Event notification routing/);
+  assert.match(allText(env.named.view),/Delivery is not connected/);
+  const add=find(env.named.view,"button",n=>n.textContent==="Add rule");
+  const save=find(env.named.view,"button",n=>n.textContent==="Export routing review");
+  assert.ok(add&&save&&save.disabled);
+  add.click();
+  assert.equal(save.disabled,false);
+  add.click();
+  assert.equal(save.disabled,true);
+  assert.match(allText(env.named.view),/duplicates another destination/);
+  const selects=descendants(env.named.view).filter(n=>n.tagName==="select"&&
+      String(n.attributes["aria-label"]||"").includes("Rule 2 event"));
+  assert.equal(selects.length,1);
+  selects[0].value="BATTERY_LOW";selects[0].dispatch("change");
+  assert.equal(save.disabled,false);
+  save.click();
+  assert.equal(env.downloads.length,1);
+  const data=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(data.applied,false);
+  assert.equal(data.installable,false);
+  assert.equal(data.deliveryEnabled,false);
+  assert.equal(data.destinationsProvisioned,false);
+  assert.equal(data.rules.length,2);
+  assert.equal(data.rules[0].event,"UTILITY_LOST");
+  assert.equal(data.rules[1].event,"BATTERY_LOW");
+  assert.equal(data.rules[0].transport,"email");
+  assert.equal(data.rules[0].destinationSlot,0);
+  env.location.hash="#snmp";env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/Event notification routing/);
+  assert.equal(env.downloads.length,1);
 });

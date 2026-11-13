@@ -1,6 +1,7 @@
 #include "openh910p.h"
 #include "ou_schema.h"
 #include "ou_history.h"
+#include "ou_notify.h"
 
 typedef struct {
     char *data;
@@ -305,9 +306,10 @@ ou_snapshot ou_unavailable_snapshot(void) {
     return state;
 }
 
-int ou_dispatch_observed(const char *method, const char *path,
+int ou_dispatch_managed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const ou_history_log *history,
+                const ou_notify_engine *notifications,
                 char *body, size_t capacity, ou_reply *reply) {
     json_writer w;
     uint32_t field_page = 0, events_page = 0, history_index = 0;
@@ -420,6 +422,47 @@ int ou_dispatch_observed(const char *method, const char *path,
                 put_char(&w,'}');
             }
             put_char(&w,']');
+        }
+    } else if (same(path, "/api/v1/notifications/policy")) {
+        common(&w,"notifications.policy",snapshot);
+        property_bool(&w,"routerCompiled",1U,1);
+        property_bool(&w,"deliveryAvailable",0U,1);
+        property_bool(&w,"rulesWritable",0U,1);
+        property_bool(&w,"destinationsProvisioned",0U,1);
+        property_bool(&w,"transportQualified",0U,1);
+        property_bool(&w,"credentialsConfigured",0U,1);
+        property_uint(&w,"maximumRules",8U,1);
+        property_uint(&w,"queueCapacity",24U,1);
+        property_uint(&w,"maximumAttempts",5U,1);
+        property_uint(&w,"maximumCooldownSeconds",3600U,1);
+        property_string(&w,"mode","local-draft-export-only",1);
+        put_str(&w,",\"transports\":[\"email\",\"webhook\",\"snmp-trap\"]");
+        put_str(&w,",\"events\":[");
+        put_str(&w,"\"SERVICE_START\",\"TELEMETRY_ONLINE\",\"TELEMETRY_OFFLINE\",");
+        put_str(&w,"\"REPORT_REJECTED\",\"UTILITY_LOST\",\"UTILITY_RESTORED\",");
+        put_str(&w,"\"BATTERY_LOW\",\"BATTERY_RECOVERED\"]");
+    } else if (same(path, "/api/v1/notifications/status")) {
+        if(!notifications || notifications->initialized!=1U) {
+            reply->status=503;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","NOTIFICATION_ENGINE_UNAVAILABLE",1);
+        } else {
+            size_t index;
+            uint32_t pending=0U,activeRules=0U;
+            for(index=0U;index<OU_NOTIFY_QUEUE;++index)
+                if(notifications->used[index]==1U)++pending;
+            for(index=0U;index<OU_NOTIFY_RULES;++index)
+                if(notifications->rules[index].enabled==1U)++activeRules;
+            common(&w,"notifications.status",snapshot);
+            property_uint(&w,"pending",pending,1);
+            property_uint(&w,"activeRules",activeRules,1);
+            property_uint(&w,"enqueued",notifications->enqueued,1);
+            property_uint(&w,"delivered",notifications->delivered,1);
+            property_uint(&w,"failed",notifications->failed,1);
+            property_uint(&w,"retried",notifications->retried,1);
+            property_uint(&w,"dropped",notifications->dropped,1);
+            property_bool(&w,"deliveryQualified",0U,1);
+            property_string(&w,"retention","volatile",1);
         }
     } else if (same(path, "/api/v1/schedule/schema")) {
         common(&w,"schedule.schema",snapshot);
@@ -565,6 +608,14 @@ int ou_dispatch_observed(const char *method, const char *path,
     body[w.length] = '\0';
     reply->body_length = w.length;
     return 0;
+}
+
+int ou_dispatch_observed(const char *method, const char *path,
+                const ou_snapshot *snapshot, const ou_event_log *events,
+                const ou_history_log *history,
+                char *body, size_t capacity, ou_reply *reply) {
+    return ou_dispatch_managed(method,path,snapshot,events,history,0,
+                               body,capacity,reply);
 }
 
 int ou_dispatch_events(const char *method, const char *path,

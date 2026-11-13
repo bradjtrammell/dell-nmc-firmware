@@ -100,6 +100,36 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_notification_router_status_and_read_only_contract(self):
+        status, headers, raw = self.request("GET", "/api/v1/notifications/policy")
+        self.assertEqual(status, 200)
+        data = json.loads(raw)
+        self.assertEqual(data["resource"], "notifications.policy")
+        self.assertIs(data["routerCompiled"], True)
+        self.assertEqual(data["maximumRules"], 8)
+        self.assertEqual(data["queueCapacity"], 24)
+        self.assertEqual(data["maximumAttempts"], 5)
+        self.assertEqual(data["maximumCooldownSeconds"], 3600)
+        self.assertEqual(len(data["events"]), 8)
+        self.assertEqual(data["transports"], ["email","webhook","snmp-trap"])
+        for key in ("deliveryAvailable","rulesWritable",
+                    "destinationsProvisioned","transportQualified",
+                    "credentialsConfigured"):
+            self.assertIs(data[key], False)
+        self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+        status, _, raw = self.request("GET", "/api/v1/notifications/status")
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(raw)["code"], "NOTIFICATION_ENGINE_UNAVAILABLE")
+        for route in ("/api/v1/notifications/policy",
+                      "/api/v1/notifications/status"):
+            status, _, raw = self.request("HEAD", route)
+            self.assertEqual(status, 200 if route.endswith("policy") else 503)
+            self.assertEqual(raw, b"")
+            for method in ("POST","PUT","PATCH","DELETE"):
+                status, _, raw = self.request(method, route, "{}")
+                self.assertEqual(status, 405)
+                self.assertEqual(json.loads(raw)["error"], "READ_ONLY")
+
     def test_weekly_schedule_contract_is_draft_only(self):
         code, headers, payload = self.request("GET", "/api/v1/schedule/schema")
         self.assertEqual(code, 200)

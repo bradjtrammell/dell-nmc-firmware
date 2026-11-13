@@ -268,3 +268,16 @@ implements weekday rollover and a distinct 64-byte transactional
 schedule journal model. Neither the UI nor API can execute scheduled
 UPS power operations, and no device time or active schedule is
 invented. See `docs/weekly-schedule.md`.
+
+## Native notification routing
+
+The independent native event service now includes a bounded
+eight-rule, 24-job notification router with email/webhook/SNMP trap
+categories, per-rule cooldown, deduplication, exponential retries,
+terminal failure and queue accounting. The management interface
+can edit and export *local review-only* notification rules.
+`/api/v1/notifications/policy` and the native-only
+`/api/v1/notifications/status` expose capabilities and metrics.
+Actual outbound delivery is disabled until transport, recipient
+credentials and hardware security are qualified. See
+`docs/notification-routing.md`.

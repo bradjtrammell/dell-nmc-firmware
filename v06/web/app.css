@@ -98,6 +98,18 @@ tbody tr:nth-child(even){background:#f8fafb}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}
 .event-select{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;min-height:43px;color:var(--ink)}
 .event-controls .button{min-height:43px}
+.notification-rules{margin:17px 0 26px}
+.notification-controls{display:flex;gap:12px;margin:15px 0}
+.notification-rule-list{border-top:2px solid #a3bdc8}
+.notification-rule{display:grid;grid-template-columns:68px minmax(0,1fr) auto;gap:12px;align-items:center;padding:14px 16px;background:#fff;border-bottom:1px solid #cbd9dc}
+.notification-rule:nth-child(even){background:#f7fafb}
+.notification-rule strong{font-size:13px}
+.notification-fields{display:grid;grid-template-columns:minmax(145px,2fr) minmax(100px,1fr) minmax(90px,1fr) minmax(90px,1fr);gap:8px;min-width:0}
+.notification-fields .config-input{border:1px solid #879fab;border-radius:2px;background:#fff;color:var(--ink);padding:8px;width:100%;min-width:0;min-height:41px}
+.notification-rule .button{white-space:nowrap}
+@media(max-width:1050px){.notification-rule{grid-template-columns:1fr auto}.notification-fields{grid-column:1/-1;grid-row:2}}
+@media(max-width:760px){.notification-fields{grid-template-columns:1fr 1fr}}
+@media(max-width:450px){.notification-fields{grid-template-columns:1fr}.notification-rule{padding:12px}}
 .weekly-draft{margin:16px 0 26px}
 .weekly-form{display:flex;flex-direction:column;border-top:2px solid #a8c1c9}
 .weekly-day{border:0;border-bottom:1px solid #c6d7dc;background:#fff;margin:0;padding:14px 16px 14px;min-width:0;display:grid;grid-template-columns:175px repeat(2,minmax(0,1fr));gap:16px;align-items:center}
