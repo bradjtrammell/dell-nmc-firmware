@@ -40,7 +40,10 @@ static void expect(uint32_t clock_ms,const char *snippet){
  assert(ou_native_service_http(req,sizeof(req)-1U,clock_ms,
                                 out,sizeof(out)-1U,&n)==0);
  out[n]='\0';assert(strstr(out,"HTTP/1.1 200")==out);
- assert(strstr(out,snippet)!=0);
+ if(!strstr(out,snippet)) {
+     fprintf(stderr,"event archive expectation missing: %s\\nresponse: %s\\n",snippet,out);
+     assert(!"native event response mismatch");
+ }
 }
 int main(void){
  ou_journal_record record;ou_journal_io io;
