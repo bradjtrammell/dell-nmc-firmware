@@ -157,6 +157,48 @@ static const char *event_severity(uint8_t code) {
         ? "error" : "info";
 }
 
+/* Bounded summary of the current in-memory event ring; explicitly excludes
+ * overwritten history. No allocations, external clocks, or flash access. */
+static void event_stats(json_writer *w, const ou_event_log *events,
+                        const ou_snapshot *snapshot) {
+    uint32_t info=0U,warning=0U,error=0U;
+    uint32_t codes[OU_EVENT_LAST+1U]={0U};
+    size_t i;
+    for(i=0U;i<events->count;++i) {
+        size_t slot=((size_t)events->next_slot+OU_EVENTS_CAPACITY-1U-i)
+                    %OU_EVENTS_CAPACITY;
+        uint8_t code=events->records[slot].code;
+        if(code>=OU_EVENT_FIRST && code<=OU_EVENT_LAST) {
+            const char *severity=event_severity(code);
+            ++codes[code];
+            if(same(severity,"info"))++info;
+            else if(same(severity,"warning"))++warning;
+            else ++error;
+        }
+    }
+    common(w,"events.stats",snapshot);
+    property_uint(w,"capacity",OU_EVENTS_CAPACITY,1);
+    property_uint(w,"stored",events->count,1);
+    property_uint(w,"overwritten",events->overwritten,1);
+    property_uint(w,"pageSize",OU_EVENTS_PAGE_SIZE,1);
+    property_uint(w,"pages",
+        (uint32_t)((events->count+OU_EVENTS_PAGE_SIZE-1U)/OU_EVENTS_PAGE_SIZE),1);
+    property_uint(w,"currentBootGeneration",events->boot_generation,1);
+    property_uint(w,"latestEventId",events->count?events->next_id-1U:0U,1);
+    property_uint(w,"oldestEventId",
+        events->count?events->next_id-events->count:0U,1);
+    property_bool(w,"persistent",0U,1);
+    property_string(w,"retention","volatile-until-explicit-checkpoint",1);
+    property_uint(w,"info",info,1);
+    property_uint(w,"warning",warning,1);
+    property_uint(w,"error",error,1);
+    put_str(w,",\"byCode\":{");
+    for(i=OU_EVENT_FIRST;i<=OU_EVENT_LAST;++i) {
+        property_uint(w,event_code_string((uint8_t)i),codes[i],i!=OU_EVENT_FIRST);
+    }
+    put_char(w,'}');
+}
+
 static int parse_schema_page(const char *path, uint32_t *page) {
     const char prefix[] = "/api/v1/configuration/fields/";
     const char *cursor = path;
@@ -249,6 +291,17 @@ int ou_dispatch_events(const char *method, const char *path,
         property_bool(&w, "smtpDelivery", 0, 1);
         property_string(&w, "transport", "native-json-c", 1);
         put_str(&w, ",\"legacyOemInventory\":{\"configurationGroups\":24,\"configurationItems\":302,\"objectNames\":420}");
+    } else if (events && same(path,"/api/v1/events/stats")) {
+        if(events->count>OU_EVENTS_CAPACITY ||
+           events->next_slot>=OU_EVENTS_CAPACITY ||
+           events->next_id==0U || events->boot_generation==0U ||
+           (uint32_t)events->count>=events->next_id) {
+            reply->status=503;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","EVENT_LOG_INVALID",1);
+        } else {
+            event_stats(&w,events,snapshot);
+        }
     } else if (events && events_path!=0) {
         if (events_path<0 || events->count>OU_EVENTS_CAPACITY ||
             events->next_slot>=OU_EVENTS_CAPACITY) {
@@ -266,6 +319,8 @@ int ou_dispatch_events(const char *method, const char *path,
             property_uint(&w,"capacity",OU_EVENTS_CAPACITY,1);
             property_uint(&w,"stored",events->count,1);
             property_uint(&w,"overwritten",events->overwritten,1);
+            property_uint(&w,"latestEventId",
+                      events->count?events->next_id-1U:0U,1);
             property_uint(&w,"page",events_page,1);
             property_uint(&w,"pageSize",OU_EVENTS_PAGE_SIZE,1);
             property_uint(&w,"pages",

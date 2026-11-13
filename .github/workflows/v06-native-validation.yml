@@ -42,6 +42,7 @@ jobs:
           set -Eeuo pipefail
           node --version
           node --check v06/web/app.js
+          node --test v06/tests/test_ui_events.cjs
       - name: Execute host tests and cross-compile ARM7 image
         shell: bash
         run: |

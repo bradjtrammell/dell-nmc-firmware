@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, search:""};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:""};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -248,34 +248,176 @@
       ["Power cycle","Disconnect and restore a selected segment after a controlled delay."],["Timed shutdown","Graceful delayed shutdown and restart policy."]]));
     return container;
   }
-  function renderEvents(summary,records,paging,which) {
+  /* Return one consistent retained-history snapshot. Every page must share
+   * the same newest event ID and boot generation. If a new event arrives while
+   * paging, retry once rather than export duplicates or silently omit rows. */
+  async function loadEventHistory(signal) {
+    for(let attempt=0;attempt<2;attempt++) {
+      const first=await request("events",signal);
+      if(!Array.isArray(first.events))throw new Error("Invalid event API response");
+      if(!Number.isInteger(first.pages)) {
+        return {meta:first,stats:null,all:first.events};
+      }
+      if(!Number.isInteger(first.stored)||first.stored<0||first.stored>32 ||
+         first.pages<0||first.pages>4||first.pageSize!==8)
+        throw new Error("Invalid event retention metadata");
+      const additional=await Promise.all(
+        Array.from({length:Math.max(first.pages-1,0)},(_,i)=>request("events/"+(i+1),signal))
+      );
+      const pages=[first,...additional];
+      const consistent=pages.every((page,i)=>
+        page.page===i&&page.stored===first.stored&&
+        page.overwritten===first.overwritten&&
+        page.latestEventId===first.latestEventId&&
+        page.currentBootGeneration===first.currentBootGeneration&&
+        Array.isArray(page.events)
+      );
+      const all=pages.flatMap(p=>p.events);
+      const ids=new Set(all.map(e=>e.id));
+      if(!consistent||all.length!==first.stored||ids.size!==all.length){
+        if(attempt===0)continue;
+        throw new Error("Event history changed while reading; refresh to retry.");
+      }
+      let stats=null;
+      try {
+        stats=await request("events/stats",signal);
+      } catch(error) {
+        /* An older host simulator exposes sample events without native
+         * statistics. Real native errors must not be hidden as success. */
+        if(error.httpStatus!==404||!first.simulated)throw error;
+      }
+      if(stats && (
+        stats.latestEventId!==first.latestEventId||
+        stats.stored!==first.stored||
+        stats.currentBootGeneration!==first.currentBootGeneration
+      )){
+        if(attempt===0)continue;
+        throw new Error("Event history changed while computing totals; retry.");
+      }
+      return {meta:first,stats,all};
+    }
+    throw new Error("Unable to obtain a consistent event snapshot.");
+  }
+  function saveEventFile(filename, content, type) {
+    const blob=new Blob([content],{type});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    link.href=url;
+    link.download=filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(()=>URL.revokeObjectURL(url),500);
+  }
+  function csvCell(value) {
+    let raw=String(value===undefined||value===null?"":value).replace(/[\r\n]+/g," ");
+    /* Escaping alone is insufficient for spreadsheet formula injection. */
+    if(/^\s*[=+\-@]/.test(raw))raw="'"+raw;
+    return '"'+raw.replace(/"/g,'""')+'"';
+  }
+  function renderEvents(summary, snapshot, which) {
     const system=which==="system-log";
     const container=element("div");
     add(container,title(system?"System Log":"Event Log",system?
-      "Read-only system and service events with monotonic timestamps and boot-generation context.":
-      "Recorded UPS events, severity, sequence numbers and transition history."));
-    if(!records){add(container,notice("Event API unavailable","The native event store did not return a valid response.","error"));return container;}
-    if(records.simulated)add(container,notice("Development event stream","These records come from the simulator, not an attached UPS.","warning"));
-    if(records.persistent===false)add(container,notice("Volatile event retention","Records currently remain in RAM. Persistent checkpoints require verified storage; reboot can lose uncommitted events.","info"));
-    const all=Array.isArray(records.events)?records.events:[];
-    const filtered=system?all.filter(e=>!e.code || ["SERVICE_START","REPORT_REJECTED","TELEMETRY_OFFLINE","TELEMETRY_ONLINE"].includes(e.code)):all;
-    const rows=filtered.map(e=>[
-      valueOrDash(e.id),
-      e.bootGeneration!==undefined?"Boot "+e.bootGeneration:"Current session",
-      e.monotonicMs!==undefined?valueOrDash(e.monotonicMs," ms"):"—",
-      statusTag(e.severity||"info",e.severity==="error"?"error":e.severity==="warning"?"warning":""),
-      e.code||e.message||"Event",
-      e.message||""
-    ]);
-    add(container,table(["ID","Epoch","Time from boot","Severity","Code","Description"],rows));
-    if(Number.isInteger(records.pages)&&records.pages>1){
-      const pager=element("div","pager");
-      const previous=button("Previous",()=>{state.eventPage=Math.max(0,state.eventPage-1);load(true);},state.eventPage===0);
-      const next=button("Next",()=>{state.eventPage++;load(true);},state.eventPage>=records.pages-1);
-      add(pager,previous,node("span","Page "+(state.eventPage+1)+" of "+records.pages),next);
-      add(container,pager);
+      "Device and service events, searchable across all retained pages and boot generations.":
+      "UPS power, battery and link history, searchable and exportable without losing page boundaries."));
+    if(!snapshot) {
+      add(container,notice("Event history unavailable","No readable event log was returned. The backend did not supply replacement records.","error"));
+      return container;
     }
-    if(Number.isInteger(records.overwritten))add(container,node("p","Older events overwritten in the fixed RAM ring: "+records.overwritten,"label"));
+    const meta=snapshot.meta;
+    const all=snapshot.all;
+    const stats=snapshot.stats;
+    if(meta.simulated)add(container,notice("Development event stream","This history is simulated and is not connected to a physical UPS.","warning"));
+    if(meta.persistent===false)add(container,notice("Event retention is not yet automatic","The backend retains up to 32 records in RAM. Its journal checkpoint is not enabled on unqualified flash, so uncommitted history may be lost after reboot.","info"));
+    const counters=element("div","metrics");
+    const levels={error:0,warning:0,info:0};
+    all.forEach(e=>{if(Object.prototype.hasOwnProperty.call(levels,e.severity))levels[e.severity]++;});
+    add(counters,metric("Retained records",String(all.length),"Maximum 32 in current firmware"),
+      metric("Critical / error",String(stats?stats.error:levels.error),"Retained events"),
+      metric("Warnings",String(stats?stats.warning:levels.warning),"Retained events"),
+      metric("Older records lost",meta.overwritten===undefined?"—":String(meta.overwritten),"Ring buffer overwrite count"));
+    container.appendChild(counters);
+    const controls=element("div","event-controls");
+    const selection=element("select","event-select");
+    selection.setAttribute("aria-label","Filter event severity");
+    [["all","All severities"],["error","Errors"],["warning","Warnings"],["info","Information"]].forEach(([key,label])=>{
+      const option=element("option","",label);
+      option.value=key;
+      selection.appendChild(option);
+    });
+    selection.value=state.eventSeverity;
+    const search=element("input","event-search");
+    search.type="search";
+    search.setAttribute("aria-label","Search retained events");
+    search.placeholder="Search event code, description or ID";
+    search.value=state.eventQuery;
+    const exportCsv=button("Export CSV",null,false);
+    const exportJson=button("Export JSON",null,false);
+    const count=node("span","","label");
+    add(controls,selection,search,count,exportCsv,exportJson);
+    container.appendChild(controls);
+    const results=element("div");
+    container.appendChild(results);
+    const systemCodes=new Set(["SERVICE_START","REPORT_REJECTED","TELEMETRY_OFFLINE","TELEMETRY_ONLINE"]);
+    function selected() {
+      const query=state.eventQuery.trim().toLowerCase();
+      return all.filter(e=>(!system||!e.code||systemCodes.has(e.code)) &&
+        (state.eventSeverity==="all"||e.severity===state.eventSeverity) &&
+        (!query||[e.id,e.code,e.message,e.severity,e.bootGeneration]
+         .some(value=>String(value===undefined?"":value).toLowerCase().includes(query))));
+    }
+    function csv(rows) {
+      const data=[["id","bootGeneration","monotonicMs","severity","code","message"],
+        ...rows.map(e=>[e.id,e.bootGeneration,e.monotonicMs,e.severity,e.code,e.message])];
+      return "\ufeff"+data.map(line=>line.map(csvCell).join(",")).join("\r\n")+"\r\n";
+    }
+    function exportName(ext) {
+      return "openh910p-"+(system?"system-log":"event-log")+"-boot"+
+        String(meta.currentBootGeneration||1)+"."+ext;
+    }
+    exportCsv.addEventListener("click",()=>{
+      const rows=selected();
+      if(rows.length)saveEventFile(exportName("csv"),csv(rows),"text/csv;charset=utf-8");
+    });
+    exportJson.addEventListener("click",()=>{
+      const rows=selected();
+      if(rows.length)saveEventFile(exportName("json"),JSON.stringify({
+        schemaVersion:1,source:meta.source,simulated:meta.simulated,
+        exportedRecords:rows.length,stored:meta.stored,
+        overwritten:meta.overwritten||0,
+        currentBootGeneration:meta.currentBootGeneration,
+        persistent:meta.persistent===true,
+        events:rows
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    function update() {
+      const filtered=selected();
+      const pages=Math.max(1,Math.ceil(filtered.length/8));
+      state.eventPage=Math.min(state.eventPage,pages-1);
+      count.textContent=filtered.length+" matching · "+all.length+" retained";
+      exportCsv.disabled=exportJson.disabled=!filtered.length;
+      const slice=filtered.slice(state.eventPage*8,(state.eventPage+1)*8);
+      const rows=slice.map(e=>[
+        valueOrDash(e.id),
+        e.bootGeneration===undefined?"Current session":"Boot "+e.bootGeneration,
+        e.monotonicMs===undefined?"—":valueOrDash(e.monotonicMs," ms"),
+        statusTag(e.severity||"info",e.severity==="error"?"error":e.severity==="warning"?"warning":""),
+        e.code||"EVENT",
+        e.message||""
+      ]);
+      results.replaceChildren(table(["ID","Epoch","Time from boot","Severity","Code","Description"],rows));
+      if(pages>1){
+        const pager=element("div","pager");
+        const previous=button("Previous",()=>{state.eventPage--;update();},state.eventPage===0);
+        const next=button("Next",()=>{state.eventPage++;update();},state.eventPage>=pages-1);
+        add(pager,previous,node("span","Page "+(state.eventPage+1)+" of "+pages),next);
+        results.appendChild(pager);
+      }
+    }
+    selection.addEventListener("change",()=>{state.eventSeverity=selection.value;state.eventPage=0;update();});
+    search.addEventListener("input",()=>{state.eventQuery=search.value;state.eventPage=0;update();});
+    update();
     return container;
   }
   const pages={
@@ -428,12 +570,12 @@
       else if(page==="measurements")content=renderMeasurements(summary);
       else if(page==="control")content=renderControl(summary);
       else if(page==="events"||page==="system-log"){
-        let events=null;
+        let history=null;
         try{
-          events=await request("events"+(state.eventPage?"/"+state.eventPage:""),signal);
-        }catch(error){if(error.httpStatus===503) events=null;else throw error;}
+          history=await loadEventHistory(signal);
+        }catch(error){if(error.httpStatus===503) history=null;else throw error;}
         if(signal.aborted||generation!==state.generation)return;
-        content=renderEvents(summary,events,null,page);
+        content=renderEvents(summary,history,page);
       } else {
         let fields=null;
         if(page!=="firmware"&&page!=="applications"){
@@ -476,7 +618,7 @@
     const previous=state.page;
     syncNav();
     if(state.page!==previous){
-      state.eventPage=0;state.search="";
+      state.eventPage=0;state.eventSeverity="all";state.eventQuery="";state.search="";
       load(true);
     }
   });

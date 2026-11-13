@@ -45,6 +45,12 @@ static void state_edges_and_loss(void) {
     http("GET","/api/v1/ups/status",503,"TELEMETRY_UNAVAILABLE",0);
     http("GET","/api/v1/events",200,"\"code\":\"SERVICE_START\"",
          "EVENT_DRIVER_UNAVAILABLE");
+    http("GET","/api/v1/events/stats",200,"\"stored\":1",0);
+    assert(strstr(response,"\"info\":1")!=0);
+    assert(strstr(response,"\"warning\":0")!=0);
+    assert(strstr(response,"\"error\":0")!=0);
+    assert(strstr(response,"\"latestEventId\":1")!=0);
+    assert(strstr(response,"\"byCode\":{\"SERVICE_START\":1")!=0);
     http("GET","/api/v1/events",200,"\"persistent\":false",
          "\"simulated\":true");
     r=report(1U,1U,80U);
@@ -85,6 +91,12 @@ static void ring_and_pagination(void) {
         assert(ou_native_service_driver_report(&r,clock_ms)==0);
     }
     http("GET","/api/v1/events",200,"\"stored\":32",0);
+    http("GET","/api/v1/events/stats",200,"\"stored\":32",0);
+    assert(strstr(response,"\"oldestEventId\":")!=0);
+    assert(strstr(response,"\"latestEventId\":")!=0);
+    assert(strstr(response,"\"overwritten\":")!=0);
+    assert(strstr(response,"\"UTILITY_LOST\":")!=0);
+    assert(strstr(response,"\"UTILITY_RESTORED\":")!=0);
     assert(strstr(response,"\"overwritten\":")!=0);
     assert(strstr(response,"\"page\":0")!=0);
     assert(strstr(response,"\"pages\":4")!=0);
@@ -96,6 +108,10 @@ static void ring_and_pagination(void) {
     http("GET","/api/v1/events/01",404,"PAGE_NOT_FOUND",0);
     http("GET","/api/v1/events/-1",404,"PAGE_NOT_FOUND",0);
     http("POST","/api/v1/events",405,"READ_ONLY",0);
+    http("POST","/api/v1/events/stats",405,"READ_ONLY",0);
+    http("GET","/api/v1/events/stats/0",404,"PAGE_NOT_FOUND",0);
+    http("HEAD","/api/v1/events/stats",200,"Content-Length:",0);
+    assert(strstr(response,"\"byCode\"")==0);
     http("HEAD","/api/v1/events",200,"Content-Length:",0);
     assert(strstr(response,"\"events\"")==0);
 }

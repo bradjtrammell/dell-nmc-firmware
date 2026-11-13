@@ -99,3 +99,21 @@ recovery, UPS power operations, scheduling, notifications, SNMP and update
 rollback), and test on actual H910P hardware. The existing production UI
 identity and requirements remain authoritative; no production UI files or
 update/release mechanisms were replaced.
+
+## Event monitoring, statistics, filtering and export
+
+Native-only `GET /api/v1/events/stats` includes retained severity and
+event-code totals, the oldest/newest event IDs and boot generation.
+Native event pages carry the latest ID as a stable pagination token.
+The host development UI checks all pages against that token and
+retries once when events are arriving concurrently; it never silently
+exports a torn snapshot. All severity/search filters and CSV/JSON exports
+operate on the complete 32-record retained window. The System Log
+receives the same cross-page treatment, with service-specific code
+filtering.
+
+The existing offline validation workflow runs Node source parsing
+and a dependency-free DOM/API behavior test in addition to the C,
+Python, sanitizer and ARM7 gates. This is **not a substitute for**
+automated real-browser visual and keyboard acceptance or on-card
+signed firmware, authenticated control, and verified storage.

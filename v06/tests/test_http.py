@@ -100,6 +100,14 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_host_simulator_does_not_invent_native_event_statistics(self):
+        code, _, body = self.request("GET", "/api/v1/events/stats")
+        self.assertEqual(code, 404)
+        self.assertEqual(json.loads(body)["resource"], "error")
+        code, _, body = self.request("POST", "/api/v1/events/stats", "{}")
+        self.assertEqual(code, 405)
+        self.assertEqual(json.loads(body)["error"], "READ_ONLY")
+
     def test_no_mutations_can_be_sent(self):
         for method in ("POST", "PUT", "PATCH", "DELETE"):
             with self.subTest(method=method):

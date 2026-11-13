@@ -1,0 +1,211 @@
+"use strict";
+/* Dependency-free Node 22 browser-behavior test. No NMC, flash, or network.
+ * Exercises the real production app.js against deterministic DOM/API fakes.
+ * Does not claim visual or on-card browser acceptance. */
+const assert=require("node:assert/strict");
+const {readFileSync}=require("node:fs");
+const path=require("node:path");
+const vm=require("node:vm");
+const {test}=require("node:test");
+
+class Element {
+  constructor(tag) {
+    this.tagName=tag.toLowerCase();
+    this.children=[];
+    this.events={};
+    this.dataset={};
+    this.attributes={};
+    this.className="";
+    this.textContent="";
+    this.disabled=false;
+    this.value="";
+    this.type="";
+    this.style={};
+    this.parent=null;
+    const names=new Set();
+    this.classList={
+      add(name){names.add(name);},
+      remove(name){names.delete(name);},
+      contains(name){return names.has(name);},
+      toggle(name){if(names.has(name)){names.delete(name);return false;}
+        names.add(name);return true;}
+    };
+  }
+  appendChild(node){node.parent=this;this.children.push(node);return node;}
+  replaceChildren(...nodes){this.children.forEach(n=>n.parent=null);this.children=[];
+    nodes.forEach(n=>this.appendChild(n));}
+  setAttribute(name,value){this.attributes[name]=String(value);}
+  getAttribute(name){return this.attributes[name]??null;}
+  removeAttribute(name){delete this.attributes[name];}
+  addEventListener(name,fn){(this.events[name]??=[]).push(fn);}
+  dispatch(name){(this.events[name]||[]).forEach(fn=>fn({target:this}));}
+  click(){this.dispatch("click");}
+  focus(){this.focused=true;}
+  remove(){if(this.parent){const p=this.parent;
+    p.children=p.children.filter(n=>n!==this);this.parent=null;}}
+  querySelectorAll(selector){
+    const result=[];function descend(element){
+      element.children.forEach(child=>{
+        if(child.tagName===selector.toLowerCase())result.push(child);
+        descend(child);
+      });
+    }descend(this);return result;
+  }
+}
+function descendants(root){
+  const arr=[root];for(const child of root.children)arr.push(...descendants(child));
+  return arr;
+}
+function allText(root) {
+  return descendants(root).map(n=>n.textContent).filter(Boolean).join(" | ");
+}
+function find(root,tag,matching){
+  return descendants(root).find(n=>n.tagName===tag&&matching(n));
+}
+function createEnvironment({inconsistent=false}={}){
+  const names=["navigation","view","banner","refresh","health-indicator",
+    "sidebar","menu","device-status","breadcrumb-name"];
+  const named=Object.fromEntries(names.map(name=>[name,new Element("div")]));
+  named.view.id="view";
+  named.navigation.id="navigation";
+  named.refresh.tagName="button";
+  named.menu.tagName="button";
+  const document={
+    body:new Element("body"),hidden:false,
+    createElement(tag){return new Element(tag);},
+    getElementById(name){assert.ok(named[name],"unknown DOM id "+name);return named[name];},
+    addEventListener(name,fn){(this.events??={})[name]=fn;}
+  };
+  const location={hash:"#events"};
+  const listeners={};
+  const downloads=[],blobs=[],calls=[];
+  const window={
+    addEventListener(name,fn){listeners[name]=fn;},
+    setInterval(){return 1;},
+    setTimeout(){return 1;}
+  };
+  const urlApi={
+    createObjectURL(blob){blobs.push(blob);return "blob:fake-"+blobs.length;},
+    revokeObjectURL(){}
+  };
+  document.body.appendChild=function(child){
+    Element.prototype.appendChild.call(this,child);
+    if(child.tagName==="a"){
+      child.click=function(){downloads.push({filename:child.download,blob:blobs.at(-1)});};
+    }
+    return child;
+  };
+  const events=[
+    {id:20,bootGeneration:2,monotonicMs:10000,severity:"info",code:"SERVICE_START",message:"Service initialized"},
+    {id:19,bootGeneration:2,monotonicMs:9000,severity:"error",code:"TELEMETRY_OFFLINE",message:"UPS data unavailable"},
+    {id:18,bootGeneration:2,monotonicMs:8000,severity:"info",code:"TELEMETRY_ONLINE",message:"Measurements available"},
+    {id:17,bootGeneration:2,monotonicMs:7000,severity:"info",code:"UTILITY_RESTORED",message:"Power returned"},
+    {id:16,bootGeneration:2,monotonicMs:6000,severity:"warning",code:"BATTERY_LOW",message:"Low battery"},
+    {id:15,bootGeneration:2,monotonicMs:5000,severity:"info",code:"BATTERY_RECOVERED",message:"Battery recovered"},
+    {id:14,bootGeneration:2,monotonicMs:4000,severity:"error",code:"REPORT_REJECTED",message:"Checksum mismatch"},
+    {id:13,bootGeneration:1,monotonicMs:3000,severity:"info",code:"SERVICE_START",message:"Previous boot"},
+    {id:12,bootGeneration:1,monotonicMs:2000,severity:"warning",code:"UTILITY_LOST",message:"Utility lost before restart"}
+  ];
+  const respond=(route)=>{
+    if(route==="health")return {schemaVersion:1,source:"native",simulated:false,status:"ok"};
+    if(route==="device")return {schemaVersion:1,source:"native",simulated:false,firmwareVersion:"0.6.0-alpha.1"};
+    if(route==="capabilities")return {schemaVersion:1,source:"native",simulated:false,
+      outletControl:false,configurationWritable:false,firmwareInstall:false,transport:"native-json-c"};
+    if(route==="ups/status"||route==="ups/measurements"||route==="ups/outlets")
+      return {error:"TELEMETRY_UNAVAILABLE",status:503};
+    if(route==="events/stats")return {schemaVersion:1,source:"native",simulated:false,
+      stored:9,info:6,warning:2,error:2,latestEventId:20,
+      currentBootGeneration:2,byCode:{SERVICE_START:2}};
+    if(route==="events"||route==="events/1")return {
+      schemaVersion:1,source:"native",simulated:false,
+      persistent:false,stored:9,pages:2,pageSize:8,overwritten:3,
+      page:route==="events"?0:1,currentBootGeneration:2,
+      latestEventId:inconsistent&&route==="events/1"?21:20,
+      events:route==="events"?events.slice(0,8):events.slice(8)
+    };
+    throw Error("Unexpected API route "+route);
+  };
+  async function fetch(url,opts){
+    const route=String(url).replace(/^\/api\/v1\//,"");
+    calls.push(route);
+    assert.equal(opts.method,"GET");
+    assert.equal(opts.credentials,"same-origin");
+    const info=respond(route);
+    return {ok:!info.status,status:info.status||200,
+      async json(){return info;}};
+  }
+  const source=readFileSync(path.join(__dirname,"..","web","app.js"),"utf8");
+  vm.runInNewContext(source,{
+    document,location,window,fetch,
+    AbortController,URL:urlApi,Blob,console
+  },{filename:"v06/web/app.js",timeout:1000});
+  return {named,document,location,listeners,calls,downloads,events};
+}
+async function settled(env){
+  for(let i=0;i<20;i++){
+    await new Promise(resolve=>setImmediate(resolve));
+    if(!allText(env.named.view).includes("Loading Event Log"))break;
+  }
+  await new Promise(resolve=>setImmediate(resolve));
+}
+test("all management destinations and complete event history render",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  const nav=env.named.navigation.querySelectorAll("a");
+  assert.equal(nav.length,15);
+  assert.equal(env.calls.filter(x=>x==="events").length,1);
+  assert.ok(env.calls.includes("events/1"));
+  assert.ok(env.calls.includes("events/stats"));
+  assert.match(allText(env.named.view),/Retained records/);
+  assert.match(allText(env.named.view),/9 matching/);
+  assert.match(allText(env.named.view),/Stored|Retained/);
+  assert.match(allText(env.named.view),/TELEMETRY_OFFLINE/);
+  assert.equal(find(env.named.view,"button",n=>n.textContent==="Export CSV").disabled,false);
+});
+test("filter searches all pages and exports only matching rows",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  const select=find(env.named.view,"select",n=>n.className.includes("event-select"));
+  assert.ok(select);
+  select.value="warning";select.dispatch("change");
+  assert.match(allText(env.named.view),/2 matching/);
+  assert.match(allText(env.named.view),/BATTERY_LOW/);
+  assert.match(allText(env.named.view),/UTILITY_LOST/);
+  const input=find(env.named.view,"input",n=>n.className.includes("event-search"));
+  input.value="utility";input.dispatch("input");
+  assert.match(allText(env.named.view),/1 matching/);
+  const exportCsv=find(env.named.view,"button",n=>n.textContent==="Export CSV");
+  exportCsv.click();
+  assert.equal(env.downloads.length,1);
+  assert.match(env.downloads[0].filename,/event-log-boot2\.csv$/);
+  const content=await env.downloads[0].blob.text();
+  assert.match(content,/UTILITY_LOST/);
+  assert.doesNotMatch(content,/BATTERY_LOW/);
+  const exportJson=find(env.named.view,"button",n=>n.textContent==="Export JSON");
+  exportJson.click();
+  const json=JSON.parse(await env.downloads[1].blob.text());
+  assert.equal(json.events.length,1);
+  assert.equal(json.events[0].id,12);
+  assert.equal(json.exportedRecords,1);
+  assert.equal(json.overwritten,3);
+  input.value="no-match-value";input.dispatch("input");
+  assert.equal(exportCsv.disabled,true);
+  assert.equal(exportJson.disabled,true);
+});
+test("event pages changing during fetch fail safely without exporting",async()=>{
+  const env=createEnvironment({inconsistent:true});
+  await settled(env);
+  assert.match(allText(env.named.view),/history changed|Unable to load/i);
+  assert.equal(env.calls.filter(x=>x==="events").length,2);
+  assert.equal(env.downloads.length,0);
+});
+test("system log filters across all event pages",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#system-log";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/System Log/);
+  assert.match(allText(env.named.view),/TELEMETRY_OFFLINE/);
+  assert.doesNotMatch(allText(env.named.view),/BATTERY_LOW/);
+});

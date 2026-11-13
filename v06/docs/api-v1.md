@@ -13,7 +13,8 @@ The C99 response code has no Dell XML/CGI dependencies. The **only** HTTP listen
 | GET `/api/v1/ups/measurements` | input/output voltage with `dV` unit (503 if unavailable) |
 | GET `/api/v1/ups/outlets` | three outlet summaries; power controls disabled (503 if unavailable) |
 | GET `/api/v1/events` | native typed event history, newest-first, independent of UPS telemetry (simulator retains its synthetic events) |
-| GET `/api/v1/events/{0..3}` | native event pages, 8 records each, strict path validation |
+| GET `/api/v1/events/{0..3}` | native event pages, 8 records each, strict path validation and consistent `latestEventId` token |
+| GET `/api/v1/events/stats` | native retained-history counts by severity and event code, current/oldest IDs and boot-generation snapshot |
 | GET `/api/v1/configuration/fields` | metadata count 302 and 19 page descriptors |
 | GET `/api/v1/configuration/fields/{0..18}` | exact name, type, group, access, restart/hidden flags, unit; no values |
 
@@ -68,3 +69,34 @@ partition, NOR geometry, and write permission; it is never allowed
 to reuse configuration, firmware, or bootloader sectors. Future
 qualified hardware integration must implement an endurance-aware
 checkpoint policy and test power failures.
+
+## Browser event-management integration
+
+The native event response provides `latestEventId` as a consistency
+token. The read-only `/api/v1/events/stats` endpoint reports the 32-entry
+ring's retained counts, overwritten count, current boot generation,
+oldest/newest event IDs, severity totals and counters for each of the
+eight typed event codes. Overwritten records are **not included** in
+these totals. It returns independent of UPS telemetry availability, so a
+link failure does not hide the incident history.
+
+The v0.6 management console reads all retained event pages, rejects
+duplicated IDs or inconsistent snapshot tokens, and retries once if
+the ring changes mid-read. All visible search, severity filtering,
+system-log filtering, pagination and CSV/JSON exports operate on that
+**complete, consistent** snapshot. CSV strings are quoted and
+formula-prefixed values escaped to avoid spreadsheet execution.
+Exported JSON records retain boot-generation and timestamp context and
+explicitly disclose source, simulation status, overwritten records and
+storage-persistence limitations. No mutation/clear actions are exposed.
+
+The host-only simulator continues offering its labeled sample event list
+without a native event-stats endpoint. The development UI derives
+temporary counts from those sample records; it never promotes them to
+verified hardware events.
+
+`node --test v06/tests/test_ui_events.cjs` is a dependency-free
+browser-behavior harness run in the existing CI validation job. It checks
+navigation, cross-page filtering, exports, error responses and snapshot
+consistency. This verifies JavaScript behavior against a fake DOM/API,
+**not** browser rendering, physical hardware, HTTPS, or durable flash writes.
