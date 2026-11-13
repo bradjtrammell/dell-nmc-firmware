@@ -746,6 +746,106 @@
     return panel;
   }
 
+  function renderWeeklyDraft(schema){
+    const panel=element("div","weekly-draft");
+    if(!schema||schema.weeklyPlannerCompiled!==true ||
+       schema.scheduleWritable!==false||schema.activeScheduleAvailable!==false ||
+       schema.slotSeconds!==1800||schema.dayCount!==7 ||
+       schema.slotsPerDay!==48){
+      add(panel,notice("Weekly schedule metadata unavailable",
+        "The backend has not advertised the validated, read-only seven-day schedule contract.","error"));
+      return panel;
+    }
+    add(panel,section("Weekly power schedule draft",
+      "Seven days, half-hour increments. The final UPS schedule is not read from this preview and no power command is sent."));
+    add(panel,notice("Schedule is not active",
+      "These are local planning fields only. The device clock, authenticated control path and storage partition are not qualified. Saving a review file cannot switch outlets or activate a schedule.","info"));
+    const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    if(!state.weeklyDraft){
+      state.weeklyDraft=days.map(()=>({offSeconds:-1,onSeconds:-1}));
+    }
+    const form=element("form","weekly-form");
+    form.addEventListener("submit",e=>e.preventDefault());
+    const summary=element("div","label");
+    const errors=element("div","config-errors");
+    errors.setAttribute("role","status");
+    errors.setAttribute("aria-live","polite");
+    const actions=element("div","config-actions");
+    const save=button("Export weekly schedule review",null,true);
+    function update(){
+      const errorsList=[];
+      let total=0;
+      state.weeklyDraft.forEach((entry,day)=>{
+        for(const value of [entry.offSeconds,entry.onSeconds]){
+          if(!Number.isInteger(value)||!(value===-1 ||
+             (value>=0&&value<=84600&&value%1800===0)))
+            errorsList.push(days[day]+" has an invalid time slot.");
+          if(value>=0)total++;
+        }
+        if(entry.offSeconds>=0&&entry.offSeconds===entry.onSeconds)
+          errorsList.push(days[day]+" cannot turn power off and on at the same time.");
+      });
+      errors.replaceChildren(...errorsList.map(e=>node("p",e)));
+      save.disabled=total===0||errorsList.length>0;
+      summary.textContent=errorsList.length?
+        errorsList.length+" invalid schedule entry/entries":
+        total===0?"No weekly actions selected":
+        total+" planned action(s); no changes applied";
+    }
+    function formatTime(seconds) {
+      const hours=Math.floor(seconds/3600);
+      const minute=(seconds%3600)/60;
+      return String(hours).padStart(2,"0")+":"+
+        String(minute).padStart(2,"0");
+    }
+    days.forEach((label,day)=>{
+      const row=element("fieldset","weekly-day");
+      const legend=element("legend","",label);
+      row.appendChild(legend);
+      [["offSeconds","Turn output off"],["onSeconds","Turn output on"]].forEach(([key,description])=>{
+        const field=element("div","config-field");
+        const text=element("label","",description);
+        const id="schedule-"+day+"-"+key;
+        text.htmlFor=id;
+        const select=element("select","config-input");
+        select.id=id;
+        select.setAttribute("aria-label",label+" "+description);
+        const disabled=element("option","","Not scheduled");
+        disabled.value="-1";select.appendChild(disabled);
+        for(let slot=0;slot<48;slot++){
+          const option=element("option","",formatTime(slot*1800));
+          option.value=String(slot*1800);
+          select.appendChild(option);
+        }
+        select.value=String(state.weeklyDraft[day][key]);
+        select.addEventListener("change",()=>{
+          state.weeklyDraft[day][key]=Number(select.value);
+          update();
+        });
+        add(field,text,select);
+        row.appendChild(field);
+      });
+      form.appendChild(row);
+    });
+    panel.appendChild(form);
+    add(actions,save,summary);
+    add(panel,errors,actions);
+    save.addEventListener("click",()=>{
+      update();
+      if(save.disabled)return;
+      saveEventFile("openh910p-weekly-schedule-review.json",JSON.stringify({
+        schemaVersion:1,kind:"openh910p-weekly-schedule-review",
+        applied:false,installable:false,origin:"operator-entered-local-draft",
+        timezone:"device-time-not-qualified",slotSeconds:1800,
+        days:state.weeklyDraft.map((entry,day)=>({
+          weekday:day,offSeconds:entry.offSeconds,onSeconds:entry.onSeconds
+        }))
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    update();
+    return panel;
+  }
+
   function renderAccessSecurity(security) {
     const panel=element("div","security-status");
     add(panel,section("Authentication and session enforcement","Actual backend qualification status. This preview does not accept account passwords."));
@@ -778,10 +878,11 @@
       "No default user is created and no browser password is transmitted. Configure users, roles, certificates and sessions only after the real TLS/credential providers and device-side storage are accepted.","info"));
     return panel;
   }
-  function renderGeneral(summary,key,items,staging,security) {
+  function renderGeneral(summary,key,items,staging,security,weekly) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
+    if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
     if(key==="network"||key==="system")
       container.appendChild(renderConfigDraft(staging,key));
     add(container,readOnlyMessage());
@@ -892,8 +993,13 @@
           try{security=await request("security/capabilities",signal);}
           catch(error){if(error.httpStatus!==404)throw error;}
         }
+        let weekly=null;
+        if(page==="schedule"){
+          try{weekly=await request("schedule/schema",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security);
+        content=renderGeneral(summary,page,fields,staging,security,weekly);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

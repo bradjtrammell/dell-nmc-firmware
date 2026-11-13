@@ -98,6 +98,17 @@ tbody tr:nth-child(even){background:#f8fafb}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}
 .event-select{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;min-height:43px;color:var(--ink)}
 .event-controls .button{min-height:43px}
+.weekly-draft{margin:16px 0 26px}
+.weekly-form{display:flex;flex-direction:column;border-top:2px solid #a8c1c9}
+.weekly-day{border:0;border-bottom:1px solid #c6d7dc;background:#fff;margin:0;padding:14px 16px 14px;min-width:0;display:grid;grid-template-columns:175px repeat(2,minmax(0,1fr));gap:16px;align-items:center}
+.weekly-day:nth-child(even){background:#f7fafb}
+.weekly-day legend{float:left;width:175px;min-width:0;font-weight:750;font-size:14px;padding:10px 0;color:#27414e}
+.weekly-day .config-field{min-width:0}
+.weekly-day .config-field label{font-size:12px}
+.weekly-day select{width:100%;max-width:310px}
+@media(max-width:960px){.weekly-day{grid-template-columns:130px repeat(2,minmax(0,1fr))}.weekly-day legend{width:130px}}
+@media(max-width:760px){.weekly-day{grid-template-columns:1fr 1fr;gap:10px}.weekly-day legend{width:100%;float:none;grid-column:1/-1;padding:0}}
+@media(max-width:410px){.weekly-day{grid-template-columns:1fr}.weekly-day legend{grid-column:1}}
 .config-draft{margin:18px 0 24px}
 .config-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 18px;margin-bottom:13px}
 .config-field{display:flex;flex-direction:column;gap:5px;min-width:0}

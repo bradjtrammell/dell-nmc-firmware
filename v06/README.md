@@ -258,3 +258,13 @@ read-only and unencrypted on loopback. Device-resident HTTPS,
 qualified RNG, password KDF, secure credential storage and
 authorized write endpoints are **not implemented**. See
 `docs/authentication-sessions.md` for mandatory acceptance gates.
+
+## Seven-day schedule planning (no hardware power actions)
+
+The existing Weekly Schedule navigation destination now has an
+interactive local editor with seven ON/OFF pairs and 30-minute slots,
+plus a review-only JSON export. The freestanding native planner
+implements weekday rollover and a distinct 64-byte transactional
+schedule journal model. Neither the UI nor API can execute scheduled
+UPS power operations, and no device time or active schedule is
+invented. See `docs/weekly-schedule.md`.

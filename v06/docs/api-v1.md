@@ -181,3 +181,21 @@ request IDs. External qualified password KDF, hardware entropy,
 HTTPS cookie transport, credential persistence and live H910P
 integration are **still required**. See
 `docs/authentication-sessions.md`.
+
+## Weekly Schedule — native planner and local review
+
+`GET /api/v1/schedule/schema` describes the verified existing
+seven-day schedule schema: one ON and OFF time per weekday, disabled
+`-1`, otherwise 1,800-second slots between midnight and 23:30.
+It returns `weeklyPlannerCompiled:true` and **false** for
+`scheduleWritable`, `activeScheduleAvailable`, `rtcQualified`,
+`powerControlQualified`, and `persistent`. It contains no
+invented active schedule or simulated outlet action.
+
+The Weekly Schedule UI now exposes 14 interactive local selectors,
+validates same-day ON/OFF conflicts, and exports a review-only JSON
+file explicitly marked `applied:false` and
+`installable:false`. There is no `POST`, physical power control
+or HTTP schedule execution route. The native planner and dedicated
+schedule journal are separately tested and are not a field-qualified
+UPS driver. See `docs/weekly-schedule.md`.

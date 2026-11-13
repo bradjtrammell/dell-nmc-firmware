@@ -144,6 +144,9 @@ $(BUILD)/test_native_service: src/core.c src/schema.c src/provider.c src/telemet
 $(BUILD)/test_telemetry_guard: src/core.c src/schema.c src/provider.c src/telemetry_guard.c tests/test_telemetry_guard.c include/ou_telemetry_guard.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/core.c src/schema.c src/provider.c src/telemetry_guard.c tests/test_telemetry_guard.c -o $@
 
+$(BUILD)/test_weekly_schedule: src/weekly_schedule.c board/config_journal.c tests/test_weekly_schedule.c include/ou_weekly_schedule.h | $(BUILD)
+	$(CC) $(CPPFLAGS) $(CFLAGS) src/weekly_schedule.c board/config_journal.c tests/test_weekly_schedule.c -o $@
+
 $(BUILD)/test_auth: src/auth.c tests/test_auth.c include/ou_auth.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) src/auth.c tests/test_auth.c -o $@
 
@@ -156,7 +159,7 @@ $(BUILD)/test_config_model: src/config_model.c src/schema.c board/config_journal
 $(BUILD)/test_journal: board/config_journal.c tests/test_config_journal.c include/ou_config_journal.h | $(BUILD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) board/config_journal.c tests/test_config_journal.c -o $@
 
-test: all $(BUILD)/test_auth $(BUILD)/test_config_activation $(BUILD)/test_config_model $(BUILD)/test_history $(BUILD)/test_native_history $(BUILD)/test_events $(BUILD)/test_native_events $(BUILD)/test_event_archive $(BUILD)/test_native_event_archive $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_board_mmio $(BUILD)/test_ns7520_serial_rx $(BUILD)/test_shut_uart_bridge $(BUILD)/test_shut_uart_tx $(BUILD)/test_shut_uart_link $(BUILD)/test_ups_monitor $(BUILD)/test_shut_rx $(BUILD)/test_shut_request $(BUILD)/test_shut_session $(BUILD)/test_hid_report $(BUILD)/test_hid_telemetry $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex $(BUILD)/test_hal_timer $(BUILD)/test_phy_link
+test: all $(BUILD)/test_weekly_schedule $(BUILD)/test_auth $(BUILD)/test_config_activation $(BUILD)/test_config_model $(BUILD)/test_history $(BUILD)/test_native_history $(BUILD)/test_events $(BUILD)/test_native_events $(BUILD)/test_event_archive $(BUILD)/test_native_event_archive $(BUILD)/test_core $(BUILD)/test_provider $(BUILD)/test_board $(BUILD)/test_journal $(BUILD)/test_telemetry_guard $(BUILD)/test_board_probe $(BUILD)/test_board_mmio $(BUILD)/test_ns7520_serial_rx $(BUILD)/test_shut_uart_bridge $(BUILD)/test_shut_uart_tx $(BUILD)/test_shut_uart_link $(BUILD)/test_ups_monitor $(BUILD)/test_shut_rx $(BUILD)/test_shut_request $(BUILD)/test_shut_session $(BUILD)/test_hid_report $(BUILD)/test_hid_telemetry $(BUILD)/test_http_wire $(BUILD)/test_native_service $(BUILD)/test_compiler_rt $(BUILD)/test_ns7520_phy $(BUILD)/test_ipv4_wire $(BUILD)/test_ns7520_dma $(BUILD)/test_ethernet_path $(BUILD)/test_ns7520_mac $(BUILD)/test_vlan $(BUILD)/test_ethernet_manager $(BUILD)/test_vlan_record $(BUILD)/test_tcp_ingress $(BUILD)/test_tcp_engine $(BUILD)/test_tcp_wire_integration $(BUILD)/test_tcp_native_http $(BUILD)/test_ns7520_hal $(BUILD)/test_board_runtime $(BUILD)/test_phy_discover $(BUILD)/test_ns7520_timer $(BUILD)/test_mac_duplex $(BUILD)/test_hal_timer $(BUILD)/test_phy_link
 	./$(BUILD)/test_events
 	./$(BUILD)/test_native_events
 	./$(BUILD)/test_history
@@ -170,6 +173,7 @@ test: all $(BUILD)/test_auth $(BUILD)/test_config_activation $(BUILD)/test_confi
 	./$(BUILD)/test_config_model
 	./$(BUILD)/test_config_activation
 	./$(BUILD)/test_auth
+	./$(BUILD)/test_weekly_schedule
 	./$(BUILD)/test_telemetry_guard
 	./$(BUILD)/test_board_probe
 	./$(BUILD)/test_board_mmio
@@ -256,6 +260,8 @@ arm-check: | $(BUILD)
 	python3 tools/verify_arm.py $(BUILD)/config-activation-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/auth.c -o $(BUILD)/auth-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/auth-armeb.o
+	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c src/weekly_schedule.c -o $(BUILD)/weekly-schedule-armeb.o
+	python3 tools/verify_arm.py $(BUILD)/weekly-schedule-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/board_probe.c -o $(BUILD)/board-probe-armeb.o
 	python3 tools/verify_arm.py $(BUILD)/board-probe-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c board/ns7520_board_mmio.c -o $(BUILD)/board-mmio-armeb.o
@@ -301,7 +307,7 @@ arm-link-check: arm-check
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/runtime.c -o $(BUILD)/runtime-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -Iinclude -c target/reset.S -o $(BUILD)/reset-armeb.o
 	clang --target=armeb-none-eabi -mcpu=arm7tdmi -marm -ffreestanding -fno-builtin -fno-stack-protector -Os -Wall -Wextra -Werror -c target/compiler_rt.c -o $(BUILD)/compiler-rt-armeb.o
-	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/events-armeb.o $(BUILD)/history-armeb.o $(BUILD)/event-archive-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/shut-rx-armeb.o $(BUILD)/serial-rx-armeb.o $(BUILD)/shut-uart-bridge-armeb.o $(BUILD)/shut-uart-tx-armeb.o $(BUILD)/shut-uart-link-armeb.o $(BUILD)/ups-monitor-armeb.o $(BUILD)/shut-request-armeb.o $(BUILD)/shut-session-armeb.o $(BUILD)/hid-report-armeb.o $(BUILD)/hid-telemetry-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/config-model-armeb.o $(BUILD)/config-activation-armeb.o $(BUILD)/auth-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/board-mmio-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/ns7520-hal-armeb.o $(BUILD)/board-runtime-armeb.o $(BUILD)/ns7520-timer-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
+	ld.lld -flavor gnu -m armelfb --build-id=none -T target/linker.ld $(BUILD)/reset-armeb.o $(BUILD)/runtime-armeb.o $(BUILD)/core-armeb-arm7tdmi.o $(BUILD)/schema-armeb-arm7tdmi.o $(BUILD)/provider-armeb-arm7tdmi.o $(BUILD)/telemetry-guard-armeb.o $(BUILD)/events-armeb.o $(BUILD)/history-armeb.o $(BUILD)/event-archive-armeb.o $(BUILD)/ns7520-mem-armeb.o $(BUILD)/ups-link-armeb.o $(BUILD)/shut-rx-armeb.o $(BUILD)/serial-rx-armeb.o $(BUILD)/shut-uart-bridge-armeb.o $(BUILD)/shut-uart-tx-armeb.o $(BUILD)/shut-uart-link-armeb.o $(BUILD)/ups-monitor-armeb.o $(BUILD)/shut-request-armeb.o $(BUILD)/shut-session-armeb.o $(BUILD)/hid-report-armeb.o $(BUILD)/hid-telemetry-armeb.o $(BUILD)/flash-policy-armeb.o $(BUILD)/config-journal-armeb.o $(BUILD)/config-model-armeb.o $(BUILD)/config-activation-armeb.o $(BUILD)/auth-armeb.o $(BUILD)/weekly-schedule-armeb.o $(BUILD)/board-probe-armeb.o $(BUILD)/board-mmio-armeb.o $(BUILD)/ns7520-phy-armeb.o $(BUILD)/ipv4-wire-armeb.o $(BUILD)/ns7520-dma-armeb.o $(BUILD)/ethernet-path-armeb.o $(BUILD)/ns7520-mac-armeb.o $(BUILD)/vlan-armeb.o $(BUILD)/tcp-ingress-armeb.o $(BUILD)/tcp-engine-armeb.o $(BUILD)/tcp-adapter-armeb.o $(BUILD)/ns7520-hal-armeb.o $(BUILD)/board-runtime-armeb.o $(BUILD)/ns7520-timer-armeb.o $(BUILD)/vlan-record-armeb.o $(BUILD)/ethernet-manager-armeb.o $(BUILD)/http-wire-armeb.o $(BUILD)/native-service-armeb.o $(BUILD)/compiler-rt-armeb.o -o $(BUILD)/native-research-NOT-FLASHABLE.elf
 	llvm-objcopy -O binary $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 	python3 tools/verify_native_image.py $(BUILD)/native-research-NOT-FLASHABLE.elf $(BUILD)/native-research-NOT-FLASHABLE.dat
 
@@ -319,6 +325,8 @@ footprint-check: arm-link-check
 # Host-only memory safety instrumentation for native telemetry, NS7520 and UPS link
 # modules. This does not connect to physical hardware or flash firmware.
 board-sanitize: | $(BUILD)
+	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/weekly_schedule.c board/config_journal.c tests/test_weekly_schedule.c -o $(BUILD)/test_weekly_schedule_sanitized
+	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_weekly_schedule_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/auth.c tests/test_auth.c -o $(BUILD)/test_auth_sanitized
 	ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 ./$(BUILD)/test_auth_sanitized
 	$(CC) $(CPPFLAGS) -std=c99 -O1 -g -Wall -Wextra -Werror -pedantic -fno-omit-frame-pointer -fsanitize=address,undefined src/config_activation.c src/config_model.c src/schema.c board/config_journal.c tests/test_config_activation.c -o $(BUILD)/test_config_activation_sanitized

@@ -207,3 +207,22 @@ or write permission; host HTTP writes remain 405.
 
 See `docs/authentication-sessions.md` for the full threat boundary.
 Do not interpret offline tests as a real device login.
+
+## Seven-day weekly schedule acceptance
+
+Native `ou_weekly_schedule` preserves the 7×2 on/off OEM schema,
+half-hour time granularity, disabled entries, and deterministic
+next-occurrence planning. Its exact 64-byte versioned record
+is decoded atomically and can only commit to a separately qualified
+schedule journal with an explicit authorization callback.
+Tests cover weekday/week wrap, boundary/midnight cases, invalid
+and same-time entries, noncanonical records, interrupted writes,
+invalid storage gates and previous-slot fallback.
+
+The development UI exposes only a local review editor and JSON export.
+Host HTTP and Node DOM tests assert seven days, independent on/off
+selectors, invalid-time blocking, no live schedule data, no
+power-operation routes, and that navigation preserves the local draft.
+The ARM7 compile/link and sanitizers remain mandatory. Hardware
+RTC/timezone, output-control authorization, persistent execution
+and scheduler de-duplication are **not complete**.

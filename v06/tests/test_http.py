@@ -100,6 +100,34 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_weekly_schedule_contract_is_draft_only(self):
+        code, headers, payload = self.request("GET", "/api/v1/schedule/schema")
+        self.assertEqual(code, 200)
+        body = json.loads(payload)
+        self.assertEqual(body["resource"], "schedule.schema")
+        self.assertEqual(body["dayCount"], 7)
+        self.assertEqual(body["slotSeconds"], 1800)
+        self.assertEqual(body["slotsPerDay"], 48)
+        self.assertEqual(body["disabledValue"], "-1")
+        self.assertEqual(body["mode"], "local-draft-export-only")
+        self.assertIs(body["weeklyPlannerCompiled"], True)
+        for key in ("scheduleWritable", "activeScheduleAvailable",
+                    "rtcQualified", "powerControlQualified", "persistent"):
+            self.assertIs(body[key], False)
+        self.assertNotIn("activeSchedule", body)
+        self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+        code, _, payload = self.request("HEAD", "/api/v1/schedule/schema")
+        self.assertEqual(code, 200)
+        self.assertEqual(payload, b"")
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            with self.subTest(method=method):
+                code, _, payload = self.request(method, "/api/v1/schedule/schema", "{}")
+                self.assertEqual(code, 405)
+                self.assertEqual(json.loads(payload)["error"], "READ_ONLY")
+        code, _, payload = self.request("GET", "/api/v1/schedule/execute")
+        self.assertEqual(code, 404)
+        self.assertEqual(json.loads(payload)["code"], "NOT_FOUND")
+
     def test_authentication_status_is_truthful_and_login_is_disabled(self):
         code, headers, raw = self.request("GET", "/api/v1/security/capabilities")
         self.assertEqual(code, 200)

@@ -421,6 +421,19 @@ int ou_dispatch_observed(const char *method, const char *path,
             }
             put_char(&w,']');
         }
+    } else if (same(path, "/api/v1/schedule/schema")) {
+        common(&w,"schedule.schema",snapshot);
+        property_bool(&w,"weeklyPlannerCompiled",1U,1);
+        property_bool(&w,"scheduleWritable",0U,1);
+        property_bool(&w,"activeScheduleAvailable",0U,1);
+        property_bool(&w,"rtcQualified",0U,1);
+        property_bool(&w,"powerControlQualified",0U,1);
+        property_bool(&w,"persistent",0U,1);
+        property_uint(&w,"dayCount",7U,1);
+        property_uint(&w,"slotSeconds",1800U,1);
+        property_uint(&w,"slotsPerDay",48U,1);
+        property_string(&w,"disabledValue","-1",1);
+        property_string(&w,"mode","local-draft-export-only",1);
     } else if (same(path, "/api/v1/security/capabilities")) {
         /* The authentication engine is compiled and tested, but no verified
          * TLS, credential verifier, clock or CSPRNG exists on H910P yet.

@@ -128,6 +128,14 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="schedule/schema")return {
+      schemaVersion:1,source:"native",simulated:false,
+      weeklyPlannerCompiled:true,scheduleWritable:false,
+      activeScheduleAvailable:false,rtcQualified:false,
+      powerControlQualified:false,persistent:false,
+      dayCount:7,slotSeconds:1800,slotsPerDay:48,
+      disabledValue:"-1",mode:"local-draft-export-only"
+    };
     if(route==="security/capabilities")return {
       schemaVersion:1,source:"native",simulated:false,
       sessionEngineCompiled:true,authenticationAvailable:false,
@@ -387,4 +395,52 @@ test("Access Control shows real security-provider state, not a fake login",async
   assert.match(text,/CSRF verification for mutations/);
   assert.match(text,/No default user is created/);
   assert.equal(find(env.named.view,"input",n=>n.type==="password"),undefined);
+});
+
+test("Weekly Schedule enforces seven days, 30-minute slots and safe draft export",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#schedule";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("schedule/schema"));
+  assert.match(allText(env.named.view),/Weekly power schedule draft/);
+  assert.match(allText(env.named.view),/Schedule is not active/);
+  const all=descendants(env.named.view);
+  const selects=all.filter(x=>x.tagName==="select"&&x.id&&x.id.startsWith("schedule-"));
+  assert.equal(selects.length,14);
+  const off=selects.find(x=>x.id==="schedule-0-offSeconds");
+  const on=selects.find(x=>x.id==="schedule-0-onSeconds");
+  assert.ok(off&&on);
+  const exportButton=find(env.named.view,"button",
+    n=>n.textContent==="Export weekly schedule review");
+  assert.ok(exportButton&&exportButton.disabled);
+  off.value="28800";off.dispatch("change");
+  assert.equal(exportButton.disabled,false);
+  on.value="28800";on.dispatch("change");
+  assert.equal(exportButton.disabled,true);
+  assert.match(allText(env.named.view),/cannot turn power off and on at the same time/);
+  on.value="64800";on.dispatch("change");
+  assert.equal(exportButton.disabled,false);
+  exportButton.click();
+  assert.equal(env.downloads.length,1);
+  assert.equal(env.downloads[0].filename,"openh910p-weekly-schedule-review.json");
+  const json=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(json.applied,false);
+  assert.equal(json.installable,false);
+  assert.equal(json.slotSeconds,1800);
+  assert.equal(json.days.length,7);
+  assert.equal(json.days[0].offSeconds,28800);
+  assert.equal(json.days[0].onSeconds,64800);
+  assert.equal(json.days[1].offSeconds,-1);
+  assert.equal(env.calls.filter(r=>r==="schedule/schema").length,1);
+  env.location.hash="#events";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/Event Log/);
+  env.location.hash="#schedule";
+  env.listeners.hashchange();
+  await settled(env);
+  const storedOff=find(env.named.view,"select",x=>x.id==="schedule-0-offSeconds");
+  assert.equal(storedOff.value,"28800");
 });
