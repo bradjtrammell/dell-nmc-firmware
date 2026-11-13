@@ -135,7 +135,11 @@ int ou_hid_feature_decode(const ou_hid_feature_map *map,
         return -1;
     if(map->has_report_ids) {id=report[0];data=report+1U;bytes=length-1U;}
     else {data=report;bytes=length;}
-    if(bytes>OU_HID_REPORT_BITS_CAP/8U)return -1;
+    /* The descriptor defines the entire feature report length, including
+     * constant fields. Refuse truncation and trailing spoofed bytes alike. */
+    if(bytes>OU_HID_REPORT_BITS_CAP/8U ||
+       map->feature_bits[id]==0U ||
+       bytes!=((size_t)map->feature_bits[id]+7U)/8U)return -1;
     for(i=0U;i<map->field_count;++i){
         const ou_hid_feature_field *f=&map->fields[i];
         uint32_t raw=0U;

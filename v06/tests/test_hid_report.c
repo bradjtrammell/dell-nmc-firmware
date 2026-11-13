@@ -24,6 +24,11 @@ static void real_shape(void){
  assert(values[1].usage==0x68U&&values[1].value==1800);
  assert(!values[0].telemetry_verified&&!values[1].telemetry_verified);
  assert(ou_hid_feature_decode(&map,response,2U,values,4U,&count)==-1);
+ {
+  const uint8_t extra[]={0x16,100,0x08,0x07,0x00};
+  assert(ou_hid_feature_decode(&map,extra,sizeof(extra),values,4U,&count)==-1);
+  assert(count==0U);
+ }
  assert(ou_hid_feature_decode(&map,response,sizeof(response),values,1U,&count)==-1);
  /* Invalid later field must not partially overwrite previous valid values. */
  {
