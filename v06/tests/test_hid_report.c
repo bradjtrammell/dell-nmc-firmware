@@ -25,6 +25,14 @@ static void real_shape(void){
  assert(!values[0].telemetry_verified&&!values[1].telemetry_verified);
  assert(ou_hid_feature_decode(&map,response,2U,values,4U,&count)==-1);
  assert(ou_hid_feature_decode(&map,response,sizeof(response),values,1U,&count)==-1);
+ /* Invalid later field must not partially overwrite previous valid values. */
+ {
+  uint8_t invalid[]={0x16,99,0xff,0xff};
+  ou_hid_feature_value unchanged[4];
+  memcpy(unchanged,values,sizeof(values));
+  assert(ou_hid_feature_decode(&map,invalid,sizeof(invalid),values,4U,&count)==-1);
+  assert(count==0U && memcmp(unchanged,values,sizeof(values))==0);
+ }
 }
 static void signed_and_padding(void){
  static const uint8_t desc[]={

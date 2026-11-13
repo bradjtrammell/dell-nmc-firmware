@@ -42,7 +42,7 @@ static int feature(ou_hid_feature_map *out,const globals *g,
         for(i=0U;i<g->report_count;++i) {
             uint32_t usage=usage_at(l,i);
             ou_hid_feature_field *field;
-            if(usage==0U || g->page!=0x84U && g->page!=0x85U)continue;
+            if(usage==0U || (g->page!=0x84U && g->page!=0x85U))continue;
             if(usage>0xffffU || !g->have_min || !g->have_max ||
                g->logical_min>g->logical_max ||
                out->field_count>=OU_HID_FIELDS_CAP)return -1;
@@ -127,6 +127,7 @@ int ou_hid_feature_decode(const ou_hid_feature_map *map,
                           size_t *written){
     const uint8_t *data;
     size_t bytes,at,count=0U,i;
+    ou_hid_feature_value staged[OU_HID_VALUES_CAP];
     uint8_t id=0U;
     if(!written)return -1;
     *written=0U;
@@ -143,7 +144,7 @@ int ou_hid_feature_decode(const ou_hid_feature_map *map,
         if(f->report_id!=id)continue;
         if(!f->bit_size||f->bit_size>32U||
            (uint32_t)f->bit_offset+f->bit_size>bytes*8U||
-           count>=capacity)return -1;
+           count>=capacity || count>=OU_HID_VALUES_CAP)return -1;
         for(b=0U;b<f->bit_size;++b){
             at=(size_t)f->bit_offset+b;
             if((data[at/8U]>>(at%8U))&1U)raw|=UINT32_C(1)<<b;
@@ -154,14 +155,16 @@ int ou_hid_feature_decode(const ou_hid_feature_map *map,
         if(!f->signed_value&&raw>INT32_MAX)return -1;
         decoded=(int32_t)raw;
         if(decoded<f->logical_min||decoded>f->logical_max)return -1;
-        values[count].usage_page=f->usage_page;
-        values[count].usage=f->usage;
-        values[count].report_id=id;
-        values[count].value=decoded;
-        values[count].telemetry_verified=0U;
+        staged[count].usage_page=f->usage_page;
+        staged[count].usage=f->usage;
+        staged[count].report_id=id;
+        staged[count].value=decoded;
+        staged[count].telemetry_verified=0U;
         ++count;
     }
     if(count==0U)return -1;
+    /* Nothing reaches the caller until every advertised field validates. */
+    for(i=0U;i<count;++i)values[i]=staged[i];
     *written=count;
     return 0;
 }
