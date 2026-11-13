@@ -138,3 +138,20 @@ power/threshold edges, loss/recovery gap markers, ring overwrite, counter
 wrap, offline HTTP read access, all eight pages, CSV/JSON download
 behavior and concurrent-page consistency failures. They do not qualify
 the physical UPS or enable flash writes.
+
+## Configuration staging — read-only management contract
+
+`GET /api/v1/configuration/staging` returns the nine non-secret
+allowlisted field names, labels and types. All of
+`configurationWritable`, `storageQualified`,
+`authorizationAvailable`, and `activeValuesAvailable` are **false**.
+No current configuration, network address, password or secret value is
+returned. All HTTP mutations including this route still return 405.
+
+The Network and System management destinations now expose a local-only
+draft editor with per-field and cross-field validation. Users can export
+an explicitly `applied:false`, `installable:false` review JSON artifact.
+Nothing is POSTed to the card or written to storage, and an export is **not**
+an installable configuration package. This preserves user work and
+validates the form while the future HTTPS session, rollback-safe activation
+and independently verified flash remain outstanding.

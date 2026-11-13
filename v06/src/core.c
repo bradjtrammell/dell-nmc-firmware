@@ -421,6 +421,28 @@ int ou_dispatch_observed(const char *method, const char *path,
             }
             put_char(&w,']');
         }
+    } else if (same(path, "/api/v1/configuration/staging")) {
+        /* Never return current network addresses or unprotected secrets.
+         * No credential- or flash-qualification available to HTTP yet. */
+        common(&w,"configuration.staging",snapshot);
+        property_bool(&w,"available",1U,1);
+        property_bool(&w,"configurationWritable",0U,1);
+        property_bool(&w,"authorizationAvailable",0U,1);
+        property_bool(&w,"storageQualified",0U,1);
+        property_bool(&w,"activeValuesAvailable",0U,1);
+        property_string(&w,"mode","local-draft-export-only",1);
+        property_uint(&w,"supportedFields",9U,1);
+        put_str(&w,",\"fields\":[");
+        put_str(&w,"{\"name\":\"System.Network.HostName\",\"label\":\"Host name\",\"type\":\"hostname\",\"max\":49},");
+        put_str(&w,"{\"name\":\"System.Network.DomainName\",\"label\":\"Domain name\",\"type\":\"domain\",\"max\":49},");
+        put_str(&w,"{\"name\":\"System.Network.DHCP\",\"label\":\"IPv4 assignment\",\"type\":\"dhcp\"},");
+        put_str(&w,"{\"name\":\"System.Network.IPAddress\",\"label\":\"Static IPv4 address\",\"type\":\"ipv4\"},");
+        put_str(&w,"{\"name\":\"System.Network.IPMask\",\"label\":\"IPv4 subnet mask\",\"type\":\"netmask\"},");
+        put_str(&w,"{\"name\":\"System.Network.IPGateway\",\"label\":\"IPv4 default gateway\",\"type\":\"ipv4\"},");
+        put_str(&w,"{\"name\":\"System.Contact\",\"label\":\"System contact\",\"type\":\"string\",\"max\":49},");
+        put_str(&w,"{\"name\":\"System.Location\",\"label\":\"Physical location\",\"type\":\"string\",\"max\":31},");
+        put_str(&w,"{\"name\":\"System.Language\",\"label\":\"Interface language\",\"type\":\"language\"}");
+        put_char(&w,']');
     } else if (same(path, "/api/v1/configuration/fields")) {
         common(&w, "configuration.fields", snapshot);
         property_uint(&w, "total", (uint32_t)ou_schema_field_count, 1);

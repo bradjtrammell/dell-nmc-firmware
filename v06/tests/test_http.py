@@ -100,6 +100,32 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_configuration_staging_is_metadata_only_and_read_only(self):
+        code, headers, raw = self.request("GET", "/api/v1/configuration/staging")
+        self.assertEqual(code, 200)
+        data = json.loads(raw)
+        self.assertEqual(data["resource"], "configuration.staging")
+        self.assertEqual(data["supportedFields"], 9)
+        self.assertEqual(data["mode"], "local-draft-export-only")
+        for capability in ("configurationWritable", "authorizationAvailable",
+                           "storageQualified", "activeValuesAvailable"):
+            self.assertIs(data[capability], False)
+        fields = data["fields"]
+        self.assertEqual(len(fields), 9)
+        self.assertEqual(len({field["name"] for field in fields}), 9)
+        self.assertNotIn("value", raw.decode())
+        self.assertFalse(any("Password" in field["name"] or "Toggle" in field["name"]
+                             for field in fields))
+        self.assertEqual(headers["X-OpenH910P-Mode"], "simulator")
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            with self.subTest(method=method):
+                status, _, body = self.request(method, "/api/v1/configuration/staging", "{}")
+                self.assertEqual(status, 405)
+                self.assertEqual(json.loads(body)["error"], "READ_ONLY")
+        code, _, body = self.request("HEAD", "/api/v1/configuration/staging")
+        self.assertEqual(code, 200)
+        self.assertEqual(body, b"")
+
     def test_host_simulator_does_not_invent_native_event_statistics(self):
         code, _, body = self.request("GET", "/api/v1/events/stats")
         self.assertEqual(code, 404)

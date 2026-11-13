@@ -98,6 +98,18 @@ tbody tr:nth-child(even){background:#f8fafb}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}
 .event-select{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;min-height:43px;color:var(--ink)}
 .event-controls .button{min-height:43px}
+.config-draft{margin:18px 0 24px}
+.config-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 18px;margin-bottom:13px}
+.config-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.config-field label{font-weight:700;color:#26434f;font-size:13px}
+.config-field .config-input{background:#fff;border:1px solid #849fab;color:#15303d;padding:10px 12px;min-height:43px;width:100%;border-radius:2px}
+.config-field .config-input:focus{border-color:#075f91}
+.config-field small{color:#516c78;font-size:11px}
+.config-errors:empty{display:none}
+.config-errors p{padding:8px 12px;border-left:3px solid #af392b;background:#fcefeb;color:#7b2b23;margin:6px 0}
+.config-actions{display:flex;gap:15px;align-items:center;flex-wrap:wrap;margin:13px 0 25px}
+.config-actions .label{font-size:12px}
+@media(max-width:760px){.config-form{grid-template-columns:1fr}}
 .catalog-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin:15px 0}
 input[type=search]{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;color:var(--ink);min-width:220px;width:min(380px,100%)}
 .pager{display:flex;align-items:center;justify-content:flex-end;gap:11px;margin:15px 0 20px}

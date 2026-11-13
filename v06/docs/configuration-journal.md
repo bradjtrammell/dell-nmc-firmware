@@ -52,3 +52,36 @@ invalid geometry, forbidden writes, restored ordering, and boot epochs.
 
 No event flash partition has been verified on the installed H910P,
 and no production runtime calls the checkpoint method automatically.
+
+## Native typed configuration model (v0.6 development)
+
+`src/config_model.c` and `include/ou_config_model.h` implement a
+**bounded, validated and deterministic** configuration record separate from
+legacy OEM settings and the event journal. The first nine deliberately
+allowlisted, non-secret fields are host name, domain, DHCP/static IPv4,
+IP address, mask, gateway, contact, location and language. They are checked
+against the generated 302-field metadata so a changed schema fails closed.
+The original 302-field inventory and all required management options remain
+in scope; unsupported fields cannot be silently persisted.
+
+Each field is type-checked; network profiles additionally require coherent
+assignment mode, IP address, subnet mask, usable host/gateway addresses and
+same-subnet gateway. An incomplete network draft may be edited locally but
+**cannot** be serialized or committed. The canonical `O6CF` version-1
+record has a 12-byte header followed by strictly ordered, one-byte
+field IDs and lengths with no secrets. Parsing rejects unknown IDs,
+duplicates, noncanonical addresses, control characters, overlong strings,
+broken lengths, and inconsistent complete profiles without changing the
+previously loaded model.
+
+`ou_config_model_save` additionally requires an explicit external
+authorization callback returning exactly 1 and the established two-slot
+journal's independent physical partition, geometry and writes-enabled
+gates. This callback is a boundary, **not** a completed login or TLS
+implementation; nothing in HTTP/UI can invoke it. The recoverable journal
+preserves the previously committed setting record on failed writes, and
+the entire decoded state is swapped only after validation.
+
+This remains **offline engineering only**. On-card credentials, signed
+updates, physical flash mapping, safe network reconfiguration with rollback,
+activation, and a verified configuration migration path remain unfinished.

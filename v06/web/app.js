@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:""};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null)};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -583,9 +583,174 @@
     update();
     return content;
   }
-  function renderGeneral(summary,key,items) {
+  /* In-browser review draft only. A real authenticated, two-phase apply and
+   * network rollback protocol must exist before any POST is enabled. */
+  function configIpv4(value) {
+    const chunks=value.split(".");
+    if(chunks.length!==4)return null;
+    let n=0;
+    for(const chunk of chunks){
+      if(!/^(0|[1-9][0-9]{0,2})$/.test(chunk))return null;
+      const octet=Number(chunk);
+      if(octet>255)return null;
+      n=(n*256+octet)>>>0;
+    }
+    return n;
+  }
+  function validConfigField(field,value) {
+    if(typeof value!=="string"||value.length===0||value.length>=64)return false;
+    const ip=field.type==="ipv4"||field.type==="netmask"?configIpv4(value):null;
+    switch(field.type){
+      case "hostname":
+        return value.length<=49&&/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(value);
+      case "domain":
+        return value.length<=49&&value.split(".").every(label=>
+          /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label));
+      case "dhcp":return value==="true"||value==="false";
+      case "ipv4":
+        return ip!==null && (ip>>>24)>0&&(ip>>>24)<224&&(ip>>>24)!==127;
+      case "netmask": {
+        if(ip===null||ip===0)return false;
+        const inverse=(~ip)>>>0;
+        return (inverse&(inverse+1))===0;
+      }
+      case "language":return ["AUTO","FRE","ENG","SPA","GER","ITA"].includes(value);
+      case "string":
+        return value.length<=field.max&&/^[\x20-\x7e]+$/.test(value);
+      default:return false;
+    }
+  }
+  function configDraftErrors(fields) {
+    const errors=[];
+    const draft=state.configDraft;
+    for(const field of fields) {
+      const value=draft[field.name];
+      if(value!==undefined&&value!==""&&!validConfigField(field,value))
+        errors.push(field.label+" is not valid for "+field.type+".");
+    }
+    const d=Boolean(draft["System.Network.DHCP"]==="false");
+    const dhcp=draft["System.Network.DHCP"];
+    const ip=draft["System.Network.IPAddress"];
+    const mask=draft["System.Network.IPMask"];
+    const gateway=draft["System.Network.IPGateway"];
+    if(d&&!ip)errors.push("A static IPv4 profile requires an IP address.");
+    if(d&&!mask)errors.push("A static IPv4 profile requires a subnet mask.");
+    if((ip||mask||gateway)&&(!ip||!mask||!dhcp))
+      errors.push("Static IPv4 values require assignment mode, address and subnet mask.");
+    if(ip&&mask){
+      const addr=configIpv4(ip),netmask=configIpv4(mask);
+      if(addr!==null&&netmask!==null && validConfigField({type:"netmask"},mask)){
+        const hosts=(~netmask)>>>0;
+        if(hosts!==0&&(((addr&hosts)>>>0)===0||((addr&hosts)>>>0)===hosts))
+          errors.push("The IPv4 address cannot be the subnet network or broadcast address.");
+        if(gateway){
+          const gw=configIpv4(gateway);
+          if(gw!==null && (((addr&netmask)>>>0)!==((gw&netmask)>>>0)||
+              gw===addr|| (hosts!==0&&(((gw&hosts)>>>0)===0||((gw&hosts)>>>0)===hosts))))
+            errors.push("The gateway must be a separate usable address in the same subnet.");
+        }
+      }
+    }
+    return errors;
+  }
+  function renderConfigDraft(staging,key) {
+    const panel=element("div","config-draft");
+    if(!staging||!Array.isArray(staging.fields)||staging.configurationWritable!==false||
+       staging.authorizationAvailable!==false||staging.activeValuesAvailable!==false)
+      return add(panel,notice("Configuration editor unavailable","The server has not advertised a safe, unauthenticated-write-disabled staging contract.","error"));
+    const allowed=new Set([
+      "System.Network.HostName","System.Network.DomainName",
+      "System.Network.DHCP","System.Network.IPAddress",
+      "System.Network.IPMask","System.Network.IPGateway",
+      "System.Contact","System.Location","System.Language"]);
+    const all=staging.fields.filter(field=>allowed.has(field.name));
+    if(all.length!==9||new Set(all.map(field=>field.name)).size!==9)
+      return add(panel,notice("Unrecognized configuration schema","The server did not return the exact supported field inventory.","error"));
+    const group=key==="network"?all.filter(f=>f.name.startsWith("System.Network.")):
+      all.filter(f=>!f.name.startsWith("System.Network."));
+    add(panel,section("Local configuration draft","Validated values are exportable for review only. Nothing is applied, sent to the card, or saved to device flash."));
+    const editor=element("form","config-form");
+    editor.addEventListener("submit",event=>event.preventDefault());
+    const errors=element("div","config-errors");
+    errors.setAttribute("role","status");
+    errors.setAttribute("aria-live","polite");
+    for(const field of group){
+      const item=element("div","config-field");
+      const label=element("label","",field.label);
+      const id="stage-"+field.name.replace(/[^a-zA-Z0-9]/g,"-");
+      label.htmlFor=id;
+      let input;
+      if(field.type==="dhcp"||field.type==="language"){
+        input=element("select","config-input");
+        const options=field.type==="dhcp"?[
+          ["","Not specified"],["true","Automatic (DHCP)"],["false","Static IPv4"]]:
+          [["","Not specified"],...["AUTO","FRE","ENG","SPA","GER","ITA"].map(v=>[v,v])];
+        options.forEach(([value,name])=>{
+          const o=element("option","",name);o.value=value;input.appendChild(o);
+        });
+      }else{
+        input=element("input","config-input");
+        input.type="text";
+        input.maxLength=field.max||49;
+        input.autocomplete="off";
+        input.spellcheck=false;
+      }
+      input.id=id;
+      input.value=state.configDraft[field.name]||"";
+      input.setAttribute("aria-label",field.label);
+      const hint=element("small","",field.type==="ipv4"||field.type==="netmask"?
+         "Four decimal octets; canonical dotted format":"Optional until used in a complete profile");
+      add(item,label,input,hint);editor.appendChild(item);
+      const updateValue=()=>{
+        if(input.value==="")delete state.configDraft[field.name];
+        else state.configDraft[field.name]=input.value;
+        update();
+      };
+      input.addEventListener("input",updateValue);
+      input.addEventListener("change",updateValue);
+    }
+    panel.appendChild(editor);
+    const actions=element("div","config-actions");
+    const exportButton=button("Export validated review draft",null,true);
+    const summary=element("div","label");
+    add(actions,exportButton,summary);
+    add(panel,errors,actions);
+    function update(){
+      const issues=configDraftErrors(all);
+      const count=Object.keys(state.configDraft).filter(name=>allowed.has(name)).length;
+      const empty=count===0;
+      errors.replaceChildren();
+      for(const issue of issues)errors.appendChild(node("p",issue));
+      exportButton.disabled=empty||issues.length!==0;
+      summary.textContent=issues.length?
+        issues.length+" validation issue(s) · no export":
+        empty?"No local changes entered":
+        count+" field(s) staged locally; not applied";
+    }
+    exportButton.addEventListener("click",()=>{
+      const issues=configDraftErrors(all);
+      if(issues.length||!Object.keys(state.configDraft).length)return;
+      const fields={};
+      for(const f of all) {
+        const value=state.configDraft[f.name];
+        if(value!==undefined&&value!=="")fields[f.name]=value;
+      }
+      if(!Object.keys(fields).length)return;
+      saveEventFile("openh910p-configuration-review.json",JSON.stringify({
+        schemaVersion:1,kind:"openh910p-local-configuration-review",
+        applied:false,installable:false,origin:"operator-entered-local-draft",
+        fields
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    update();
+    return panel;
+  }
+
+  function renderGeneral(summary,key,items,staging) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
+    if(key==="network"||key==="system")
+      container.appendChild(renderConfigDraft(staging,key));
     add(container,readOnlyMessage());
     add(container,section("Management operations","Disabled until the device exposes a verified and authenticated implementation."));
     add(container,commands(spec[2]));
@@ -684,7 +849,13 @@
             fields=null;
           }
         }
-        content=renderGeneral(summary,page,fields);
+        let staging=null;
+        if(page==="network"||page==="system"){
+          try{staging=await request("configuration/staging",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+        }
+        if(signal.aborted||generation!==state.generation)return;
+        content=renderGeneral(summary,page,fields,staging);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

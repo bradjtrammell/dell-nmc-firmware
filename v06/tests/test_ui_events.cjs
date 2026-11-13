@@ -128,6 +128,27 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="configuration/fields")
+      return {schemaVersion:1,source:"native",simulated:false,pages:1,total:0};
+    if(route==="configuration/fields/0")
+      return {schemaVersion:1,source:"native",simulated:false,items:[]};
+    if(route==="configuration/staging"){
+      const keys=[
+        ["System.Network.HostName","Host name","hostname",49],
+        ["System.Network.DomainName","Domain name","domain",49],
+        ["System.Network.DHCP","IPv4 assignment","dhcp",0],
+        ["System.Network.IPAddress","Static IPv4 address","ipv4",0],
+        ["System.Network.IPMask","IPv4 subnet mask","netmask",0],
+        ["System.Network.IPGateway","IPv4 default gateway","ipv4",0],
+        ["System.Contact","System contact","string",49],
+        ["System.Location","Physical location","string",31],
+        ["System.Language","Interface language","language",0]
+      ];
+      return {schemaVersion:1,source:"native",simulated:false,
+        configurationWritable:false,authorizationAvailable:false,
+        activeValuesAvailable:false,storageQualified:false,supportedFields:9,
+        fields:keys.map(([name,label,type,max])=>({name,label,type,max}))};
+    }
     if(route==="events/stats")return {schemaVersion:1,source:"native",simulated:false,
       stored:9,info:6,warning:2,error:2,latestEventId:20,
       currentBootGeneration:2,byCode:{SERVICE_START:2}};
@@ -273,4 +294,68 @@ test("Unavailable native history does not fabricate a trend",async()=>{
   assert.match(allText(env.named.view),/No native measurement history/);
   assert.equal(find(env.named.view,"div",n=>n.className==="history-chart"),undefined);
   assert.equal(env.downloads.length,0);
+});
+
+test("local network draft validates static IPv4 and exports without any HTTP writes",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#network";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("configuration/staging"));
+  assert.match(allText(env.named.view),/Local configuration draft/);
+  const inputs=descendants(env.named.view);
+  const set=(name,value)=>{
+    const field=inputs.find(n=>n.id==="stage-"+name.replace(/[^a-zA-Z0-9]/g,"-"));
+    assert.ok(field,"Missing form control "+name);
+    field.value=value;
+    field.dispatch("change");
+  };
+  const exportButton=find(env.named.view,"button",n=>n.textContent==="Export validated review draft");
+  assert.ok(exportButton&&exportButton.disabled);
+  set("System.Network.DHCP","false");
+  assert.equal(exportButton.disabled,true);
+  assert.match(allText(env.named.view),/requires an IP address/);
+  set("System.Network.IPAddress","192.168.10.24");
+  set("System.Network.IPMask","255.255.255.0");
+  assert.equal(exportButton.disabled,false);
+  set("System.Network.IPGateway","192.168.20.1");
+  assert.equal(exportButton.disabled,true);
+  assert.match(allText(env.named.view),/same subnet/);
+  set("System.Network.IPGateway","192.168.10.1");
+  set("System.Network.HostName","h910p-lab");
+  assert.equal(exportButton.disabled,false);
+  exportButton.click();
+  assert.equal(env.downloads.length,1);
+  assert.equal(env.downloads[0].filename,"openh910p-configuration-review.json");
+  const config=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(config.applied,false);
+  assert.equal(config.installable,false);
+  assert.equal(config.fields["System.Network.IPAddress"],"192.168.10.24");
+  assert.equal(config.fields["System.Network.IPGateway"],"192.168.10.1");
+  assert.ok(env.calls.every(route=>typeof route==="string"));
+  assert.equal(env.downloads.length,1);
+});
+test("System identity drafts reject control characters and preserve other pages",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#system";
+  env.listeners.hashchange();
+  await settled(env);
+  const input=find(env.named.view,"input",n=>n.id==="stage-System-Contact");
+  const button=find(env.named.view,"button",n=>n.textContent==="Export validated review draft");
+  assert.ok(input&&button);
+  input.value="Invalid\\nContact".replace("\\n","\n");
+  input.dispatch("input");
+  assert.equal(button.disabled,true);
+  input.value="Rack manager";input.dispatch("input");
+  assert.equal(button.disabled,false);
+  button.click();
+  const result=JSON.parse(await env.downloads[0].blob.text());
+  assert.deepEqual(Object.keys(result.fields),["System.Contact"]);
+  assert.equal(result.fields["System.Contact"],"Rack manager");
+  env.location.hash="#network";env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/Local configuration draft/);
+  assert.equal(env.downloads.length,1);
 });

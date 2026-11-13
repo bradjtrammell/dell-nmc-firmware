@@ -222,3 +222,12 @@ The 15 management destinations preserve project scope, but unavailable
 hardware mutation operations are disabled and are *not implemented*
 merely because they appear in the interface. Do not expose this host
 preview to the internet or deploy it as on-card firmware.
+
+## Configuration model and local review draft
+
+`v06/src/config_model.c` provides nine allowlisted typed system/network
+settings and transactional serialization over a separately qualified
+configuration journal. The browser development preview offers a local
+Network/System draft editor and an explicitly non-installable JSON review
+export. All actual configuration writes, network activation and
+on-card authenticated editing remain disabled until verified.

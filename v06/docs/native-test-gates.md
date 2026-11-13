@@ -136,3 +136,21 @@ CSV/JSON export and coherent cross-page retrieval. Node-based DOM
 behavior tests cover full history, interrupted reads and unavailable
 sources; the original ARM7, sanitizer and research-only flash gates
 remain mandatory. This is not a board-installed web UI.
+
+## Typed configuration model and management draft verification
+
+The C host suite exercises every one of the nine modeled keys,
+schema-metadata parity, rejection of hidden/control/credential fields,
+noncanonical IPv4, invalid subnet and cross-subnet gateway, missing
+static-network dependencies, canonical serialization, duplicate-key
+rejection, corrupt decode without state changes and 2-slot NOR power-loss
+recovery. Failure of the external authorization gate or flash geometry
+must produce **zero writes**. ARM7 big-endian compilation and sanitizers
+remain required.
+
+The HTTP suite verifies the new read-only staging metadata, absence of
+current values and rejection of POST/PUT/PATCH/DELETE. The Node DOM
+suite tests local form validation, blocking invalid exports, exact field
+content in the review-only JSON, and retention of unrelated
+management navigation. No environment deployment or hardware writes
+are performed by these tests.
