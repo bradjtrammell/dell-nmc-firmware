@@ -15,11 +15,26 @@ int main(void){
   for(i=3U;i<=10U;++i)checksum^=b[i];
   assert(b[11]==checksum && checksum==(uint8_t)(0xa3U^id));
  }
+ /* MGE 51029473ZA AC p.14 published GET REPORT 0x16 for 8 bytes:
+  * 81 88 A1 01 16 03 00 00 08 00 BD. */
+ {
+  static const uint8_t published[]={0x81,0x88,0xa1,0x01,0x16,0x03,
+                                    0x00,0x00,0x08,0x00,0xbd};
+  memset(b,0xa5,sizeof(b));
+  assert(ou_shut_build_get_report_sized(0x16U,8U,b+1,11U,&count)==0);
+  assert(count==11U && memcmp(b+1,published,11U)==0);
+  assert(b[0]==0xa5U && b[12]==0xa5U);
+ }
  memset(b,0xa5,sizeof(b));memcpy(old,b,sizeof(b));
+ assert(ou_shut_build_get_report_sized(3,257U,b,11U,&count)==-1&&!count);
+ assert(!memcmp(b,old,sizeof(b)));
+ assert(ou_shut_build_get_report_sized(3,256U,b,10U,&count)==-1&&!count);
+ assert(!memcmp(b,old,sizeof(b)));
+ assert(ou_shut_build_get_report_sized(3,0U,0,11U,&count)==-1&&!count);
  assert(ou_shut_build_get_report(3,b,10U,&count)==-1&&!count);
  assert(!memcmp(b,old,sizeof(b)));
  assert(ou_shut_build_get_report(3,0,11U,&count)==-1&&!count);
  assert(ou_shut_build_get_report(3,b,11U,0)==-1);
- puts("PASS: SHUT GET REPORT read-only packet builder, 256 IDs, checksum, boundaries");
+ puts("PASS: SHUT GET REPORT 256 IDs, published-sized frame, checksum and boundaries");
  return 0;
 }
