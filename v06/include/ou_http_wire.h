@@ -18,6 +18,7 @@ int ou_http_respond_managed(const uint8_t *request, size_t size,
                     const ou_snapshot *snapshot, const ou_event_log *events,
                     const struct ou_history_log *history,
                     const struct ou_notify_engine *notifications,
+                    const struct ou_agent_status *agents,
                     char *output, size_t capacity, size_t *written);
 
 int ou_http_respond_observed(const uint8_t *request, size_t size,

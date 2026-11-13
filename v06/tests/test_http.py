@@ -100,6 +100,33 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_shutdown_agent_capabilities_and_host_unavailability(self):
+        code, hdr, raw = self.request("GET","/api/v1/agents/capabilities")
+        self.assertEqual(code,200)
+        data=json.loads(raw)
+        self.assertEqual(data["resource"],"agents.capabilities")
+        self.assertIs(data["coordinatorCompiled"],True)
+        self.assertEqual(data["maximumClients"],12)
+        self.assertEqual(data["minimumLeaseSeconds"],10)
+        self.assertEqual(data["maximumLeaseSeconds"],300)
+        self.assertEqual(data["minimumWarningSeconds"],30)
+        self.assertEqual(data["maximumWarningSeconds"],1800)
+        for key in ("registrationWritable","notificationTransportQualified",
+                    "mutualTlsQualified","trustedShutdownIntentAvailable",
+                    "physicalPowerControl"):
+            self.assertIs(data[key],False)
+        code,_,raw=self.request("GET","/api/v1/agents/status")
+        self.assertEqual(code,503)
+        self.assertEqual(json.loads(raw)["code"],"AGENT_COORDINATOR_UNAVAILABLE")
+        code,_,raw=self.request("HEAD","/api/v1/agents/status")
+        self.assertEqual(code,503)
+        self.assertEqual(raw,b"")
+        for endpoint in ("/api/v1/agents/status","/api/v1/agents/capabilities"):
+            for method in ("POST","PUT","PATCH","DELETE"):
+                code,_,raw=self.request(method,endpoint,"{}")
+                self.assertEqual(code,405)
+                self.assertEqual(json.loads(raw)["error"],"READ_ONLY")
+
     def test_snmp_monitoring_is_bounded_and_unavailable_for_network(self):
         status, headers, raw = self.request("GET", "/api/v1/snmp/capabilities")
         self.assertEqual(status, 200)

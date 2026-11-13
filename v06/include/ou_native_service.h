@@ -7,6 +7,7 @@
 #include "ou_event_archive.h"
 #include "ou_notify.h"
 #include "ou_snmp.h"
+#include "ou_agents.h"
 
 /* Single-threaded, zero-heap native application service. The future verified
  * MAC/TCP adapter submits ONE complete bounded request at a time.
@@ -45,6 +46,19 @@ int ou_native_service_notify_step(const ou_notify_sender *sender,
 int ou_native_service_snmp(const ou_snmp_access *access,
                const uint8_t *request,size_t request_len,uint32_t now_ms,
                uint8_t *response,size_t capacity,size_t *written);
+/* Securely enrolled and mutually authenticated shutdown agents. The caller
+ * must prove authorization and TLS identity separately from HTTP.
+ * These functions NEVER issue a local UPS power shutdown. */
+int ou_native_service_agent_enroll(uint32_t id,const char *label,
+                                    uint32_t lease_ms,int admin_authorized);
+int ou_native_service_agent_heartbeat(uint32_t id,uint32_t sequence,
+                          uint32_t now_ms,int peer_identity_verified);
+int ou_native_service_agent_warning(uint32_t now_ms,uint32_t warning_ms,
+                          int operator_authorized,int verified_intent);
+int ou_native_service_agent_notify(const ou_agent_sender *sender,uint32_t now_ms);
+int ou_native_service_agent_ack(uint32_t id,uint32_t transaction,
+                                uint32_t now_ms,int peer_identity_verified);
+int ou_native_service_agent_step(uint32_t now_ms);
 /* Fail-closed native data; never substitutes simulated UPS measurements. */
 int ou_native_service_http(const uint8_t *req, size_t req_len, uint32_t now_ms,
                            char *response, size_t capacity, size_t *response_len);

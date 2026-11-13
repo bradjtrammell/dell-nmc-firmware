@@ -17,7 +17,7 @@
   const sidebar = document.getElementById("sidebar");
   const menuButton = document.getElementById("menu");
   const fieldsByPage = new Map();
-  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[]};
+  const state = {page:"properties", generation:0, busy:false, summary:null, fields:null, eventPage:0, eventSeverity:"all", eventQuery:"", search:"", configDraft:Object.create(null),notifyDraft:[],agentDraft:[],warningDraftSeconds:120};
   const API = "/api/v1/";
   function element(tag, classes, value) {
     const n = document.createElement(tag);
@@ -1001,6 +1001,148 @@
     return panel;
   }
 
+  function renderShutdownAgents(policy,status,page){
+    const panel=element("div","agents-panel");
+    if(!policy||policy.coordinatorCompiled!==true||
+       policy.maximumClients!==12||policy.registrationWritable!==false){
+      add(panel,notice("Shutdown client management unavailable",
+        "The native service has not returned the expected protected client-management contract.","error"));
+      return panel;
+    }
+    add(panel,section(page==="applications"?"Shutdown client coordination":"Shutdown warning coordination",
+      "Manage registered shutdown applications, their connection health and readiness before a UPS shutdown."));
+    add(panel,notice("Live client control not yet enabled",
+      "The native registry supports verified heartbeats, advance warnings and client acknowledgements. Physical client connections and authenticated registration are not available on this card yet. Review drafts never send a shutdown instruction.","info"));
+    if(status&&status.resource==="agents.status"){
+      add(panel,properties([
+        ["Registered clients",valueOrDash(status.enrolled)],
+        ["Connected clients",valueOrDash(status.online)],
+        ["Waiting for acknowledgement",valueOrDash(status.waiting)],
+        ["Acknowledged",valueOrDash(status.acknowledged)],
+        ["Unreachable",valueOrDash(status.unreachable)],
+        ["Warning in progress",status.warningActive?"Yes":"No"]
+      ]));
+    }else{
+      add(panel,node("p","No live client inventory is available from this development host.","label"));
+    }
+    if(page==="shutdown"){
+      add(panel,section("Advance warning window",
+        "Choose how much warning registered systems must receive before an operator-authorized shutdown."));
+      const field=element("div","agent-warning-field");
+      const label=element("label","","Warning duration in seconds (30–1800)");
+      const input=element("input","config-input");
+      input.type="number";input.id="agent-warning-duration";label.htmlFor=input.id;
+      input.min="30";input.max="1800";input.step="1";
+      input.value=String(state.warningDraftSeconds);
+      const buttonExport=button("Export warning-policy review",null);
+      const stateText=element("span","label");
+      function update(){
+        const v=Number(input.value);
+        if(input.value.trim()!==""&&Number.isInteger(v)&&v>=30&&v<=1800){
+          state.warningDraftSeconds=v;buttonExport.disabled=false;
+          stateText.textContent="Advance warning: "+v+" seconds; not activated";
+        }else{buttonExport.disabled=true;stateText.textContent="Enter 30–1800 seconds.";}
+      }
+      input.addEventListener("input",update);
+      buttonExport.addEventListener("click",()=>{
+        update();if(buttonExport.disabled)return;
+        saveEventFile("openh910p-shutdown-warning-review.json",JSON.stringify({
+          schemaVersion:1,kind:"openh910p-shutdown-warning-review",
+          applied:false,installable:false,
+          warningSeconds:state.warningDraftSeconds,
+          physicalPowerControl:false,
+          authenticatedAgentNetworkAvailable:false
+        },null,2)+"\n","application/json;charset=utf-8");
+      });
+      add(field,label,input,buttonExport,stateText);
+      add(panel,field);update();
+      return panel;
+    }
+    add(panel,section("Local shutdown client registration draft",
+      "Define client names, IDs and heartbeat intervals. Credentials and live registrations will be provisioned separately through authenticated management."));
+    const list=element("div","agent-draft-list");
+    const controls=element("div","config-actions");
+    const addClient=button("Add shutdown client",()=>{
+      if(state.agentDraft.length>=12)return;
+      let id=1;
+      const used=new Set(state.agentDraft.map(x=>x.id));
+      while(id<=12&&used.has(id))++id;
+      state.agentDraft.push({id,label:"",leaseSeconds:60});
+      draw();
+    });
+    const save=button("Export client registration review",null,true);
+    const errors=element("div","config-errors");
+    errors.setAttribute("role","status");
+    errors.setAttribute("aria-live","polite");
+    add(controls,addClient,save);
+    add(panel,list,errors,controls);
+    function validate(){
+      const issues=[],ids=new Set();
+      state.agentDraft.forEach((client,index)=>{
+        const n=index+1;
+        if(!Number.isSafeInteger(client.id)||client.id<1||client.id>4294967295)
+          issues.push("Client "+n+" needs a positive numeric ID.");
+        if(ids.has(client.id))issues.push("Client "+n+" duplicates an ID.");
+        ids.add(client.id);
+        if(typeof client.label!=="string"||client.label.length===0||
+           client.label.length>31||! /^[A-Za-z0-9 _.,()/-]+$/.test(client.label)||
+           client.label.trim().length===0)
+          issues.push("Client "+n+" needs a valid name (up to 31 characters).");
+        if(!Number.isInteger(client.leaseSeconds)||client.leaseSeconds<10||
+           client.leaseSeconds>300)
+          issues.push("Client "+n+" needs a heartbeat lease between 10 and 300 seconds.");
+      });
+      return issues;
+    }
+    function update(){
+      const issues=validate();
+      errors.replaceChildren(...issues.map(e=>node("p",e)));
+      save.disabled=state.agentDraft.length===0||issues.length>0;
+      addClient.disabled=state.agentDraft.length>=12;
+    }
+    function draw(){
+      list.replaceChildren();
+      state.agentDraft.forEach((client,index)=>{
+        const row=element("div","agent-draft-row");
+        const heading=node("strong","Client "+(index+1));
+        const idInput=element("input","config-input");
+        idInput.type="number";idInput.min="1";idInput.max="4294967295";idInput.step="1";
+        idInput.value=String(client.id);
+        idInput.setAttribute("aria-label","Client "+(index+1)+" ID");
+        idInput.addEventListener("input",()=>{
+          client.id=idInput.value.trim()?Number(idInput.value):NaN;update();
+        });
+        const name=element("input","config-input");
+        name.type="text";name.maxLength=31;name.autocomplete="off";
+        name.value=client.label;
+        name.setAttribute("aria-label","Client "+(index+1)+" name");
+        name.addEventListener("input",()=>{client.label=name.value;update();});
+        const lease=element("input","config-input");
+        lease.type="number";lease.min="10";lease.max="300";lease.step="1";
+        lease.value=String(client.leaseSeconds);
+        lease.setAttribute("aria-label","Client "+(index+1)+" heartbeat lease (seconds)");
+        lease.addEventListener("input",()=>{
+          client.leaseSeconds=lease.value.trim()?Number(lease.value):NaN;update();
+        });
+        const remove=button("Remove",()=>{state.agentDraft.splice(index,1);draw();});
+        add(row,heading,idInput,name,lease,remove);list.appendChild(row);
+      });
+      update();
+    }
+    save.addEventListener("click",()=>{
+      update();if(save.disabled)return;
+      saveEventFile("openh910p-shutdown-clients-review.json",JSON.stringify({
+        schemaVersion:1,kind:"openh910p-shutdown-clients-review",
+        applied:false,installable:false,authenticated:false,
+        clients:state.agentDraft.map(client=>({
+          id:client.id,label:client.label,leaseSeconds:client.leaseSeconds
+        }))
+      },null,2)+"\n","application/json;charset=utf-8");
+    });
+    draw();
+    return panel;
+  }
+
   function renderSnmpAgent(policy){
     const panel=element("div","snmp-monitor");
     add(panel,section("UPS-MIB monitoring","Supported read-only SNMP object identifiers for verified UPS measurements."));
@@ -1107,13 +1249,15 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy) {
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
     if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
     if(key==="firmware")container.appendChild(renderFirmwareUpdate(updatePolicy));
     if(key==="snmp")container.appendChild(renderSnmpAgent(snmpPolicy));
+    if(key==="applications"||key==="shutdown")
+      container.appendChild(renderShutdownAgents(agentsPolicy,agentsStatus,key));
     if(key==="email"||key==="snmp")
       container.appendChild(renderNotificationRules(notifyPolicy,notifyStatus,key));
     if(key==="network"||key==="system")
@@ -1248,8 +1392,15 @@
           try{snmpPolicy=await request("snmp/capabilities",signal);}
           catch(error){if(error.httpStatus!==404)throw error;}
         }
+        let agentsPolicy=null,agentsStatus=null;
+        if(page==="applications"||page==="shutdown"){
+          try{agentsPolicy=await request("agents/capabilities",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+          try{agentsStatus=await request("agents/status",signal);}
+          catch(error){if(error.httpStatus!==503)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy,snmpPolicy,agentsPolicy,agentsStatus);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

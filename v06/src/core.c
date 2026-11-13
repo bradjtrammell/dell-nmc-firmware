@@ -2,6 +2,7 @@
 #include "ou_schema.h"
 #include "ou_history.h"
 #include "ou_notify.h"
+#include "ou_agents.h"
 
 typedef struct {
     char *data;
@@ -310,6 +311,7 @@ int ou_dispatch_managed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const ou_history_log *history,
                 const ou_notify_engine *notifications,
+                const ou_agent_status *agents,
                 char *body, size_t capacity, ou_reply *reply) {
     json_writer w;
     uint32_t field_page = 0, events_page = 0, history_index = 0;
@@ -422,6 +424,35 @@ int ou_dispatch_managed(const char *method, const char *path,
                 put_char(&w,'}');
             }
             put_char(&w,']');
+        }
+    } else if (same(path, "/api/v1/agents/capabilities")) {
+        common(&w,"agents.capabilities",snapshot);
+        property_bool(&w,"coordinatorCompiled",1U,1);
+        property_bool(&w,"registrationWritable",0U,1);
+        property_bool(&w,"notificationTransportQualified",0U,1);
+        property_bool(&w,"mutualTlsQualified",0U,1);
+        property_bool(&w,"trustedShutdownIntentAvailable",0U,1);
+        property_bool(&w,"physicalPowerControl",0U,1);
+        property_uint(&w,"maximumClients",OU_AGENT_MAX,1);
+        property_uint(&w,"minimumLeaseSeconds",OU_AGENT_MIN_LEASE_MS/1000U,1);
+        property_uint(&w,"maximumLeaseSeconds",OU_AGENT_MAX_LEASE_MS/1000U,1);
+        property_uint(&w,"minimumWarningSeconds",OU_AGENT_MIN_WARNING_MS/1000U,1);
+        property_uint(&w,"maximumWarningSeconds",OU_AGENT_MAX_WARNING_MS/1000U,1);
+        property_string(&w,"mode","local-review-only",1);
+    } else if (same(path, "/api/v1/agents/status")) {
+        if(!agents){
+            reply->status=503;
+            common(&w,"error",snapshot);
+            property_string(&w,"code","AGENT_COORDINATOR_UNAVAILABLE",1);
+        }else {
+            common(&w,"agents.status",snapshot);
+            property_uint(&w,"enrolled",agents->enrolled,1);
+            property_uint(&w,"online",agents->online,1);
+            property_uint(&w,"waiting",agents->waiting,1);
+            property_uint(&w,"acknowledged",agents->acknowledged,1);
+            property_uint(&w,"unreachable",agents->unreachable,1);
+            property_bool(&w,"warningActive",agents->warning_active,1);
+            property_bool(&w,"persistent",0U,1);
         }
     } else if (same(path, "/api/v1/snmp/capabilities")) {
         common(&w,"snmp.capabilities",snapshot);
@@ -652,7 +683,7 @@ int ou_dispatch_observed(const char *method, const char *path,
                 const ou_snapshot *snapshot, const ou_event_log *events,
                 const ou_history_log *history,
                 char *body, size_t capacity, ou_reply *reply) {
-    return ou_dispatch_managed(method,path,snapshot,events,history,0,
+    return ou_dispatch_managed(method,path,snapshot,events,history,0,0,
                                body,capacity,reply);
 }
 

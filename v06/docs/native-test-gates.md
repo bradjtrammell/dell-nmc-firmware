@@ -266,3 +266,7 @@ physical firmware remain unchanged. See `docs/github-updater.md`.
 ## SNMPv2c read-only codec and UPS-MIB validation
 
 The protocol unit suite checks strict bounded BER GET/GETNEXT parsing, OID order, missing and unavailable data, community/ACL denial, SET rejection and malformed packets. An independent service integration suite accepts only guarded native measurements and withdraws them on link loss. The ARM7 big-endian code is linked into the research ELF and exercised under AddressSanitizer/UBSan; no SNMP UDP listener or SNMPv3 USM is enabled. See `docs/snmp-monitoring.md`.
+
+## Shutdown-agent lifecycle and warning coordination
+
+Host and native-service tests verify 12-client capacity, ID validation, authenticated heartbeat replay protection, stale/missing agents, advance warnings, per-client send and ACK states, denied/unqualified sends, deadline rollover and fail-closed completion. The native API and UI expose capabilities and status without offering unqualified agent registration or UPS power operations. ARM7 link and sanitizer checks are included. See `docs/shutdown-agents.md`.

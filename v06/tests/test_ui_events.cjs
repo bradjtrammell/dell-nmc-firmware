@@ -129,6 +129,19 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="agents/capabilities")return {
+      schemaVersion:1,source:"native",simulated:false,
+      coordinatorCompiled:true,registrationWritable:false,
+      notificationTransportQualified:false,mutualTlsQualified:false,
+      trustedShutdownIntentAvailable:false,physicalPowerControl:false,
+      maximumClients:12,minimumLeaseSeconds:10,maximumLeaseSeconds:300,
+      minimumWarningSeconds:30,maximumWarningSeconds:1800,
+      mode:"local-review-only"
+    };
+    if(route==="agents/status")return {
+      schemaVersion:1,source:"native",simulated:false,
+      status:503,error:"AGENT_COORDINATOR_UNAVAILABLE"
+    };
     if(route==="snmp/capabilities")return {
       schemaVersion:1,source:"native",simulated:false,
       readOnlyAgentCompiled:true,listenerEnabled:false,
@@ -602,4 +615,49 @@ test("SNMP monitoring page shows exact supported OIDs and disabled listener",asy
   assert.match(view,/Not provisioned/);
   assert.match(view,/Not qualified/);
   assert.match(view,/Event notification routing/);
+});
+
+test("Notified Applications provides validated registration review without sending",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#applications";env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("agents/capabilities"));
+  assert.ok(env.calls.includes("agents/status"));
+  assert.match(allText(env.named.view),/Shutdown client coordination/);
+  assert.match(allText(env.named.view),/No live client inventory/);
+  const add=find(env.named.view,"button",n=>n.textContent==="Add shutdown client");
+  const save=find(env.named.view,"button",n=>n.textContent==="Export client registration review");
+  assert.ok(add&&save&&save.disabled);
+  add.click();
+  assert.equal(save.disabled,true);
+  const name=find(env.named.view,"input",n=>n.attributes["aria-label"]==="Client 1 name");
+  assert.ok(name);
+  name.value="Media server";name.dispatch("input");
+  assert.equal(save.disabled,false);
+  save.click();
+  assert.equal(env.downloads.length,1);
+  const artifact=JSON.parse(await env.downloads[0].blob.text());
+  assert.equal(artifact.applied,false);
+  assert.equal(artifact.authenticated,false);
+  assert.equal(artifact.installable,false);
+  assert.equal(artifact.clients.length,1);
+  assert.equal(artifact.clients[0].label,"Media server");
+  assert.equal(artifact.clients[0].leaseSeconds,60);
+  env.location.hash="#shutdown";env.listeners.hashchange();
+  await settled(env);
+  assert.match(allText(env.named.view),/Shutdown warning coordination/);
+  const warning=find(env.named.view,"input",n=>n.id==="agent-warning-duration");
+  const exportWarning=find(env.named.view,"button",n=>n.textContent==="Export warning-policy review");
+  assert.ok(warning&&exportWarning);
+  warning.value="10";warning.dispatch("input");
+  assert.equal(exportWarning.disabled,true);
+  warning.value="120";warning.dispatch("input");
+  assert.equal(exportWarning.disabled,false);
+  exportWarning.click();
+  assert.equal(env.downloads.length,2);
+  const policy=JSON.parse(await env.downloads[1].blob.text());
+  assert.equal(policy.warningSeconds,120);
+  assert.equal(policy.physicalPowerControl,false);
+  assert.equal(policy.authenticatedAgentNetworkAvailable,false);
 });

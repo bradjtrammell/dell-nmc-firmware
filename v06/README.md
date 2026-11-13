@@ -296,3 +296,7 @@ are not used. See `docs/github-updater.md`.
 ## Native SNMP monitoring
 
 A bounded read-only SNMPv2c GET/GETNEXT implementation maps seven RFC 1628 UPS-MIB objects from verified native measurements and rejects SET operations. The SNMP page shows supported OIDs and actual disabled network qualifications. SNMPv3 authPriv, secure credential provisioning and UDP listener remain unfinished. See `docs/snmp-monitoring.md`.
+
+## Shutdown-agent coordination
+
+A native 12-client registry now implements authenticated-enrollment boundaries, heartbeats with replay protection, advance-warning transactions, verified outbound notice callbacks, acknowledgements, and expired/disconnected client handling. The Notified Applications and Shutdown Parameters pages expose status and local policy reviews. No real client connection or power operation is enabled. See `docs/shutdown-agents.md`.

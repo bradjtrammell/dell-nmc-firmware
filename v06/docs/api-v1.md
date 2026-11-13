@@ -247,3 +247,7 @@ from the browser. See `docs/github-updater.md`.
 ## Bounded read-only SNMP UPS-MIB agent (no network listener yet)
 
 `GET /api/v1/snmp/capabilities` lists seven RFC1628 UPS-MIB OIDs for independently verified native readings and the compiled SNMPv2c GET/GETNEXT BER codec. Listener, ACL, community provisioning and SNMPv3 authPriv are explicitly unavailable. `ou_native_service_snmp` passes validated telemetry to a bounded datagram parser, which refuses SET and drops unauthorized requests. No UDP/161 adapter or power action is enabled. See `docs/snmp-monitoring.md`.
+
+## Shutdown application control plane
+
+`GET /api/v1/agents/capabilities` declares a native 12-client, 10–300-second heartbeat lease and 30–1,800-second warning coordination model. It denies live registration, mTLS, verified shutdown intent and physical power operations. `GET /api/v1/agents/status` provides native registry counts and active warning status; the loopback simulator returns 503 rather than inventing registered applications. Both the Notified Applications and Shutdown Parameters pages have local review-only editors. See `docs/shutdown-agents.md`.

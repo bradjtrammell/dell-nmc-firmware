@@ -5,6 +5,7 @@
 #include "ou_history.h"
 #include "ou_notify.h"
 #include "ou_snmp.h"
+#include "ou_agents.h"
 
 /* One service instance, zero allocation; native events remain available
  * independently of UPS telemetry and are intentionally volatile for now. */
@@ -12,6 +13,7 @@ static ou_telemetry_guard source;
 static ou_event_log history;
 static ou_history_log measurements;
 static ou_notify_engine notifications;
+static ou_agent_registry agents;
 
 static void record(uint8_t code,uint32_t now_ms) {
     if(ou_events_add(&history,code,now_ms)==0){
@@ -26,6 +28,7 @@ void ou_native_service_init(void) {
     ou_events_init(&history);
     ou_history_init(&measurements);
     ou_notify_init(&notifications);
+    ou_agents_init(&agents);
     record(OU_EVENT_SERVICE_START,0U);
 }
 
@@ -121,11 +124,36 @@ int ou_native_service_snmp(const ou_snmp_access *access,
                            response,capacity,written);
 }
 
+int ou_native_service_agent_enroll(uint32_t id,const char *label,
+                                    uint32_t lease_ms,int admin_authorized){
+    return ou_agents_enroll(&agents,id,label,lease_ms,admin_authorized);
+}
+int ou_native_service_agent_heartbeat(uint32_t id,uint32_t sequence,
+                          uint32_t now_ms,int peer_identity_verified){
+    return ou_agents_heartbeat(&agents,id,sequence,now_ms,peer_identity_verified);
+}
+int ou_native_service_agent_warning(uint32_t now_ms,uint32_t warning_ms,
+                          int operator_authorized,int verified_intent){
+    return ou_agents_begin_warning(&agents,now_ms,warning_ms,
+                                    operator_authorized,verified_intent);
+}
+int ou_native_service_agent_notify(const ou_agent_sender *sender,uint32_t now_ms){
+    return ou_agents_deliver_one(&agents,sender,now_ms);
+}
+int ou_native_service_agent_ack(uint32_t id,uint32_t transaction,
+                                uint32_t now_ms,int peer_identity_verified){
+    return ou_agents_ack(&agents,id,transaction,now_ms,peer_identity_verified);
+}
+int ou_native_service_agent_step(uint32_t now_ms){
+    return ou_agents_step(&agents,now_ms);
+}
 int ou_native_service_http(const uint8_t *req,size_t req_len,uint32_t now_ms,
                            char *response,size_t capacity,size_t *response_len) {
     ou_snapshot sample=ou_unavailable_snapshot();
+    ou_agent_status agent_summary;
+    (void)ou_agents_status(&agents,now_ms,&agent_summary);
     (void)ou_telemetry_guard_read(&source,now_ms,&sample);
     return ou_http_respond_managed(req,req_len,&sample,&history,
-                                   &measurements,&notifications,
+                                   &measurements,&notifications,&agent_summary,
                                    response,capacity,response_len);
 }
