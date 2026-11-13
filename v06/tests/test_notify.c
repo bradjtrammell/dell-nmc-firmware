@@ -51,7 +51,9 @@ static void route_and_retry(void){
     assert(transport.calls==2U);
     transport.mode=1;
     assert(ou_notify_step(&n,&s,3000U)==1);
-    assert(ou_notify_step(&n,&s,3000U)==1);
+    /* Second job was first retried at 1001; due at 3001, not 3000. */
+    assert(ou_notify_step(&n,&s,3000U)==0);
+    assert(ou_notify_step(&n,&s,3001U)==1);
     assert(n.delivered==2U&&ou_notify_pending(&n)==0U);
     assert(ou_notify_route(&n,&e,40000U)==0);
     e=event(2U,OU_EVENT_UTILITY_LOST);
