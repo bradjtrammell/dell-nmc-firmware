@@ -31,3 +31,24 @@ The module intentionally does **not** prescribe which actual flash sectors to us
 Run from `v06`: `make clean all test footprint-check board-sanitize`. The output remains `native-research-NOT-FLASHABLE.elf` and `.dat` only, never a BIN.
 
 **Future gate:** inspect real NMC memory controller and flash chip, verify two separate erase-aligned config slots outside boot/recovery/app areas, validate readback and watchdog power-failure behavior on recoverable hardware, then permit a physical backend.
+
+
+## Native event archive — separate partition only
+
+The 440-byte `OU_EVENT_ARCHIVE_VERSION=1` event snapshot is
+distinct from settings data and must use its own independently
+qualified two-slot journal. It stores the last 32 typed event records
+and their boot-generation labels, next event ID and overwrite count.
+It never stores credentials or raw device payloads.
+
+`ou_event_archive_checkpoint` is an opt-in operation that calls
+`ou_journal_commit` only when all original journal safety conditions
+are met, and `ou_event_archive_restore` uses the CRC-verified
+load path. Uncommitted, interrupted, malformed or corrupt snapshots
+cannot change the in-memory event ring. A previous valid slot
+survives failure of the latest slot. Unit/integration tests exercise
+both slots, simulated NOR 1→0 writes, readback corruption,
+invalid geometry, forbidden writes, restored ordering, and boot epochs.
+
+No event flash partition has been verified on the installed H910P,
+and no production runtime calls the checkpoint method automatically.

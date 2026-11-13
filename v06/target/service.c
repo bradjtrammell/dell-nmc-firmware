@@ -1,6 +1,7 @@
 #include "ou_native_service.h"
 #include "ou_telemetry_guard.h"
 #include "ou_events.h"
+#include "ou_event_archive.h"
 
 /* One service instance, zero allocation; native events remain available
  * independently of UPS telemetry and are intentionally volatile for now. */
@@ -15,6 +16,19 @@ void ou_native_service_init(void) {
     ou_telemetry_guard_reset(&source);
     ou_events_init(&history);
     record(OU_EVENT_SERVICE_START,0U);
+}
+
+int ou_native_service_events_restore(const ou_journal_io *dedicated_events) {
+    if(source.source_seen || history.source_online)return -1;
+    if(ou_event_archive_restore(&history,dedicated_events)!=0)return -1;
+    /* Current boot's service-start marker has its own timestamp epoch,
+     * distinct from the archive. The previous boot's event IDs remain. */
+    return ou_events_add(&history,OU_EVENT_SERVICE_START,0U);
+}
+
+int ou_native_service_events_checkpoint(const ou_journal_io *dedicated_events,
+                                         ou_journal_record *record) {
+    return ou_event_archive_checkpoint(&history,dedicated_events,record);
 }
 
 int ou_native_service_driver_report(const ou_driver_report *report,uint32_t now_ms) {

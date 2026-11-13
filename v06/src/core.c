@@ -261,6 +261,8 @@ int ou_dispatch_events(const char *method, const char *path,
             if (end>events->count)end=events->count;
             common(&w,"events",snapshot);
             property_bool(&w,"persistent",0U,1);
+            property_string(&w,"retention","volatile-until-explicit-checkpoint",1);
+            property_uint(&w,"currentBootGeneration",events->boot_generation,1);
             property_uint(&w,"capacity",OU_EVENTS_CAPACITY,1);
             property_uint(&w,"stored",events->count,1);
             property_uint(&w,"overwritten",events->overwritten,1);

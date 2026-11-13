@@ -40,3 +40,31 @@ No independently verified UPS driver is currently linked. This JSON API **must n
 The optional `tools/verify_oem_parity.py` utility parses a previously captured private `ups.xml` file **offline only**, validates nine numeric UPS measurement and outlet-state fields, enforces ranges, and reports typed readings without network or credential fields. It is not part of the ARM target. Its limited purpose is to establish numeric baseline conversions (for example, voltage in volts to decivolts) before native UPS transport exists.
 
 See [`native-test-gates.md`](native-test-gates.md) for hardware/flash restrictions.
+
+
+## Event history archive / recovery (explicit checkpoint)
+
+Native event records include an uptime-relative `monotonicMs` and
+`bootGeneration`. The response includes `currentBootGeneration`, so
+a timestamp recorded before a restart cannot be confused with the
+current boot's uptime. The 32-event in-memory ring continues serving
+GET/HEAD even if UPS data is unavailable.
+
+The event archive codec serializes the complete bounded ring using a
+versioned endian-stable 440-byte image. The existing NOR-friendly
+two-slot journal supports CRC readback, staged writes, and atomic
+commit-marker activation. The service now exposes explicit
+`ou_native_service_events_restore` and
+`ou_native_service_events_checkpoint` calls. Restoring a checkpoint
+increments the boot epoch, restores ordered event IDs, and writes a
+new service-start event without treating a previous online state as
+proof the UPS is connected now.
+
+**There is no configured physical event partition or automatic flash
+writing.** Event history is still advertised with `persistent:false`
+and `retention:"volatile-until-explicit-checkpoint"`. Checkpointing is
+an explicit BSP operation requiring a separately verified EVENT storage
+partition, NOR geometry, and write permission; it is never allowed
+to reuse configuration, firmware, or bootloader sectors. Future
+qualified hardware integration must implement an endurance-aware
+checkpoint policy and test power failures.

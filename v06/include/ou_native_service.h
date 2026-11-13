@@ -4,11 +4,20 @@
 #include <stdint.h>
 #include "ou_provider.h"
 #include "ou_http_wire.h"
+#include "ou_event_archive.h"
 
 /* Single-threaded, zero-heap native application service. The future verified
  * MAC/TCP adapter submits ONE complete bounded request at a time.
  * This interface alone is not a NIC, TCP/IP stack or network listener. */
 void ou_native_service_init(void);
+
+/* Explicit, wear-controlled event archive. Not automatically persisted on
+ * each event. Requires an independently qualified dedicated EVENT partition,
+ * and does NOT share the settings or bootloader sectors. Return -1 on
+ * invalid/corrupt storage without changing the live event history. */
+int ou_native_service_events_restore(const ou_journal_io *dedicated_events);
+int ou_native_service_events_checkpoint(const ou_journal_io *dedicated_events,
+                                         ou_journal_record *record);
 
 /* Only a driver that has verified actual physical source identity, framing,
  * checksum and report authenticity may set report->verified. No UPS TX. */

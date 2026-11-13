@@ -4,17 +4,20 @@ void ou_events_init(ou_event_log *log) {
     if (!log) return;
     *log = (ou_event_log){0};
     log->next_id = 1U;
+    log->boot_generation = 1U;
 }
 
 int ou_events_add(ou_event_log *log, uint8_t code, uint32_t now_ms) {
     ou_event_record *entry;
-    if (!log || log->next_id == 0U || log->next_id == UINT32_MAX ||
+    if (!log || log->boot_generation == 0U ||
+        log->next_id == 0U || log->next_id == UINT32_MAX ||
         code < OU_EVENT_FIRST || code > OU_EVENT_LAST ||
         log->count > OU_EVENTS_CAPACITY ||
         log->next_slot >= OU_EVENTS_CAPACITY) return -1;
     entry = &log->records[log->next_slot];
     entry->id = log->next_id++;
     entry->monotonic_ms = now_ms;
+    entry->boot_generation = log->boot_generation;
     entry->code = code;
     log->next_slot = (uint8_t)((log->next_slot + 1U) % OU_EVENTS_CAPACITY);
     if (log->count < OU_EVENTS_CAPACITY) ++log->count;

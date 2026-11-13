@@ -26,12 +26,15 @@ enum ou_event_code {
 typedef struct {
     uint32_t id;
     uint32_t monotonic_ms;
+    /* Distinguishes timestamps from different boots after archive restore. */
+    uint32_t boot_generation;
     uint8_t code;
 } ou_event_record;
 
 typedef struct ou_event_log {
     ou_event_record records[OU_EVENTS_CAPACITY];
     uint32_t next_id;
+    uint32_t boot_generation;
     uint32_t overwritten;
     uint8_t count;
     uint8_t next_slot;
