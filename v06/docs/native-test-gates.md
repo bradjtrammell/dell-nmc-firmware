@@ -295,3 +295,13 @@ and a valid local import changes browser drafts only. No flash
 partition is touched. Cross-partition atomic restoration is an
 explicit future requirement, not silently omitted.
 See `docs/portable-backup.md`.
+
+## SNMP GETBULK hardening
+
+The native read-only SNMPv2c agent now accepts RFC3416
+GETBULK and performs a bounded lexicographic walk of the
+seven actually supported UPS-MIB objects. The response is
+capped at eight varbinds to prevent request amplification,
+including for huge max-repetitions inputs. No SNMP SET is
+available, source/community requirements are unchanged,
+and stale/unverified UPS telemetry is never substituted.

@@ -171,7 +171,7 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
     };
     if(route==="snmp/capabilities")return {
       schemaVersion:1,source:"native",simulated:false,
-      readOnlyAgentCompiled:true,listenerEnabled:false,
+      readOnlyAgentCompiled:true,getBulkSupported:true,maximumBulkResponses:8,listenerEnabled:false,
       v2cPacketCodec:true,v3UsmAuthPrivQualified:false,
       communityProvisioned:false,sourceAclQualified:false,
       verifiedNativeTelemetryRequired:true,setOperationsAllowed:false,

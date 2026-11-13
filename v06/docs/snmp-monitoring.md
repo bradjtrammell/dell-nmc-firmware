@@ -27,3 +27,23 @@ The seven OIDs are returned **only from native telemetry that has passed the exi
 `GET /api/v1/snmp/capabilities` lists the exact seven OIDs and declares the compiled read-only codec, disabled listener, no provisioned community, unverified source ACL and missing SNMPv3 authPriv. The SNMP page displays this state and the real OID inventory, alongside existing alert/trap configuration planning. All HTTP writes remain 405.
 
 Unit and native-service tests exercise wire response parsing, GET/GETNEXT, unknown OID, malformed BER, unauthorized community, missing ACL, SET refusal, native-only measurement gating and telemetry withdrawal on disconnect. ARM7 big-endian link and sanitizers remain mandatory. **No physical card, SNMP listener, or UPS power interface is modified.**
+
+## Bounded GETBULK MIB walking
+
+The native BER protocol engine also supports the SNMPv2c
+`GetBulkRequest-PDU` (`0xA5`) with canonical non-negative
+`non-repeaters` and `max-repetitions` fields. Non-repeaters
+return one lexicographic successor. Repeaters advance through
+the known UPS-MIB OIDs in row-major order, returning
+`endOfMibView` after the final known object. Repetitions and
+response amplification are **always capped at eight returned
+varbinds**, irrespective of request values. Zero repetitions
+and no non-repeaters legitimately produce an empty result.
+Malformed, unqualified or unauthorized requests never expose
+telemetry; SNMP SET remains blocked.
+
+This extension does not add unsupported UPS objects, enable
+UDP/161, authenticate SNMPv3, or configure communities. Host
+wire tests cover bulk walks, non-repeaters, zero/large repetition
+counts, end-of-MIB, missing physical telemetry, wrong community,
+and invalid BER. Big-endian ARM7 and sanitizers remain required.

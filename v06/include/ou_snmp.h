@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "openh910p.h"
 
-/* Standalone, bounded, read-only RFC 3416 SNMPv2c interoperability layer.
+/* Standalone, bounded, read-only RFC 3416 SNMPv2c GET/GETNEXT/GETBULK layer.
  * Never bind UDP/161 until trusted-source ACL and preprovisioned community
  * verification exist. SNMPv3 USM authPriv remains separately required. */
 #define OU_SNMP_MAX_PACKET 768U

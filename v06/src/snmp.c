@@ -124,6 +124,38 @@ static int oid_valid(const uint8_t *bytes,size_t len){
     }
     return 1;
 }
+/* RFC 3416 read-only GET or lexicographic successor. For GETBULK the
+ * caller retains the successor OID as the next repetition cursor. */
+static int append_bind(writer *out,const ou_snapshot *telemetry,
+                       uint8_t oid_bytes[32],uint8_t *oid_length,
+                       int successor){
+    uint8_t one[64];
+    writer cell=(writer){one,sizeof(one),0U};
+    const mib_entry *match=0;
+    uint8_t exception=successor?0x82U:0x80U;
+    size_t j,i;
+    for(j=0U;j<OU_SNMP_OID_COUNT;++j){
+        int cmp=compare(oid_bytes,*oid_length,mib[j].bytes,mib[j].length);
+        if((successor&&cmp<0)||(!successor&&cmp==0)){
+            match=&mib[j];break;
+        }
+    }
+    if(match){
+        if(tlv(&cell,0x06U,match->bytes,match->length)!=0)return -1;
+        if(telemetry->origin==OU_ORIGIN_NATIVE&&telemetry->sample_ready==1U){
+            if(put_integer(&cell,metric_value(match->metric,telemetry))!=0)
+                return -1;
+        }else if(tlv(&cell,0x81U,0,0U)!=0)return -1;
+        if(successor){
+            for(i=0U;i<match->length;++i)oid_bytes[i]=match->bytes[i];
+            *oid_length=(uint8_t)match->length;
+        }
+    }else{
+        if(tlv(&cell,0x06U,oid_bytes,*oid_length)!=0 ||
+           tlv(&cell,exception,0,0U)!=0)return -1;
+    }
+    return tlv(out,0x30U,one,cell.at);
+}
 int ou_snmp_respond(const ou_snmp_access *access,
                     const ou_snapshot *telemetry,
                     const uint8_t *request,size_t request_len,
@@ -135,8 +167,9 @@ int ou_snmp_respond(const ou_snmp_access *access,
     uint8_t bindings[512],pdu_body[640],outer_body[OU_SNMP_MAX_PACKET];
     writer bind_writer,pdu_writer,outer_writer,result;
     int32_t value;
-    size_t count=0U,i,j,id_len;
-    int32_t error_status;
+    size_t count=0U,i,id_len;
+    int32_t field_status,non_repeaters=0,max_repetitions=0;
+    size_t output_count=0U,non_repeat_count,rep;
     if(written)*written=0U;
     if(!written||!access||!telemetry||!request||!response||
        request_len>OU_SNMP_MAX_PACKET||
@@ -155,16 +188,20 @@ int ou_snmp_respond(const ou_snmp_access *access,
     if(access->authorize(access->context,community.p,community.n)!=1)return 1;
     if(field(&outer,&pdu_type,&pdu)!=0||outer.at!=outer.n)return -1;
     if(pdu_type==0xa3U)return 1; /* SET is *never* enabled */
-    if(pdu_type!=0xa0U&&pdu_type!=0xa1U)return -1;
+    if(pdu_type!=0xa0U&&pdu_type!=0xa1U&&pdu_type!=0xa5U)return -1;
     if(next(&pdu,0x02U,&field_view)!=0 ||
        field_view.n==0U||field_view.n>4U)return -1;
     id_len=field_view.n;
     for(i=0U;i<id_len;++i)request_id[i]=field_view.p[i];
     if(next(&pdu,0x02U,&field_view)!=0||
-       int32(&field_view,0,&error_status)!=0||error_status!=0 ||
-       next(&pdu,0x02U,&field_view)!=0||
-       int32(&field_view,0,&error_status)!=0||error_status!=0 ||
-       next(&pdu,0x30U,&list)!=0||pdu.at!=pdu.n)return -1;
+       int32(&field_view,0,&field_status)!=0)return -1;
+    if(pdu_type==0xa5U)non_repeaters=field_status;
+    else if(field_status!=0)return -1;
+    if(next(&pdu,0x02U,&field_view)!=0||
+       int32(&field_view,0,&field_status)!=0)return -1;
+    if(pdu_type==0xa5U)max_repetitions=field_status;
+    else if(field_status!=0)return -1;
+    if(next(&pdu,0x30U,&list)!=0||pdu.at!=pdu.n)return -1;
     while(list.at<list.n){
         if(count>=OU_SNMP_MAX_VARBINDS ||
            next(&list,0x30U,&bind)!=0 ||
@@ -178,34 +215,30 @@ int ou_snmp_respond(const ou_snmp_access *access,
     }
     if(count==0U)return -1;
     bind_writer=(writer){bindings,sizeof(bindings),0U};
-    for(i=0U;i<count;++i){
-        uint8_t one[64];
-        writer cell=(writer){one,sizeof(one),0U};
-        const mib_entry *match=0;
-        uint8_t exception=0x80U;
-        if(pdu_type==0xa0U){
-            for(j=0U;j<OU_SNMP_OID_COUNT;++j)
-                if(compare(ids[i],lengths[i],mib[j].bytes,mib[j].length)==0){
-                    match=&mib[j];break;
-                }
-        }else{
-            for(j=0U;j<OU_SNMP_OID_COUNT;++j)
-                if(compare(ids[i],lengths[i],mib[j].bytes,mib[j].length)<0){
-                    match=&mib[j];break;
-                }
-            exception=0x82U; /* endOfMibView */
+    if(pdu_type==0xa5U){
+        non_repeat_count=(size_t)non_repeaters;
+        if(non_repeat_count>count)non_repeat_count=count;
+        for(i=0U;i<non_repeat_count;++i){
+            if(append_bind(&bind_writer,telemetry,ids[i],&lengths[i],1)!=0)
+                return -1;
+            ++output_count;
         }
-        if(match){
-            if(tlv(&cell,0x06U,match->bytes,match->length)!=0)return -1;
-            if(telemetry->origin==OU_ORIGIN_NATIVE&&telemetry->sample_ready==1U){
-                if(put_integer(&cell,metric_value(match->metric,telemetry))!=0)
+        /* Bound expansion to 8 response entries, even for a huge
+         * max-repetitions value or a tiny requester buffer. This both
+         * protects the ARM7 stack and prevents amplification. */
+        for(rep=0U;rep<(size_t)max_repetitions &&
+                    output_count<OU_SNMP_MAX_VARBINDS;++rep){
+            for(i=non_repeat_count;i<count &&
+                 output_count<OU_SNMP_MAX_VARBINDS;++i){
+                if(append_bind(&bind_writer,telemetry,ids[i],&lengths[i],1)!=0)
                     return -1;
-            }else if(tlv(&cell,0x81U,0,0U)!=0)return -1; /* noSuchInstance */
-        }else{
-            if(tlv(&cell,0x06U,ids[i],lengths[i])!=0||
-               tlv(&cell,exception,0,0U)!=0)return -1;
+                ++output_count;
+            }
         }
-        if(tlv(&bind_writer,0x30U,one,cell.at)!=0)return -1;
+    }else{
+        for(i=0U;i<count;++i)
+            if(append_bind(&bind_writer,telemetry,ids[i],&lengths[i],
+                           pdu_type==0xa1U)!=0)return -1;
     }
     pdu_writer=(writer){pdu_body,sizeof(pdu_body),0U};
     if(tlv(&pdu_writer,0x02U,request_id,id_len)!=0 ||

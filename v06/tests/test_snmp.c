@@ -62,11 +62,72 @@ static size_t request(uint8_t *out,uint8_t op,const uint8_t *oid,size_t oid_len,
     ml+=tlv(message+ml,op,pdu,pl);
     return tlv(out,0x30U,message,ml);
 }
+static size_t bulk_request(uint8_t *out,const uint8_t *oid,size_t oid_len,
+                           uint8_t nonrepeaters,uint8_t maxrepetitions){
+    size_t i,n=request(out,0xa1U,oid,oid_len,"private-monitor");
+    /* A standard single-varbind GETNEXT fixture has exact two canonical
+     * zero INTEGER fields following its 3-byte request ID. */
+    for(i=0U;i+10U<n;++i){
+        if(out[i]==0xa1U&&out[i+2U]==0x02U&&out[i+3U]==0x01U&&
+           out[i+4U]==55U&&out[i+5U]==0x02U&&out[i+6U]==0x01U&&
+           out[i+8U]==0x02U&&out[i+9U]==0x01U){
+            out[i]=0xa5U;
+            out[i+7U]=nonrepeaters;
+            out[i+10U]=maxrepetitions;
+            return n;
+        }
+    }
+    assert(0&&"Cannot locate PDU fixture");
+    return 0U;
+}
 static int has(const uint8_t *data,size_t n,const uint8_t *pattern,size_t len){
     size_t i;
     for(i=0U;i+len<=n;++i)
         if(memcmp(data+i,pattern,len)==0)return 1;
     return 0;
+}
+static void bulk_get_walk(void){
+    uint8_t req[240],resp[OU_SNMP_MAX_PACKET];
+    size_t n,written=0U;
+    int enabled=1;
+    ou_snmp_access a=qualified(&enabled);
+    ou_snapshot native=sample();
+    static const uint8_t before_first[]={0x2b,6,1,2,1,33,1,1,0};
+    static const uint8_t after_last[]={0x2b,6,1,2,1,33,2};
+    static const uint8_t end_of_mib[]={0x82,0x00};
+    static const uint8_t no_instance[]={0x81,0x00};
+    n=bulk_request(req,before_first,sizeof(before_first),0U,8U);
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==0);
+    assert(written<OU_SNMP_MAX_PACKET);
+    assert(has(resp,written,battery_oid,sizeof(battery_oid)));
+    assert(has(resp,written,output_oid,sizeof(output_oid)));
+    assert(has(resp,written,end_of_mib,sizeof(end_of_mib)));
+    /* MaxRepetitions=0 returns a legal empty varbind list, not an error. */
+    n=bulk_request(req,before_first,sizeof(before_first),0U,0U);
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==0);
+    assert(written>0U&&!has(resp,written,battery_oid,sizeof(battery_oid)));
+    /* NonRepeaters=1 returns one GETNEXT, even when MaxRepetitions>0. */
+    n=bulk_request(req,before_first,sizeof(before_first),1U,8U);
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==0);
+    assert(has(resp,written,battery_oid,sizeof(battery_oid)));
+    assert(!has(resp,written,output_oid,sizeof(output_oid)));
+    n=bulk_request(req,before_first,sizeof(before_first),0U,100U);
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==0);
+    assert(written<=OU_SNMP_MAX_PACKET);
+    n=bulk_request(req,after_last,sizeof(after_last),0U,4U);
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==0);
+    assert(has(resp,written,end_of_mib,sizeof(end_of_mib)));
+    native.sample_ready=0U;
+    n=bulk_request(req,before_first,sizeof(before_first),0U,8U);
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==0);
+    assert(has(resp,written,no_instance,sizeof(no_instance)));
+    enabled=0;
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==1);
+    assert(written==0U);
+    enabled=1;
+    req[n-1U]=0xffU;
+    assert(ou_snmp_respond(&a,&native,req,n,resp,sizeof(resp),&written)==-1);
+    assert(written==0U);
 }
 static void decoded_responses(void){
     uint8_t req[240],resp[OU_SNMP_MAX_PACKET],bad[240];
@@ -146,6 +207,7 @@ static void decoded_responses(void){
 }
 int main(void){
     decoded_responses();
-    puts("PASS: strict SNMPv2c read-only BER GET/GETNEXT, seven UPS-MIB OIDs, verified-only telemetry, ACL/community and SET refusal");
+    bulk_get_walk();
+    puts("PASS: strict SNMPv2c read-only BER GET/GETNEXT/GETBULK, seven UPS-MIB OIDs, verified-only telemetry, ACL/community and SET refusal");
     return 0;
 }

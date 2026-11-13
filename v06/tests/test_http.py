@@ -190,6 +190,8 @@ class SimulatorHttpTests(unittest.TestCase):
         self.assertEqual(body["supportedOids"], 7)
         self.assertEqual(len(body["oids"]), 7)
         self.assertEqual(body["maximumVarbinds"], 8)
+        self.assertIs(body["getBulkSupported"], True)
+        self.assertEqual(body["maximumBulkResponses"], 8)
         self.assertIs(body["readOnlyAgentCompiled"], True)
         self.assertIs(body["v2cPacketCodec"], True)
         self.assertIs(body["setOperationsAllowed"], False)

@@ -320,3 +320,11 @@ local drafts. Live card backup and restoration remain disabled pending
 verified secure access, complete field inventory, flash layout and
 cross-partition transaction recovery. Details:
 `docs/portable-backup.md`.
+
+## Bounded SNMP GETBULK
+
+The existing native SNMPv2c GET/GETNEXT codec now supports
+bounded GETBULK MIB walks over the verified seven UPS-MIB
+objects. Up to eight response varbinds, no power/config
+writes, no live UDP listener, no unqualified community
+provisioning. See `docs/snmp-monitoring.md`.

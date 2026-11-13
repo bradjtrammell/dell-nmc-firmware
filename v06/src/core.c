@@ -522,6 +522,8 @@ int ou_dispatch_managed(const char *method, const char *path,
         property_bool(&w,"readOnlyAgentCompiled",1U,1);
         property_bool(&w,"listenerEnabled",0U,1);
         property_bool(&w,"v2cPacketCodec",1U,1);
+        property_bool(&w,"getBulkSupported",1U,1);
+        property_uint(&w,"maximumBulkResponses",8U,1);
         property_bool(&w,"v3UsmAuthPrivQualified",0U,1);
         property_bool(&w,"communityProvisioned",0U,1);
         property_bool(&w,"sourceAclQualified",0U,1);

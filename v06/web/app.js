@@ -1384,9 +1384,10 @@
       return panel;
     }
     add(panel,notice("SNMP listener not enabled",
-      "Native SNMPv2c GET/GETNEXT encoding is implemented, but access restrictions, a provisioned community and a qualified UDP listener are not connected. SNMPv3 authPriv remains required for secure remote monitoring.","info"));
+      "Native SNMPv2c GET/GETNEXT/GETBULK encoding is implemented, but access restrictions, a provisioned community and a qualified UDP listener are not connected. SNMPv3 authPriv remains required for secure remote monitoring.","info"));
     add(panel,properties([
       ["Read-only object support","Seven UPS-MIB objects"],
+      ["GETBULK MIB walk",policy.getBulkSupported?"Up to "+String(policy.maximumBulkResponses)+" bounded results":"Unavailable"],
       ["Community access",policy.communityProvisioned?"Provisioned":"Not provisioned"],
       ["Network source restrictions",policy.sourceAclQualified?"Qualified":"Not qualified"],
       ["SNMPv3 security",policy.v3UsmAuthPrivQualified?"Qualified":"Not qualified"],
