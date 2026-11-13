@@ -41,6 +41,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           make -C v06 clean all test arm-link-check footprint-check
+      - name: Run board and UPS AddressSanitizer / UBSan tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          make -C v06 board-sanitize
       - name: Confirm image remains explicitly research-only
         shell: bash
         run: |
