@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#define SLOT_BYTES 4096U
+#define SLOT_BYTES 8192U
 
 static struct {
     uint8_t sectors[2][SLOT_BYTES];
