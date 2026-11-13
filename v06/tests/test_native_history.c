@@ -75,7 +75,7 @@ static void lifecycle(void) {
     assert(ou_native_service_driver_report(&r,6000U)==0);
     http("GET","/api/v1/ups/history",6000U,200,"\"stored\":4");
     for(seq=7U;seq<=76U;++seq){
-        uint32_t ms=61000U+(seq-7U)*61000U;
+        uint32_t ms=66000U+(seq-7U)*61000U;
         r=make_report(seq,ms,1U,(uint8_t)(90U-(seq%20U)));
         assert(ou_native_service_driver_report(&r,ms)==0);
     }
