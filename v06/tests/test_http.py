@@ -100,6 +100,33 @@ class SimulatorHttpTests(unittest.TestCase):
             code, _, _ = self.request("GET", path)
             self.assertEqual(code, 404)
 
+    def test_custom_github_update_policy_and_read_only_release_check(self):
+        status, headers, raw = self.request("GET", "/api/v1/firmware/update-policy")
+        self.assertEqual(status, 200)
+        data = json.loads(raw)
+        self.assertEqual(data["resource"], "firmware.update-policy")
+        self.assertEqual(data["releaseProvider"], "github")
+        self.assertEqual(data["repository"], "bradjtrammell/dell-nmc-firmware")
+        self.assertEqual(data["hardwareTarget"], "H910P")
+        self.assertEqual(data["runningVersion"], "0.6.0-alpha.1")
+        self.assertIs(data["releaseCheckEnabled"], True)
+        self.assertIs(data["nativeSha256Compiled"], True)
+        self.assertIs(data["signedManifestGateCompiled"], True)
+        for key in ("signatureKeysQualified","flashLayoutQualified",
+                    "recoveryQualified","deviceHttpsQualified",
+                    "installEnabled","rollbackEnabled","automaticUpdateEnabled"):
+            self.assertIs(data[key], False)
+        self.assertNotIn("dell.com", raw.decode().lower())
+        self.assertIn("connect-src 'self' https://api.github.com",
+                      headers["Content-Security-Policy"])
+        code, _, raw = self.request("HEAD", "/api/v1/firmware/update-policy")
+        self.assertEqual(code, 200)
+        self.assertEqual(raw, b"")
+        for method in ("POST", "PUT", "PATCH", "DELETE"):
+            code, _, body = self.request(method, "/api/v1/firmware/update-policy","{}")
+            self.assertEqual(code, 405)
+            self.assertEqual(json.loads(body)["error"], "READ_ONLY")
+
     def test_notification_router_status_and_read_only_contract(self):
         status, headers, raw = self.request("GET", "/api/v1/notifications/policy")
         self.assertEqual(status, 200)

@@ -281,3 +281,14 @@ can edit and export *local review-only* notification rules.
 Actual outbound delivery is disabled until transport, recipient
 credentials and hardware security are qualified. See
 `docs/notification-routing.md`.
+
+## Project-owned GitHub updater groundwork
+
+The Firmware Upload management page now performs a real read-only
+check against the pinned public project's GitHub Releases endpoint,
+with error handling and a clear empty state. The native code validates
+a canonical signed-release manifest, anti-downgrade version ordering,
+H910P board binding and a streamed SHA-256 image digest. The manifest
+signer and hardware trust/flash/recovery providers are not qualified,
+so no installation or rollback is enabled. OEM/Dell release sources
+are not used. See `docs/github-updater.md`.

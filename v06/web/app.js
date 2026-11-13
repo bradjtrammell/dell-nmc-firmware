@@ -1001,11 +1001,96 @@
     return panel;
   }
 
-  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus) {
+  function renderFirmwareUpdate(policy){
+    const panel=element("div","firmware-update");
+    add(panel,section("Project firmware releases",
+      "Release discovery is read-only and uses this project's GitHub repository, never the OEM firmware channel."));
+    if(!policy||policy.repository!=="bradjtrammell/dell-nmc-firmware"||
+       policy.releaseProvider!=="github"||
+       policy.releaseCheckEnabled!==true ||
+       policy.installEnabled!==false){
+      add(panel,notice("Update source could not be verified",
+        "The device did not return the pinned project release contract. No update lookup or installation will be attempted.","error"));
+      return panel;
+    }
+    add(panel,properties([
+      ["Release source","GitHub · "+policy.repository],
+      ["Running development version",policy.runningVersion||"Unknown"],
+      ["Hardware target",policy.hardwareTarget||"Unknown"],
+      ["Native SHA-256 verification",policy.nativeSha256Compiled?"Compiled":"Unavailable"],
+      ["Signed package-validation gate",policy.signedManifestGateCompiled?"Compiled":"Unavailable"],
+      ["Trusted release signing keys",policy.signatureKeysQualified?"Qualified":"Not qualified"],
+      ["Verified flash and recovery",policy.flashLayoutQualified&&policy.recoveryQualified?"Qualified":"Not qualified"],
+      ["Firmware installation",policy.installEnabled?"Enabled":"Disabled"],
+      ["Rollback",policy.rollbackEnabled?"Enabled":"Disabled"]
+    ]));
+    add(panel,notice("Installation intentionally blocked",
+      "Release discovery cannot install firmware. Each package must pass project signing-key verification, SHA-256 image integrity, H910P compatibility, anti-rollback and recovery checks before any future device-side activation.","warning"));
+    const controls=element("div","config-actions");
+    const check=button("Check GitHub releases",null,false);
+    const status=element("span","label","Not checked");
+    const results=element("div","firmware-results");
+    add(controls,check,status);
+    add(panel,controls,results);
+    check.addEventListener("click",async()=>{
+      if(check.disabled)return;
+      check.disabled=true;
+      status.textContent="Checking GitHub…";
+      results.replaceChildren();
+      const generation=state.generation;
+      try{
+        /* Pinned public release endpoint. No GitHub PAT, browser credentials,
+         * arbitrary user URL or Dell/OEM fallback. */
+        const response=await fetch(
+          "https://api.github.com/repos/bradjtrammell/dell-nmc-firmware/releases?per_page=12",
+          {method:"GET",credentials:"omit",cache:"no-store",
+           headers:{"Accept":"application/vnd.github+json"}});
+        if(!response.ok)throw new Error("GitHub returned HTTP "+response.status);
+        const releases=await response.json();
+        if(!Array.isArray(releases))
+          throw new Error("GitHub did not return a release list");
+        if(generation!==state.generation)return;
+        const accepted=releases.filter(release=>
+          release&&release.draft===false&&typeof release.tag_name==="string"&&
+          /^[A-Za-z0-9._-]{1,80}$/.test(release.tag_name)).slice(0,12);
+        status.textContent=accepted.length+" published release(s)";
+        if(!accepted.length){
+          add(results,notice("No published project releases",
+            "The project GitHub Releases feed currently contains no published versions. No update is available to inspect or install.","info"));
+        } else {
+          const rows=accepted.map(release=>{
+            const link=element("a","","View "+release.tag_name);
+            link.href="https://github.com/bradjtrammell/dell-nmc-firmware/releases/tag/"+
+              encodeURIComponent(release.tag_name);
+            link.rel="noopener noreferrer";
+            link.target="_blank";
+            const assets=Array.isArray(release.assets)?release.assets:[];
+            const assetNames=assets.filter(a=>a&&typeof a.name==="string")
+              .slice(0,8).map(a=>a.name.slice(0,100)).join(", ");
+            return [link,release.prerelease?"Pre-release":"Release",
+              release.published_at?String(release.published_at).slice(0,10):"Date unavailable",
+              assetNames||"No downloadable assets","Not verified for installation"];
+          });
+          results.appendChild(table(["Version","Channel","Published","Assets","Card status"],rows));
+        }
+      }catch(error){
+        if(generation!==state.generation)return;
+        status.textContent="Release check failed";
+        add(results,notice("Unable to retrieve project releases",
+          String(error.message||error)+". Existing device firmware has not been changed.","error"));
+      }finally{
+        if(generation===state.generation)check.disabled=false;
+      }
+    });
+    return panel;
+  }
+
+  function renderGeneral(summary,key,items,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy) {
     const spec=pages[key];const container=element("div");
     add(container,title(spec[0],spec[1]));
     if(key==="access")container.appendChild(renderAccessSecurity(security));
     if(key==="schedule")container.appendChild(renderWeeklyDraft(weekly));
+    if(key==="firmware")container.appendChild(renderFirmwareUpdate(updatePolicy));
     if(key==="email"||key==="snmp")
       container.appendChild(renderNotificationRules(notifyPolicy,notifyStatus,key));
     if(key==="network"||key==="system")
@@ -1130,8 +1215,13 @@
           try{notifyStatus=await request("notifications/status",signal);}
           catch(error){if(error.httpStatus!==503)throw error;}
         }
+        let updatePolicy=null;
+        if(page==="firmware"){
+          try{updatePolicy=await request("firmware/update-policy",signal);}
+          catch(error){if(error.httpStatus!==404)throw error;}
+        }
         if(signal.aborted||generation!==state.generation)return;
-        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus);
+        content=renderGeneral(summary,page,fields,staging,security,weekly,notifyPolicy,notifyStatus,updatePolicy);
       }
       if(signal.aborted||generation!==state.generation)return;
       view.replaceChildren(content);

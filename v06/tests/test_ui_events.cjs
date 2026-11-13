@@ -62,7 +62,7 @@ function allText(root) {
 function find(root,tag,matching){
   return descendants(root).find(n=>n.tagName===tag&&matching(n));
 }
-function createEnvironment({inconsistent=false,historyInconsistent=false,historyMissing=false}={}){
+function createEnvironment({inconsistent=false,historyInconsistent=false,historyMissing=false,githubReleases=[],githubError=false}={}){
   const names=["navigation","view","banner","refresh","health-indicator",
     "sidebar","menu","device-status","breadcrumb-name"];
   const named=Object.fromEntries(names.map(name=>[name,new Element("div")]));
@@ -128,6 +128,17 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
         sampleSource:"verified-native-only",
         samples:route==="ups/history"?history.slice(0,8):history.slice(8)};
     }
+    if(route==="firmware/update-policy")return {
+      schemaVersion:1,source:"native",simulated:false,
+      releaseProvider:"github",repository:"bradjtrammell/dell-nmc-firmware",
+      runningVersion:"0.6.0-alpha.1",hardwareTarget:"H910P",
+      releaseCheckEnabled:true,nativeSha256Compiled:true,
+      signedManifestGateCompiled:true,signatureKeysQualified:false,
+      flashLayoutQualified:false,recoveryQualified:false,
+      deviceHttpsQualified:false,installEnabled:false,
+      rollbackEnabled:false,automaticUpdateEnabled:false,
+      mode:"release-check-only"
+    };
     if(route==="notifications/policy")return {
       schemaVersion:1,source:"native",simulated:false,
       routerCompiled:true,deliveryAvailable:false,rulesWritable:false,
@@ -196,6 +207,14 @@ function createEnvironment({inconsistent=false,historyInconsistent=false,history
     throw Error("Unexpected API route "+route);
   };
   async function fetch(url,opts){
+    if(String(url).startsWith("https://api.github.com/")){
+      assert.equal(String(url),"https://api.github.com/repos/bradjtrammell/dell-nmc-firmware/releases?per_page=12");
+      assert.equal(opts.credentials,"omit");
+      assert.equal(opts.method,"GET");
+      calls.push("github-releases");
+      return {ok:!githubError,status:githubError?403:200,
+        async json(){return githubReleases;}};
+    }
     const route=String(url).replace(/^\/api\/v1\//,"");
     calls.push(route);
     assert.equal(opts.method,"GET");
@@ -498,4 +517,56 @@ test("Notification rules editor validates unique event/destination and exports r
   await settled(env);
   assert.match(allText(env.named.view),/Event notification routing/);
   assert.equal(env.downloads.length,1);
+});
+
+test("Firmware page checks only project GitHub releases and handles empty feed",async()=>{
+  const env=createEnvironment();
+  await settled(env);
+  env.location.hash="#firmware";
+  env.listeners.hashchange();
+  await settled(env);
+  assert.ok(env.calls.includes("firmware/update-policy"));
+  assert.match(allText(env.named.view),/Project firmware releases/);
+  assert.match(allText(env.named.view),/Signing|signing/);
+  const button=find(env.named.view,"button",n=>n.textContent==="Check GitHub releases");
+  assert.ok(button&&!button.disabled);
+  button.click();
+  await settled(env);
+  assert.ok(env.calls.includes("github-releases"));
+  assert.match(allText(env.named.view),/No published project releases/);
+  assert.match(allText(env.named.view),/Installation intentionally blocked/);
+  assert.equal(env.downloads.length,0);
+});
+test("Project release results are text-only and never permit installation",async()=>{
+  const env=createEnvironment({githubReleases:[
+    {tag_name:"v0.6.1",draft:false,prerelease:true,
+     published_at:"2026-11-13T16:25:00Z",assets:[{name:"h910p-research.bin"}]},
+    {tag_name:"evil<script>",draft:false,prerelease:false,
+     assets:[{name:"ignore-this"}]}
+  ]});
+  await settled(env);
+  env.location.hash="#firmware";env.listeners.hashchange();
+  await settled(env);
+  const button=find(env.named.view,"button",n=>n.textContent==="Check GitHub releases");
+  button.click();await settled(env);
+  assert.match(allText(env.named.view),/View v0.6.1/);
+  assert.match(allText(env.named.view),/Not verified for installation/);
+  assert.doesNotMatch(allText(env.named.view),/evil<script>/);
+  const link=find(env.named.view,"a",n=>n.textContent==="View v0.6.1");
+  assert.ok(link);
+  assert.equal(link.href,"https://github.com/bradjtrammell/dell-nmc-firmware/releases/tag/v0.6.1");
+  assert.equal(link.rel,"noopener noreferrer");
+  assert.equal(env.downloads.length,0);
+});
+test("GitHub release check fails visibly and leaves installed firmware unchanged",async()=>{
+  const env=createEnvironment({githubError:true});
+  await settled(env);
+  env.location.hash="#firmware";env.listeners.hashchange();
+  await settled(env);
+  const button=find(env.named.view,"button",n=>n.textContent==="Check GitHub releases");
+  button.click();await settled(env);
+  assert.match(allText(env.named.view),/Release check failed/);
+  assert.match(allText(env.named.view),/GitHub returned HTTP 403/);
+  assert.equal(button.disabled,false);
+  assert.equal(env.downloads.length,0);
 });

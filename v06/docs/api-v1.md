@@ -223,3 +223,23 @@ cooldown limits and a JSON export marked
 `applied:false`/`installable:false`. This is not actual alert
 sending or recipient provisioning. See
 `docs/notification-routing.md`.
+
+## Custom GitHub release-check and native image verification
+
+`GET /api/v1/firmware/update-policy` pins
+`releaseProvider:"github"` and
+`repository:"bradjtrammell/dell-nmc-firmware"`. It reports the
+H910P target and running independent firmware version. The native
+SHA-256 plus signed-manifest verification implementation is compiled,
+but real signing keys, HTTPS device transport, flash geometry,
+recovery and installation/rollback all report **false**.
+All HTTP write/update/upload operations still return 405.
+
+The Firmware Upload page can now request the public project's GitHub
+Releases API directly through an explicit host Content Security
+Policy allowlist for `https://api.github.com`; no token or
+credentials are sent. It displays published tags, channel, date,
+asset names, and an explicit unverified-for-installation status,
+including zero releases and errors. The current API returned no
+published releases. Nothing can be installed, updated or downgraded
+from the browser. See `docs/github-updater.md`.

@@ -423,6 +423,23 @@ int ou_dispatch_managed(const char *method, const char *path,
             }
             put_char(&w,']');
         }
+    } else if (same(path, "/api/v1/firmware/update-policy")) {
+        common(&w,"firmware.update-policy",snapshot);
+        property_string(&w,"releaseProvider","github",1);
+        property_string(&w,"repository","bradjtrammell/dell-nmc-firmware",1);
+        property_string(&w,"runningVersion",OU_FIRMWARE_VERSION,1);
+        property_string(&w,"hardwareTarget","H910P",1);
+        property_bool(&w,"releaseCheckEnabled",1U,1);
+        property_bool(&w,"nativeSha256Compiled",1U,1);
+        property_bool(&w,"signedManifestGateCompiled",1U,1);
+        property_bool(&w,"signatureKeysQualified",0U,1);
+        property_bool(&w,"flashLayoutQualified",0U,1);
+        property_bool(&w,"recoveryQualified",0U,1);
+        property_bool(&w,"deviceHttpsQualified",0U,1);
+        property_bool(&w,"installEnabled",0U,1);
+        property_bool(&w,"rollbackEnabled",0U,1);
+        property_bool(&w,"automaticUpdateEnabled",0U,1);
+        property_string(&w,"mode","release-check-only",1);
     } else if (same(path, "/api/v1/notifications/policy")) {
         common(&w,"notifications.policy",snapshot);
         property_bool(&w,"routerCompiled",1U,1);

@@ -244,3 +244,21 @@ The engine's sender interface explicitly requires separately
 qualified transport, destination store and authenticated transport
 security (TLS or SNMPv3 USM). No physical SMTP, webhook, SNMP agent
 or trap sender is available. See `docs/notification-routing.md`.
+
+## Release source, SHA-256 and signed package verification
+
+The independent updater pipeline rejects OEM/Dell update sources by
+pinning the canonical signed metadata to this project's GitHub
+repository and the H910P hardware target. A freestanding SHA-256
+implementation is validated against standard independent reference
+vectors, and the signed image-size/digest constraints are checked
+against a simulated verified application partition.
+
+Manifest acceptance requires a separately qualified Ed25519 verifier,
+trust keys, HTTPS source, board geometry and recovery. These
+qualifications are **not** available on the physical card; the
+test verifier is a synthetic fixture only. No flash IO or installation
+exists in this module. Host and Node tests cover update-source
+reporting, live public release discovery, empty/malformed feeds,
+errors, and refusal to expose installer controls. `main` and
+physical firmware remain unchanged. See `docs/github-updater.md`.

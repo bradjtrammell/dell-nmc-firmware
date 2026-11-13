@@ -60,7 +60,7 @@ static void respond(int fd, int status, const char *mime,
         "X-Content-Type-Options: nosniff\r\n"
         "Referrer-Policy: no-referrer\r\n"
         "X-Frame-Options: DENY\r\n"
-        "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'\r\n"
+        "Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'\r\n"
         "X-OpenH910P-Mode: simulator\r\n"
         "\r\n", status, reason(status), mime, length);
     if (count <= 0 || (size_t)count >= sizeof(header)) return;

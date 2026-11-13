@@ -98,6 +98,10 @@ tbody tr:nth-child(even){background:#f8fafb}
 .event-controls .event-search{min-width:185px;flex:1 1 230px;max-width:390px}
 .event-select{border:1px solid #99b2bd;background:white;border-radius:2px;padding:10px 12px;min-height:43px;color:var(--ink)}
 .event-controls .button{min-height:43px}
+.firmware-update{margin:17px 0 28px}
+.firmware-results{margin:12px 0 20px}
+.firmware-results .table-wrap a{font-weight:700;white-space:nowrap}
+.firmware-update .config-actions{justify-content:flex-start}
 .notification-rules{margin:17px 0 26px}
 .notification-controls{display:flex;gap:12px;margin:15px 0}
 .notification-rule-list{border-top:2px solid #a3bdc8}
