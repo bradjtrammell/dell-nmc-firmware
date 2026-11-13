@@ -100,6 +100,11 @@ int ou_ethernet_path_poll_at(ou_ethernet_path *path, const ou_dma_bus *bus,
         status=ou_dma_tx_poll(bus,&path->tx);
         if(status<0) {incr(&path->errors);return -1;}
     }
+    /* There is one TX descriptor and one RX descriptor. If TX is still
+     * owned by DMA, leave an arriving frame in the RX descriptor instead
+     * of consuming and dropping it. This is essential for TCP ACKs and
+     * split HTTP requests while a prior reply is being transmitted. */
+    if(path->tx.active || path->tx.data_pending) return 0;
     status=ou_dma_rx_poll(bus,&path->rx,&frame,&length);
     if(status<0) {incr(&path->errors);return -1;}
     if(!status) {
@@ -118,10 +123,6 @@ int ou_ethernet_path_poll_at(ou_ethernet_path *path, const ou_dma_bus *bus,
         return 0;
     }
     incr(&path->received);
-    if(path->tx.active || path->tx.data_pending) {
-        incr(&path->ignored);
-        return ou_dma_rx_release(bus,&path->rx)==0 ? 0 : -1;
-    }
     net=ou_vlan_reply(&path->vlans,frame,length,path->response,
                      sizeof(path->response),&tx_len);
     if(net==0 && path->tcp_enabled) {

@@ -31,11 +31,21 @@ static void test_path(void) {
     assert(path.received==1U&&path.answered==1U);
     assert(path.tx.active);
     assert(tx[12]==8&&tx[13]==6&&tx[21]==2);
-    /* A second incoming frame cannot overwrite an active transmit buffer. */
+    /* An RX frame that arrives while TX is active must remain pending;
+     * previously the poller consumed and discarded it, losing TCP ACKs. */
     arp(rx);
     rbd.status_length=((uint32_t)OU_DMA_RX_OK<<16)|OU_DMA_BD_FULL|60U;
     assert(ou_ethernet_path_poll(&path,&bus)==0);
-    assert(path.received==2U&&path.ignored==1U);
+    assert(path.received==1U&&path.answered==1U&&path.ignored==0U);
+    assert((rbd.status_length&OU_DMA_BD_FULL)!=0U);
+    assert(path.tx.active);
+    /* The instant DMA completes, process the retained RX frame. */
+    tbd.status_length=((uint32_t)OU_DMA_TX_OK<<16)|60U;
+    assert(ou_ethernet_path_poll(&path,&bus)==1);
+    assert(path.received==2U&&path.answered==2U&&path.ignored==0U);
+    assert(path.tx.active);
+    assert((rbd.status_length&OU_DMA_BD_FULL)==0U);
+    assert(tx[12]==8&&tx[13]==6&&tx[21]==2);
     tbd.status_length=((uint32_t)OU_DMA_TX_OK<<16)|60U;
     assert(ou_ethernet_path_poll(&path,&bus)==0);
     assert(!path.tx.active);

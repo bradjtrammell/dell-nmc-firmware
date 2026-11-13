@@ -9,8 +9,14 @@ DMA-delivered Ethernet frame to a queued reply frame.
 - The owner supplies and independently qualifies both CPU and DMA bus mappings.
 - Descriptor and receive/transmit buffer regions must not overlap.
 - Frames are accepted only with DMA RXOK, a bounded length, and no RX error.
-- Transmit backpressure drops new reply opportunities without overwriting an
-  in-flight DMA buffer; source descriptors are rearmed after CPU consumption.
+- When transmit DMA is busy, receive polling defers consumption without
+  releasing the incoming descriptor. The next poll after TX completion
+  processes the pending frame. This prevents the previous loss of TCP ACKs,
+  HTTP request fragments and ARP packets during ongoing TX. With one RX
+  descriptor, sustained bursts can still overrun hardware; real TCP
+  retransmission and multi-descriptor queues remain necessary.
+- Transmit backpressure never overwrites an in-flight DMA buffer; source
+  descriptors are rearmed only after successful CPU consumption.
 - Invalid/partial DMA operations return errors rather than continuing with an
   untrusted frame.
 - Unit tests use a strict, injected register adapter and simulate RX/TX
