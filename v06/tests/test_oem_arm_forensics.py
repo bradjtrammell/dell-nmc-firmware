@@ -27,6 +27,7 @@ def fixture() -> bytes:
     raw[64:64 + len(b'shutHostGetReport')] = b'shutHostGetReport'
     struct.pack_into('>I', raw, 16, 0xE59F1000)  # LDR r1, [PC]; slot +24
     struct.pack_into('>I', raw, 24, 0xFFC00010)
+    struct.pack_into('>I', raw, 28, 0xE5810000)  # STR r0, [r1,#0], candidate BAR0
     struct.pack_into('>I', raw, 32, 0xEB000001)  # BL +4, source 32 -> 44
     return bytes(raw)
 
@@ -77,6 +78,32 @@ class OEMArmForensicTests(unittest.TestCase):
         self.assertEqual(regs['HIGH_IO_ADDRESS_CANDIDATE'], [])
         self.assertFalse(result['assessment']['h910pHardwareMappingProven'])
         self.assertFalse(result['assessment']['upsPhysicalBusIdentified'])
+
+    def test_unconditional_str_candidate_near_mmio_base(self):
+        store = research.arm_str_immediate(0xE5810000, 1, 0xFFC00010)
+        self.assertEqual(store, (0xFFC00010, 0))
+        self.assertIsNone(research.arm_str_immediate(0xE5910000, 1, 0xFFC00010))  # LDR
+        self.assertIsNone(research.arm_str_immediate(0xE5810000, 2, 0xFFC00010))
+        report = research.analyze_application(fixture())
+        self.assertEqual(report['candidateInstructions']['mmioStoreSequenceCandidates'], 1)
+        stores = report['possibleMMIOStoreSequences']
+        self.assertEqual(len(stores), 1)
+        self.assertEqual(stores[0]['candidateRegisterAddress'], '0xffc00010')
+        self.assertEqual(stores[0]['loadInstructionAddress'], '0x08004010')
+        self.assertEqual(stores[0]['storeInstructionAddress'], '0x0800401c')
+        self.assertFalse(report['assessment']['h910pHardwareMappingProven'])
+
+    def test_branch_and_base_clobber_stop_candidate_search(self):
+        raw = bytearray(fixture())
+        # A branch before the STR stops the local basic-block scan.
+        struct.pack_into('>I', raw, 28, 0xEA000000)
+        struct.pack_into('>I', raw, 36, 0xE5810000)
+        result = research.analyze_application(bytes(raw))
+        self.assertEqual(result['candidateInstructions']['mmioStoreSequenceCandidates'], 0)
+        # A new LDR targeting r1 invalidates the original pointer provenance.
+        struct.pack_into('>I', raw, 28, 0xE59F1000)
+        result = research.analyze_application(bytes(raw))
+        self.assertEqual(result['candidateInstructions']['mmioStoreSequenceCandidates'], 0)
 
     def test_reject_bad_load_or_length(self):
         for raw in (b'', b'x' * 65, b'x' * 60):

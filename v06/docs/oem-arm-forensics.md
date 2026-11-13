@@ -65,3 +65,23 @@ python3 -m unittest discover -s tests -p 'test_oem_arm_forensics.py' -v
    installer is allowed. Keep stable v0.5.10 unchanged.
 
 No proprietary OEM archives or executable bytes are stored in the repository.
+
+## Candidate NS7520 MMIO stores (new research layer)
+
+The offline auditor now scans a bounded 12-instruction window after an ARM7
+PC-relative literal load of a high I/O register address and recognizes
+**unconditional word STR, pre-indexed immediate** operations using that
+register as the address base. It stops at branches and common pointer
+clobbers and reports numeric instruction addresses, candidate register
+addresses and integer register IDs. It never emits OEM opcode bytes.
+
+The new `possibleMMIOStoreSequences` section can prioritize genuine-looking
+NS7520 memory-controller write sites for further reverse engineering in the
+original two Dell versions. It is **not** a verified live RAM/flash register
+snapshot; unexecuted instructions, data mistaken for code, aliases and
+more complicated ARM dataflow remain possible. Do not translate these
+candidates into boot-time register writes without independent verification.
+
+A regression fixture covers one LDR r1 pointing at BAR0 followed by STR
+r0,[r1], as well as branch and register-clobber paths that must not be
+reported. Vendor binaries are neither embedded nor uploaded.

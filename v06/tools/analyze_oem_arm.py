@@ -80,6 +80,66 @@ def arm_branch(word: int, address: int) -> tuple[str, int] | None:
     return ('BL' if word & 0x01000000 else 'B'), target
 
 
+def arm_str_immediate(word: int, base_register: int, base_value: int) -> tuple[int, int] | None:
+    """Conservative unconditional ARM-state STR word [Rn, +/- immediate].
+
+    Excludes byte, register-offset, post-index, writeback and conditional
+    stores. This is a syntax observation, NOT proof of MMIO execution.
+    """
+    if word >> 28 != 0xE or (word >> 26) & 3 != 1:
+        return None
+    if (word >> 25) & 1 or not (word >> 24) & 1:
+        return None
+    if (word >> 22) & 1 or (word >> 21) & 1 or (word >> 20) & 1:
+        return None
+    if (word >> 16) & 15 != base_register:
+        return None
+    offset = word & 0xFFF
+    address = base_value + (offset if (word >> 23) & 1 else -offset)
+    if not 0 <= address <= 0xFFFFFFFF:
+        return None
+    return address, (word >> 12) & 15
+
+
+def nearby_mmio_stores(blob: bytes, load_offset: int, load_address: int,
+                       base_register: int, base_value: int) -> list[dict[str, Any]]:
+    """Candidate base-register STR operations in a short basic-block window.
+
+    Stop at branches and the simplest base-register clobber patterns; a
+    general dataflow proof would require proper ARM disassembly and CFG.
+    """
+    findings: list[dict[str, Any]] = []
+    end = min(len(blob) - 3, load_offset + 13 * 4)
+    for pos in range(load_offset + 4, end, 4):
+        pc = load_address + pos
+        word = u32(blob, pos)
+        if arm_branch(word, pc):
+            break
+        ref = arm_str_immediate(word, base_register, base_value)
+        if ref is not None:
+            reg_address, source_register = ref
+            category = classify_mmio(reg_address)
+            if category:
+                findings.append({
+                    'loadInstructionAddress': hx(load_address + load_offset),
+                    'storeInstructionAddress': hx(pc),
+                    'candidateRegisterAddress': hx(reg_address),
+                    'candidateRegisterClass': category,
+                    'storedFromRegister': source_register,
+                    'confidence': 'short_unconditional_ARM_sequence_candidate',
+                })
+        loaded = arm_literal(word, pc)
+        if loaded is not None and loaded[1] == base_register:
+            break
+        # Most ARM data-processing operations write Rd. Exclude compare/
+        # test opcodes, which write flags but not Rd.
+        if word >> 28 != 0xF and ((word >> 26) & 3) == 0:
+            opcode = (word >> 21) & 15
+            if opcode not in (8, 9, 10, 11) and ((word >> 12) & 15) == base_register:
+                break
+    return findings
+
+
 def marker_locations(blob: bytes) -> dict[str, list[int]]:
     locations: dict[str, list[int]] = {}
     for label in LABELS:
@@ -171,7 +231,9 @@ def analyze_application(blob: bytes, load_address: int = 0x08004000) -> dict[str
         'NS7520_CS_REGISTER_CANDIDATE': [],
         'HIGH_IO_ADDRESS_CANDIDATE': [],
     }
-    counts = {'ldrLiteralCandidates': 0, 'branches': 0, 'literalPointersIntoImage': 0, 'mmioLiteralCandidates': 0}
+    store_sequences: list[dict[str, Any]] = []
+    counts = {'ldrLiteralCandidates': 0, 'branches': 0, 'literalPointersIntoImage': 0,
+              'mmioLiteralCandidates': 0, 'mmioStoreSequenceCandidates': 0}
     # Index word-aligned strings by their exact offset and by interior +1..16
     # to accommodate references to static messages with leading prefixes.
     string_address_to_name: dict[int, list[tuple[str, int]]] = {}
@@ -212,6 +274,11 @@ def analyze_application(blob: bytes, load_address: int = 0x08004000) -> dict[str
                     })
         mmio_kind = classify_mmio(value)
         if mmio_kind:
+            stores = nearby_mmio_stores(blob, offset, load_address, rd, value)
+            counts['mmioStoreSequenceCandidates'] += len(stores)
+            for store in stores:
+                if len(store_sequences) < MAX_FINDINGS:
+                    store_sequences.append(store)
             counts['mmioLiteralCandidates'] += 1
             if len(mmio[mmio_kind]) < MAX_FINDINGS:
                 mmio[mmio_kind].append({
@@ -241,6 +308,7 @@ def analyze_application(blob: bytes, load_address: int = 0x08004000) -> dict[str
         'candidateInstructions': counts,
         'labelReferences': label_reports,
         'possibleMMIOReferences': mmio,
+        'possibleMMIOStoreSequences': store_sequences,
         'embeddedRecoveryImages': find_recovery_images(blob),
         'assessment': {
             'h910pHardwareMappingProven': False,
@@ -248,7 +316,7 @@ def analyze_application(blob: bytes, load_address: int = 0x08004000) -> dict[str
             'usableProtocolDecoderAvailable': False,
             'onDeviceBootloaderRecoveryVerified': False,
             'flashableFirmwareGenerated': False,
-            'warning': 'ARM patterns in data may be false positives. Literal/string xrefs are hints, NOT proven call graphs, register reads, UPS protocol, or physical flash geometry.',
+            'warning': 'ARM patterns in data may be false positives. Even adjacent LDR/STR syntax cannot prove a live MMIO write, boot sequence, UPS protocol, or physical memory geometry.',
         },
     }
 
